@@ -214,11 +214,22 @@
                                                     @endif
                                                 </div>
                                                 <div class="p-5 space-y-3">
-                                                    <div class="flex items-center justify-between gap-2">
+                                                    <div class="flex items-start justify-between gap-2">
                                                         <h4 class="text-lg font-semibold">{{ $item->name }}</h4>
-                                                        @if(!is_null($item->price))
+                                                        @if(!is_null($itemData['price_special']))
+                                                            <div class="text-right">
+                                                                @if($itemData['show_regular_price'] && !is_null($itemData['price_regular']))
+                                                                    <div class="text-xs text-white/50 line-through">
+                                                                        ${{ number_format($itemData['price_regular'], 2) }}
+                                                                    </div>
+                                                                @endif
+                                                                <div class="text-sm font-semibold" style="color: var(--specials-accent);">
+                                                                    ${{ number_format($itemData['price_special'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                        @elseif(!is_null($itemData['price_regular']))
                                                             <span class="text-sm font-semibold" style="color: var(--specials-accent);">
-                                                                ${{ number_format($item->price, 2) }}
+                                                                ${{ number_format($itemData['price_regular'], 2) }}
                                                             </span>
                                                         @endif
                                                     </div>

@@ -148,12 +148,16 @@ class SpecialPublicController extends Controller
 
                 $itemHasOverride = $this->hasOverride($itemOverride);
                 $offerLabel = $this->resolveOfferLabel($itemOverride);
+                $priceData = $this->resolvePrices($item, $itemOverride);
                 $itemsByCategory[$categoryId][] = [
                     'item' => $item,
                     'override' => $itemOverride,
                     'schedule_label' => $itemHasOverride ? $this->formatSchedule($days, $startsAt, $endsAt) : null,
                     'show_schedule' => $itemHasOverride,
                     'offer_label' => $offerLabel,
+                    'price_regular' => $priceData['regular'],
+                    'price_special' => $priceData['special'],
+                    'show_regular_price' => $priceData['show_regular'],
                 ];
             }
 
@@ -354,5 +358,35 @@ class SpecialPublicController extends Controller
             'custom' => 'Oferta especial',
             default => null,
         };
+    }
+
+    protected function resolvePrices($item, $override): array
+    {
+        $regular = $item->price ?? null;
+        $special = null;
+        $showRegular = false;
+
+        if ($override) {
+            $type = $override->offer_type ?? null;
+            $value = $override->offer_value ?? null;
+
+            if ($type === 'fixed_price' && is_numeric($value)) {
+                $special = (float) $value;
+                $showRegular = !is_null($regular);
+            } elseif ($type === 'percent' && is_numeric($value) && !is_null($regular)) {
+                $percent = max(0, min(100, (float) $value));
+                $special = $regular * (1 - ($percent / 100));
+                $showRegular = true;
+            } elseif ($type === 'custom' && is_numeric($value)) {
+                $special = (float) $value;
+                $showRegular = !is_null($regular);
+            }
+        }
+
+        return [
+            'regular' => $regular,
+            'special' => $special,
+            'show_regular' => $showRegular,
+        ];
     }
 }
