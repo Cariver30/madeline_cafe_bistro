@@ -208,8 +208,8 @@
             <section class="rounded-3xl p-6 backdrop-blur space-y-6 border" style="background-color: {{ $featuredCardBg }}; color: {{ $featuredCardText }}; border-color: {{ $featuredBorderColor }}; font-family: {{ $settings->font_family_cover ?? 'inherit' }};">
                 <div>
                     <p class="text-xs uppercase tracking-[0.4em]" style="color: {{ $featuredMutedText }};">Lo más vendido</p>
-                    <h3 class="text-3xl font-semibold">{{ $initialGroup['title'] ?? 'Selección del chef' }}</h3>
-                    <p class="text-sm" style="color: {{ $featuredMutedText }};">{{ $initialGroup['subtitle'] ?? 'Los favoritos de la semana.' }}</p>
+                    <h3 id="featuredHeadingTitle" class="text-3xl font-semibold">{{ $initialGroup['title'] ?? 'Selección del chef' }}</h3>
+                    <p id="featuredHeadingSubtitle" class="text-sm" style="color: {{ $featuredMutedText }};">{{ $initialGroup['subtitle'] ?? 'Los favoritos de la semana.' }}</p>
                 </div>
                 @if($featuredGroups->isNotEmpty())
                     <div class="flex flex-wrap gap-3 text-sm">
@@ -453,6 +453,8 @@
             const featuredAccentColor = "{{ $settings->button_color_cover ?? $featuredCardText }}";
 
             const featuredButtons = document.querySelectorAll('[data-featured-tab]');
+            const headingTitleEl = document.getElementById('featuredHeadingTitle');
+            const headingSubtitleEl = document.getElementById('featuredHeadingSubtitle');
             const tagEl = document.getElementById('featuredTag');
             const titleEl = document.getElementById('featuredTitle');
             const descriptionEl = document.getElementById('featuredDescription');
@@ -479,6 +481,12 @@
 
                 const items = getItemsArray(group.items);
 
+                if (headingTitleEl) {
+                    headingTitleEl.textContent = group.title || '';
+                }
+                if (headingSubtitleEl) {
+                    headingSubtitleEl.textContent = group.subtitle || '';
+                }
                 tagEl.textContent = group.subtitle || '';
                 titleEl.textContent = group.title || '';
                 descriptionEl.textContent = group.source || '';
