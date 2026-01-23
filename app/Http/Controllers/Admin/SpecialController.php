@@ -122,6 +122,10 @@ class SpecialController extends Controller
             'days_of_week.*' => ['integer', 'between:0,6'],
             'starts_at' => ['nullable', 'date_format:H:i'],
             'ends_at' => ['nullable', 'date_format:H:i'],
+            'items' => ['nullable', 'array'],
+            'items.*.*.offer_type' => ['nullable', 'string', 'max:32'],
+            'items.*.*.offer_value' => ['nullable', 'numeric', 'min:0'],
+            'items.*.*.offer_text' => ['nullable', 'string', 'max:255'],
         ]);
     }
 
@@ -167,6 +171,9 @@ class SpecialController extends Controller
                         'days_of_week' => $this->cleanDays($payload['days_of_week'] ?? null),
                         'starts_at' => $payload['starts_at'] ?? null,
                         'ends_at' => $payload['ends_at'] ?? null,
+                        'offer_type' => $this->normalizeOfferType($payload['offer_type'] ?? null),
+                        'offer_value' => $this->normalizeOfferValue($payload['offer_value'] ?? null),
+                        'offer_text' => $this->normalizeOfferText($payload['offer_text'] ?? null),
                     ]);
                 }
             }
@@ -286,5 +293,46 @@ class SpecialController extends Controller
         }
 
         return substr($value, 0, 5);
+    }
+
+    protected function normalizeOfferType(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        $value = strtolower(trim($value));
+        $allowed = [
+            'percent',
+            'fixed_price',
+            'two_for_one',
+            'custom',
+        ];
+
+        return in_array($value, $allowed, true) ? $value : null;
+    }
+
+    protected function normalizeOfferValue($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (float) $value;
+    }
+
+    protected function normalizeOfferText(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

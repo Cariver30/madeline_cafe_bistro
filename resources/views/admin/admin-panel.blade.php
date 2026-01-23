@@ -528,6 +528,18 @@
         color: #475569;
         margin-bottom: 1.25rem;
     }
+    .menu-config label,
+    .cocktails-config label,
+    .wines-config label,
+    .cantina-config label {
+        color: #0f172a !important;
+    }
+    .menu-config p,
+    .cocktails-config p,
+    .wines-config p,
+    .cantina-config p {
+        color: #475569;
+    }
     .subnav {
         display: flex;
         flex-wrap: wrap;

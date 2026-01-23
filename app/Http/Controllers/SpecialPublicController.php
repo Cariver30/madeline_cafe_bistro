@@ -139,11 +139,13 @@ class SpecialPublicController extends Controller
                 }
 
                 $itemHasOverride = $this->hasOverride($itemOverride);
+                $offerLabel = $this->resolveOfferLabel($itemOverride);
                 $itemsByCategory[$categoryId][] = [
                     'item' => $item,
                     'override' => $itemOverride,
                     'schedule_label' => $itemHasOverride ? $this->formatSchedule($days, $startsAt, $endsAt) : null,
                     'show_schedule' => $itemHasOverride,
+                    'offer_label' => $offerLabel,
                 ];
             }
 
@@ -279,11 +281,16 @@ class SpecialPublicController extends Controller
         $value = trim((string) $value);
 
         if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $value) === 1) {
-            return substr($value, 0, 5);
+            $normalized = substr($value, 0, 5);
+            try {
+                return Carbon::createFromFormat('H:i', $normalized)->format('g:ia');
+            } catch (\Throwable $e) {
+                return $normalized;
+            }
         }
 
         try {
-            return Carbon::parse($value)->format('H:i');
+            return Carbon::parse($value)->format('g:ia');
         } catch (\Throwable $e) {
             return $value;
         }
@@ -312,5 +319,32 @@ class SpecialPublicController extends Controller
         }
 
         return false;
+    }
+
+    protected function resolveOfferLabel($override): ?string
+    {
+        if (!$override) {
+            return null;
+        }
+
+        $text = trim((string) ($override->offer_text ?? ''));
+        if ($text !== '') {
+            return $text;
+        }
+
+        $type = $override->offer_type ?? null;
+        $value = $override->offer_value ?? null;
+
+        if (!$type) {
+            return null;
+        }
+
+        return match ($type) {
+            'percent' => $value ? ((float) $value) . '% de descuento' : 'Descuento especial',
+            'fixed_price' => $value ? 'Precio especial $' . number_format((float) $value, 2) : 'Precio especial',
+            'two_for_one' => '2x1 en este item',
+            'custom' => 'Oferta especial',
+            default => null,
+        };
     }
 }

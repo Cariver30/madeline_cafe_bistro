@@ -134,6 +134,37 @@
                                             <span class="text-sm font-semibold text-slate-800">{{ $item->name }}</span>
                                         </div>
                                         <input type="hidden" name="items[{{ $scopeKey }}][{{ $item->id }}][category_id]" value="{{ $category->id }}">
+                                        <div class="grid gap-2 md:grid-cols-3">
+                                            <div>
+                                                <label class="form-label text-xs">Tipo de oferta</label>
+                                                @php
+                                                    $offerType = old('items.' . $scopeKey . '.' . $item->id . '.offer_type', $selectedItem?->offer_type);
+                                                @endphp
+                                                <select name="items[{{ $scopeKey }}][{{ $item->id }}][offer_type]" class="form-control form-control-sm">
+                                                    <option value="">Sin oferta</option>
+                                                    <option value="percent" {{ $offerType === 'percent' ? 'selected' : '' }}>% descuento</option>
+                                                    <option value="fixed_price" {{ $offerType === 'fixed_price' ? 'selected' : '' }}>Precio fijo</option>
+                                                    <option value="two_for_one" {{ $offerType === 'two_for_one' ? 'selected' : '' }}>2x1</option>
+                                                    <option value="custom" {{ $offerType === 'custom' ? 'selected' : '' }}>Personalizada</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="form-label text-xs">Valor</label>
+                                                <input type="text"
+                                                       name="items[{{ $scopeKey }}][{{ $item->id }}][offer_value]"
+                                                       class="form-control form-control-sm"
+                                                       value="{{ old('items.' . $scopeKey . '.' . $item->id . '.offer_value', $selectedItem?->offer_value) }}"
+                                                       placeholder="Ej: 50 o 9.99">
+                                            </div>
+                                            <div class="md:col-span-3">
+                                                <label class="form-label text-xs">Texto de oferta</label>
+                                                <input type="text"
+                                                       name="items[{{ $scopeKey }}][{{ $item->id }}][offer_text]"
+                                                       class="form-control form-control-sm"
+                                                       value="{{ old('items.' . $scopeKey . '.' . $item->id . '.offer_text', $selectedItem?->offer_text) }}"
+                                                       placeholder="Ej: 2x1 en margaritas · 3pm a 6pm">
+                                            </div>
+                                        </div>
                                         <div class="flex flex-wrap gap-2">
                                             @foreach($days as $dayValue => $dayLabel)
                                                 <label class="inline-flex items-center gap-1 text-[11px]">

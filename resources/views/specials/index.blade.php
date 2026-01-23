@@ -195,6 +195,11 @@
                                                     @else
                                                         <p class="text-sm text-white/50">Consulta por disponibilidad en barra.</p>
                                                     @endif
+                                                    @if(!empty($itemData['offer_label']))
+                                                        <p class="text-xs text-amber-200 uppercase tracking-[0.25em]">
+                                                            {{ $itemData['offer_label'] }}
+                                                        </p>
+                                                    @endif
                                                     @if(!empty($itemData['schedule_label']))
                                                         <p class="text-[11px] text-white/50 tracking-[0.2em] uppercase">
                                                             {{ $itemData['schedule_label'] }}
