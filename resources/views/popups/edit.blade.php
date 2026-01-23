@@ -2,6 +2,7 @@
     $tabLabelMenu = $settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú';
     $tabLabelCocktails = $settings->tab_label_cocktails ?? $settings->button_label_cocktails ?? 'Cócteles';
     $tabLabelWines = $settings->tab_label_wines ?? $settings->button_label_wines ?? 'Bebidas';
+    $tabLabelCantina = $settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina';
     $tabLabelEvents = $settings->tab_label_events ?? 'Eventos';
 
     $defaultView = old('view', $popup->view);
@@ -22,6 +23,14 @@
         'coffee' => [
             'label' => $tabLabelWines,
             'visible' => $settings->show_tab_wines ?? true,
+        ],
+        'cantina' => [
+            'label' => $tabLabelCantina,
+            'visible' => $settings->show_tab_cantina ?? true,
+        ],
+        'specials' => [
+            'label' => 'Especiales',
+            'visible' => true,
         ],
         'events' => [
             'label' => $tabLabelEvents,

@@ -428,8 +428,23 @@
     </div>
 </div>
 
+<div id="cocktailPopupModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/70">
+    <div class="relative w-full max-w-3xl">
+        <div class="bg-white rounded-3xl shadow-lg text-slate-900 p-4 relative">
+            <button onclick="closeCocktailPopup()" class="absolute top-4 right-4 text-2xl text-slate-500 hover:text-slate-900">&times;</button>
+            <div class="space-y-3">
+                <h3 id="cocktailPopupTitle" class="text-xl font-semibold text-center"></h3>
+                <img id="cocktailPopupImage" class="w-full rounded-2xl object-cover" alt="Promoción especial">
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://unpkg.com/flowbite@2.3.0/dist/flowbite.min.js"></script>
 <script>
+    let cocktailPopupInstance;
+
     const menuModal = document.getElementById('categoryMenu');
     const overlay = document.getElementById('menuOverlay');
     const toggleMenuBtn = document.getElementById('toggleMenu');
@@ -513,6 +528,22 @@
 
     document.querySelectorAll('.drink-card').forEach(card => cardObserver.observe(card));
 
+    const popups = @json($popups ?? []);
+    const now = new Date();
+    const today = now.getDay();
+
+    popups.forEach(popup => {
+        const start = popup.start_date ? new Date(popup.start_date) : null;
+        const end = popup.end_date ? new Date(popup.end_date) : null;
+        const repeatDays = popup.repeat_days ? popup.repeat_days.split(',').map(day => parseInt(day, 10)) : [];
+        const withinDates = (!start || now >= start) && (!end || now <= end);
+        const matchesDay = repeatDays.length === 0 || repeatDays.includes(today);
+
+        if (popup.active && popup.view === 'cocktails' && withinDates && matchesDay) {
+            showCocktailPopup(popup);
+        }
+    });
+
     function openDrinkModal(el) {
         const name = el.dataset.name;
         const description = el.dataset.description;
@@ -565,6 +596,23 @@
     function closeDrinkModal() {
         if (window.drinkModalInstance) {
             window.drinkModalInstance.hide();
+        }
+    }
+
+    function showCocktailPopup(popup) {
+        const modalEl = document.getElementById('cocktailPopupModal');
+        if (!cocktailPopupInstance) {
+            cocktailPopupInstance = new Modal(modalEl, { closable: true });
+        }
+        const imageBase = '{{ asset('storage') }}/';
+        document.getElementById('cocktailPopupImage').src = popup.image ? imageBase + popup.image : '';
+        document.getElementById('cocktailPopupTitle').textContent = popup.title || 'Especial del día';
+        cocktailPopupInstance.show();
+    }
+
+    function closeCocktailPopup() {
+        if (cocktailPopupInstance) {
+            cocktailPopupInstance.hide();
         }
     }
 </script>

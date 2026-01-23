@@ -349,27 +349,32 @@ $foodPairings = FoodPairing::all();
             'background_image_cocktails' => 'nullable|image',
             'background_image_wines' => 'nullable|image',
             'background_image_cantina' => 'nullable|image',
+            'background_image_specials' => 'nullable|image',
             'logo' => 'nullable|image',
             'text_color_cover' => 'nullable|string',
             'text_color_menu' => 'nullable|string',
             'text_color_cocktails' => 'nullable|string',
             'text_color_wines' => 'nullable|string',
             'text_color_cantina' => 'nullable|string',
+            'text_color_specials' => 'nullable|string',
             'card_opacity_cover' => 'nullable|numeric|between:0,1',
             'card_opacity_menu' => 'nullable|numeric|between:0,1',
             'card_opacity_cocktails' => 'nullable|numeric|between:0,1',
             'card_opacity_wines' => 'nullable|numeric|between:0,1',
             'card_opacity_cantina' => 'nullable|numeric|between:0,1',
+            'card_opacity_specials' => 'nullable|numeric|between:0,1',
             'font_family_cover' => 'nullable|string',
             'font_family_menu' => 'nullable|string',
             'font_family_cocktails' => 'nullable|string',
             'font_family_wines' => 'nullable|string',
             'font_family_cantina' => 'nullable|string',
+            'font_family_specials' => 'nullable|string',
             'button_color_cover' => 'nullable|string',
             'button_color_menu' => 'nullable|string',
             'button_color_cocktails' => 'nullable|string',
             'button_color_wines' => 'nullable|string',
             'button_color_cantina' => 'nullable|string',
+            'button_color_specials' => 'nullable|string',
             'button_font_size_cover' => 'nullable|integer',
             'category_name_bg_color_menu' => 'nullable|string',
             'category_name_text_color_menu' => 'nullable|string',
@@ -389,10 +394,14 @@ $foodPairings = FoodPairing::all();
             'category_name_bg_color_cantina' => 'nullable|string',
             'category_name_text_color_cantina' => 'nullable|string',
             'category_name_font_size_cantina' => 'nullable|integer',
+            'category_name_bg_color_specials' => 'nullable|string',
+            'category_name_text_color_specials' => 'nullable|string',
+            'category_name_font_size_specials' => 'nullable|integer',
             'card_bg_color_menu' => 'nullable|string',
             'card_bg_color_cocktails' => 'nullable|string',
             'card_bg_color_wines' => 'nullable|string',
             'card_bg_color_cantina' => 'nullable|string',
+            'card_bg_color_specials' => 'nullable|string',
             'facebook_url' => 'nullable|url',
             'twitter_url' => 'nullable|url',
             'instagram_url' => 'nullable|url',
@@ -445,6 +454,10 @@ $foodPairings = FoodPairing::all();
         if ($request->hasFile('background_image_cantina')) {
             $path = $request->file('background_image_cantina')->store('background_images', 'public');
             $settings->background_image_cantina = $path;
+        }
+        if ($request->hasFile('background_image_specials')) {
+            $path = $request->file('background_image_specials')->store('background_images', 'public');
+            $settings->background_image_specials = $path;
         }
         if ($request->hasFile('logo')) {
             $path = $request->file('logo')->store('logos', 'public');
@@ -526,18 +539,21 @@ $foodPairings = FoodPairing::all();
         $settings->text_color_cocktails = $request->input('text_color_cocktails', $settings->text_color_cocktails);
         $settings->text_color_wines = $request->input('text_color_wines', $settings->text_color_wines);
         $settings->text_color_cantina = $request->input('text_color_cantina', $settings->text_color_cantina);
+        $settings->text_color_specials = $request->input('text_color_specials', $settings->text_color_specials);
 
         $settings->card_opacity_cover = $request->input('card_opacity_cover', $settings->card_opacity_cover);
         $settings->card_opacity_menu = $request->input('card_opacity_menu', $settings->card_opacity_menu);
         $settings->card_opacity_cocktails = $request->input('card_opacity_cocktails', $settings->card_opacity_cocktails);
         $settings->card_opacity_wines = $request->input('card_opacity_wines', $settings->card_opacity_wines);
         $settings->card_opacity_cantina = $request->input('card_opacity_cantina', $settings->card_opacity_cantina);
+        $settings->card_opacity_specials = $request->input('card_opacity_specials', $settings->card_opacity_specials);
 
         $settings->font_family_cover = $request->input('font_family_cover', $settings->font_family_cover);
         $settings->font_family_menu = $request->input('font_family_menu', $settings->font_family_menu);
         $settings->font_family_cocktails = $request->input('font_family_cocktails', $settings->font_family_cocktails);
         $settings->font_family_wines = $request->input('font_family_wines', $settings->font_family_wines);
         $settings->font_family_cantina = $request->input('font_family_cantina', $settings->font_family_cantina);
+        $settings->font_family_specials = $request->input('font_family_specials', $settings->font_family_specials);
 
         $settings->button_color_cover = $request->input('button_color_cover', $settings->button_color_cover);
         $settings->card_bg_color_cover = $request->input('card_bg_color_cover', $settings->card_bg_color_cover);
@@ -545,6 +561,7 @@ $foodPairings = FoodPairing::all();
         $settings->button_color_cocktails = $request->input('button_color_cocktails', $settings->button_color_cocktails);
         $settings->button_color_wines = $request->input('button_color_wines', $settings->button_color_wines);
         $settings->button_color_cantina = $request->input('button_color_cantina', $settings->button_color_cantina);
+        $settings->button_color_specials = $request->input('button_color_specials', $settings->button_color_specials);
 
         $settings->button_font_size_cover = $request->input('button_font_size_cover', $settings->button_font_size_cover);
 
@@ -568,11 +585,15 @@ $foodPairings = FoodPairing::all();
         $settings->category_name_bg_color_cantina = $request->input('category_name_bg_color_cantina', $settings->category_name_bg_color_cantina);
         $settings->category_name_text_color_cantina = $request->input('category_name_text_color_cantina', $settings->category_name_text_color_cantina);
         $settings->category_name_font_size_cantina = $request->input('category_name_font_size_cantina', $settings->category_name_font_size_cantina);
+        $settings->category_name_bg_color_specials = $request->input('category_name_bg_color_specials', $settings->category_name_bg_color_specials);
+        $settings->category_name_text_color_specials = $request->input('category_name_text_color_specials', $settings->category_name_text_color_specials);
+        $settings->category_name_font_size_specials = $request->input('category_name_font_size_specials', $settings->category_name_font_size_specials);
 
         $settings->card_bg_color_menu = $request->input('card_bg_color_menu', $settings->card_bg_color_menu);
         $settings->card_bg_color_cocktails = $request->input('card_bg_color_cocktails', $settings->card_bg_color_cocktails);
         $settings->card_bg_color_wines = $request->input('card_bg_color_wines', $settings->card_bg_color_wines);
         $settings->card_bg_color_cantina = $request->input('card_bg_color_cantina', $settings->card_bg_color_cantina);
+        $settings->card_bg_color_specials = $request->input('card_bg_color_specials', $settings->card_bg_color_specials);
 
         $settings->facebook_url = $request->input('facebook_url', $settings->facebook_url);
         $settings->twitter_url = $request->input('twitter_url', $settings->twitter_url);

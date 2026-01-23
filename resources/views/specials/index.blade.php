@@ -10,9 +10,37 @@
         $seoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
             : asset('storage/default-logo.png');
-        $accentColor = $settings->button_color_menu ?? '#FFB347';
-        $textColor = $settings->text_color_menu ?? '#ffffff';
-        $backgroundImage = $settings->background_image_menu ?? null;
+
+        $accentColor = $settings->button_color_specials ?? $settings->button_color_menu ?? '#FFB347';
+        $textColor = $settings->text_color_specials ?? $settings->text_color_menu ?? '#ffffff';
+        $backgroundImage = $settings->background_image_specials ?? $settings->background_image_menu ?? null;
+        $categoryBg = $settings->category_name_bg_color_specials ?? $settings->category_name_bg_color_menu ?? '#111827';
+        $categoryText = $settings->category_name_text_color_specials ?? $settings->category_name_text_color_menu ?? '#ffffff';
+        $categoryFontSize = $settings->category_name_font_size_specials ?? $settings->category_name_font_size_menu ?? 18;
+        $cardOpacity = $settings->card_opacity_specials ?? $settings->card_opacity_menu ?? 0.85;
+        $cardHex = $settings->card_bg_color_specials ?? $settings->card_bg_color_menu ?? '#111827';
+        $fontFamily = $settings->font_family_specials ?? $settings->font_family_menu ?? 'ui-sans-serif';
+
+        if (!function_exists('specials_rgba')) {
+            function specials_rgba(?string $hex, $opacity) {
+                $opacity = is_numeric($opacity) ? max(0, min(1, (float) $opacity)) : 0.85;
+                if (!$hex) {
+                    return "rgba(17,24,39,{$opacity})";
+                }
+                $hex = ltrim($hex, '#');
+                if (strlen($hex) === 3) {
+                    $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+                }
+                if (strlen($hex) !== 6) {
+                    return "rgba(17,24,39,{$opacity})";
+                }
+                $r = hexdec(substr($hex, 0, 2));
+                $g = hexdec(substr($hex, 2, 2));
+                $b = hexdec(substr($hex, 4, 2));
+                return "rgba({$r},{$g},{$b},{$opacity})";
+            }
+        }
+        $cardBg = specials_rgba($cardHex, $cardOpacity);
     @endphp
     <title>{{ $specialsTitle }}</title>
     <meta name="description" content="{{ $specialsDescription }}" />
@@ -35,10 +63,11 @@
         :root {
             --specials-accent: {{ $accentColor }};
             --specials-text: {{ $textColor }};
+            --specials-card-bg: {{ $cardBg }};
         }
 
         body {
-            font-family: {{ $settings->font_family_menu ?? 'ui-sans-serif' }};
+            font-family: {{ $fontFamily }};
             color: var(--specials-text);
             background: radial-gradient(circle at top, #181818, #0f0f0f);
             min-height: 100vh;
@@ -69,7 +98,7 @@
             position: relative;
             overflow: hidden;
             border-radius: 24px;
-            background-color: rgba(15, 15, 15, 0.75);
+            background-color: var(--specials-card-bg);
             border: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
         }
@@ -151,7 +180,10 @@
                             @foreach($scope['categories'] as $categoryData)
                                 <div class="space-y-4">
                                     <div class="flex flex-wrap items-baseline gap-2">
-                                        <h3 class="text-lg font-semibold text-white/90">{{ $categoryData['category']->name }}</h3>
+                                        <h3 class="font-semibold"
+                                            style="background-color: {{ $categoryBg }}; color: {{ $categoryText }}; font-size: {{ $categoryFontSize }}px; border-radius: 12px; padding: 6px 14px;">
+                                            {{ $categoryData['category']->name }}
+                                        </h3>
                                         @if(!empty($categoryData['schedule_label']))
                                             <span class="text-[11px] uppercase tracking-[0.25em] text-white/60">
                                                 {{ $categoryData['schedule_label'] }}
@@ -218,10 +250,63 @@
         @endif
     </main>
 
+    <div id="specialsPopupModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true"
+         class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative w-full max-w-3xl">
+            <div class="bg-white rounded-3xl shadow-lg text-slate-900 p-4 relative">
+                <button onclick="closeSpecialsPopup()" class="absolute top-4 right-4 text-2xl text-slate-500 hover:text-slate-900">&times;</button>
+                <div class="space-y-3">
+                    <h3 id="specialsPopupTitle" class="text-xl font-semibold text-center"></h3>
+                    <img id="specialsPopupImage" class="w-full rounded-2xl object-cover" alt="Promoción especial">
+                </div>
+            </div>
+        </div>
+    </div>
+
     @include('components.floating-nav', [
         'settings' => $settings,
         'background' => $settings->floating_bar_bg_menu ?? 'rgba(0,0,0,0.55)',
         'buttonColor' => $accentColor,
     ])
+
+    <script src="https://unpkg.com/flowbite@2.3.0/dist/flowbite.min.js"></script>
+    <script>
+        let specialsPopupInstance;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const popups = @json($popups ?? []);
+            const now = new Date();
+            const today = now.getDay();
+
+            popups.forEach(popup => {
+                const start = popup.start_date ? new Date(popup.start_date) : null;
+                const end = popup.end_date ? new Date(popup.end_date) : null;
+                const repeatDays = popup.repeat_days ? popup.repeat_days.split(',').map(day => parseInt(day, 10)) : [];
+                const withinDates = (!start || now >= start) && (!end || now <= end);
+                const matchesDay = repeatDays.length === 0 || repeatDays.includes(today);
+
+                if (popup.active && popup.view === 'specials' && withinDates && matchesDay) {
+                    showSpecialsPopup(popup);
+                }
+            });
+        });
+
+        function showSpecialsPopup(popup) {
+            const modalEl = document.getElementById('specialsPopupModal');
+            if (!specialsPopupInstance) {
+                specialsPopupInstance = new Modal(modalEl, { closable: true });
+            }
+            const imageBase = '{{ asset('storage') }}/';
+            document.getElementById('specialsPopupImage').src = popup.image ? imageBase + popup.image : '';
+            document.getElementById('specialsPopupTitle').textContent = popup.title || 'Especial del día';
+            specialsPopupInstance.show();
+        }
+
+        function closeSpecialsPopup() {
+            if (specialsPopupInstance) {
+                specialsPopupInstance.hide();
+            }
+        }
+    </script>
 </body>
 </html>

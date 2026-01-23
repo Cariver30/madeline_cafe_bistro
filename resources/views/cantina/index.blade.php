@@ -245,8 +245,23 @@
     </div>
 </div>
 
+<div id="cantinaPopupModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/70">
+    <div class="relative w-full max-w-3xl">
+        <div class="bg-white rounded-3xl shadow-lg text-slate-900 p-4 relative">
+            <button onclick="closeCantinaPopup()" class="absolute top-4 right-4 text-2xl text-slate-500 hover:text-slate-900">&times;</button>
+            <div class="space-y-3">
+                <h3 id="cantinaPopupTitle" class="text-xl font-semibold text-center"></h3>
+                <img id="cantinaPopupImage" class="w-full rounded-2xl object-cover" alt="Promoción especial">
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://unpkg.com/flowbite@2.3.0/dist/flowbite.min.js"></script>
 <script>
+    let cantinaPopupInstance;
+
     document.addEventListener('DOMContentLoaded', function () {
         const toggleMenuBtn = document.getElementById('toggleMenu');
         const categoryMenu = document.getElementById('categoryMenu');
@@ -348,6 +363,22 @@
         }, { threshold: 0.2 });
 
         document.querySelectorAll('.cantina-card').forEach(card => cardObserver.observe(card));
+
+        const popups = @json($popups ?? []);
+        const now = new Date();
+        const today = now.getDay();
+
+        popups.forEach(popup => {
+            const start = popup.start_date ? new Date(popup.start_date) : null;
+            const end = popup.end_date ? new Date(popup.end_date) : null;
+            const repeatDays = popup.repeat_days ? popup.repeat_days.split(',').map(day => parseInt(day, 10)) : [];
+            const withinDates = (!start || now >= start) && (!end || now <= end);
+            const matchesDay = repeatDays.length === 0 || repeatDays.includes(today);
+
+            if (popup.active && popup.view === 'cantina' && withinDates && matchesDay) {
+                showCantinaPopup(popup);
+            }
+        });
     });
 
     function openCantinaModal(card) {
@@ -372,6 +403,23 @@
         const modal = document.getElementById('cantinaDetailsModal');
         modal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
+    }
+
+    function showCantinaPopup(popup) {
+        const modalEl = document.getElementById('cantinaPopupModal');
+        if (!cantinaPopupInstance) {
+            cantinaPopupInstance = new Modal(modalEl, { closable: true });
+        }
+        const imageBase = '{{ asset('storage') }}/';
+        document.getElementById('cantinaPopupImage').src = popup.image ? imageBase + popup.image : '';
+        document.getElementById('cantinaPopupTitle').textContent = popup.title || 'Especial del día';
+        cantinaPopupInstance.show();
+    }
+
+    function closeCantinaPopup() {
+        if (cantinaPopupInstance) {
+            cantinaPopupInstance.hide();
+        }
     }
 </script>
 </body>

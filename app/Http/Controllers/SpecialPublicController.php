@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\Special;
 use App\Models\Wine;
 use App\Models\WineCategory;
+use App\Models\Popup;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -24,6 +25,12 @@ class SpecialPublicController extends Controller
         $specials = Special::with(['categories', 'items'])
             ->where('active', true)
             ->latest()
+            ->get();
+
+        $popups = Popup::where('active', 1)
+            ->where('view', 'specials')
+            ->whereDate('start_date', '<=', now())
+            ->whereDate('end_date', '>=', now())
             ->get();
 
         $specialCards = [];
@@ -49,6 +56,7 @@ class SpecialPublicController extends Controller
         return view('specials.index', [
             'settings' => $settings,
             'specialCards' => $specialCards,
+            'popups' => $popups,
         ]);
     }
 

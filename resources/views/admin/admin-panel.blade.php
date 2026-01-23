@@ -56,6 +56,7 @@
                     @if($settings->show_tab_cantina)
                         <button class="tab-button" data-section="cantina">{{ $tabLabels['cantina'] }}</button>
                     @endif
+                    <button class="tab-button" data-section="specials">Especiales</button>
                     <button class="tab-button" data-section="featured">Lo más vendido</button>
                 </div>
             </div>
@@ -82,7 +83,6 @@
                     @if($settings->show_tab_campaigns)
                         <button class="tab-button" data-section="campaigns">Campañas</button>
                     @endif
-                    <button class="tab-button" data-section="specials">Especiales</button>
                     @if($settings->show_tab_popups)
                         <button class="tab-button" data-section="popups">Pop-ups</button>
                     @endif
@@ -394,10 +394,19 @@
             <div id="specials" class="section-panel">
                 <div class="inner-panel space-y-4">
                     <h3 class="inner-title">Especiales y ofertas</h3>
-                    <p class="inner-text">Crea especiales por día y hora, seleccionando categorías e items visibles de las vistas activas.</p>
-                    <div class="flex flex-wrap gap-3">
-                        <a href="{{ route('admin.specials.index') }}" class="primary-button inline-flex justify-center">Ver especiales</a>
-                        <a href="{{ route('admin.specials.create') }}" class="ghost-button inline-flex justify-center">Crear especial</a>
+                    <div class="subnav">
+                        <button class="subnav-button active" data-target="specials-manage">Gestionar especiales</button>
+                        <button class="subnav-button" data-target="specials-config">Configuración de Especiales</button>
+                    </div>
+                    <div id="specials-manage" class="subnav-panel show">
+                        <p class="inner-text">Crea especiales por día y hora, seleccionando categorías e items visibles de las vistas activas.</p>
+                        <div class="flex flex-wrap gap-3">
+                            <a href="{{ route('admin.specials.index') }}" class="primary-button inline-flex justify-center">Ver especiales</a>
+                            <a href="{{ route('admin.specials.create') }}" class="ghost-button inline-flex justify-center">Crear especial</a>
+                        </div>
+                    </div>
+                    <div id="specials-config" class="subnav-panel">
+                        @include('admin.partials.specials-config')
                     </div>
                 </div>
             </div>
@@ -531,13 +540,15 @@
     .menu-config label,
     .cocktails-config label,
     .wines-config label,
-    .cantina-config label {
+    .cantina-config label,
+    .specials-config label {
         color: #0f172a !important;
     }
     .menu-config p,
     .cocktails-config p,
     .wines-config p,
-    .cantina-config p {
+    .cantina-config p,
+    .specials-config p {
         color: #475569;
     }
     .subnav {
