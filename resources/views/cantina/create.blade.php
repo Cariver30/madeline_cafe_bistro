@@ -46,6 +46,16 @@
             <label for="image" class="form-label">Imagen</label>
             <input type="file" class="form-control" id="image" name="image">
         </div>
+        <div class="form-check mb-3">
+            <input type="hidden" name="visible" value="0">
+            <input class="form-check-input" type="checkbox" id="visible" name="visible" value="1" checked>
+            <label class="form-check-label" for="visible">Visible</label>
+        </div>
+        <div class="form-check mb-3">
+            <input type="hidden" name="featured_on_cover" value="0">
+            <input class="form-check-input" type="checkbox" id="featured_on_cover" name="featured_on_cover" value="1">
+            <label class="form-check-label" for="featured_on_cover">Destacar en portada</label>
+        </div>
         <button type="submit" class="btn btn-primary">Crear</button>
     </form>
 </div>

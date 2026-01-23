@@ -2,12 +2,28 @@
     $menuLabel = trim($settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú');
     $cocktailLabel = trim($settings->tab_label_cocktails ?? $settings->button_label_cocktails ?? 'Cócteles');
     $coffeeLabel = trim($settings->tab_label_wines ?? $settings->button_label_wines ?? 'Café & Brunch');
+    $cantinaLabel = trim($settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina');
+    $showMenu = ($settings->show_tab_menu ?? true) && ($settings->show_cta_menu ?? true);
+    $showCocktails = ($settings->show_tab_cocktails ?? true) && ($settings->show_cta_cocktails ?? true);
+    $showWines = ($settings->show_tab_wines ?? true) && ($settings->show_cta_cafe ?? true);
+    $showCantina = ($settings->show_tab_cantina ?? true) && ($settings->show_cta_cantina ?? true);
+
     $navLinks = [
         ['href' => url('/'), 'icon' => 'fas fa-home', 'label' => 'Inicio'],
-        ['href' => url('/menu'), 'icon' => 'fas fa-utensils', 'label' => $menuLabel],
-        ['href' => url('/cocktails'), 'icon' => 'fas fa-cocktail', 'label' => $cocktailLabel],
-        ['href' => url('/coffee'), 'icon' => 'fas fa-mug-saucer', 'label' => $coffeeLabel],
     ];
+
+    if ($showMenu) {
+        $navLinks[] = ['href' => url('/menu'), 'icon' => 'fas fa-utensils', 'label' => $menuLabel];
+    }
+    if ($showCocktails) {
+        $navLinks[] = ['href' => url('/cocktails'), 'icon' => 'fas fa-cocktail', 'label' => $cocktailLabel];
+    }
+    if ($showWines) {
+        $navLinks[] = ['href' => url('/coffee'), 'icon' => 'fas fa-mug-saucer', 'label' => $coffeeLabel];
+    }
+    if ($showCantina) {
+        $navLinks[] = ['href' => url('/cantina'), 'icon' => 'fas fa-wine-glass-alt', 'label' => $cantinaLabel];
+    }
 @endphp
 
 <div class="fixed bottom-5 left-0 right-0 z-50 content-layer px-4">

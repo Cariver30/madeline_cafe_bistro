@@ -16,6 +16,10 @@ use App\Http\Controllers\CocktailSubcategoryController;
 use App\Http\Controllers\WineCategoryController;
 use App\Http\Controllers\WineController;
 use App\Http\Controllers\WineSubcategoryController;
+use App\Http\Controllers\CantinaController;
+use App\Http\Controllers\CantinaCategoryController;
+use App\Http\Controllers\CantinaItemController;
+use App\Http\Controllers\SpecialPublicController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\FoodPairingController;
 use App\Http\Controllers\WineTypeController;
@@ -29,6 +33,7 @@ use App\Http\Controllers\Admin\PrinterAdminController;
 use App\Http\Controllers\Admin\PrepAreaAdminController;
 use App\Http\Controllers\Admin\PrepLabelAdminController;
 use App\Http\Controllers\Admin\TaxAdminController;
+use App\Http\Controllers\Admin\SpecialController;
 use App\Http\Controllers\Loyalty\InvitationController;
 use App\Http\Controllers\Loyalty\ServerDashboardController;
 use App\Http\Controllers\Loyalty\VisitConfirmationController;
@@ -40,6 +45,8 @@ use App\Http\Controllers\HomeController;
 // Rutas públicas
 Route::get('/', [HomeController::class, 'cover'])->name('cover');
 Route::get('/menu', [MenuController::class, 'index'])->name('menu');
+Route::get('/cantina', [CantinaController::class, 'index'])->name('cantina.index');
+Route::get('/especiales', [SpecialPublicController::class, 'index'])->name('specials.index');
 Route::get('/mesa/{token}', [TableOrderController::class, 'show'])->name('table.order.show');
 Route::post('/mesa/{token}/orders', [TableOrderController::class, 'store'])->name('table.order.store');
 Route::get('/receipts/pos/{order}', [ReceiptController::class, 'pos'])
@@ -59,10 +66,13 @@ Route::get('/reservations', function () {
 Route::resource('categories', CategoryController::class);
 Route::resource('dishes', DishController::class);
 Route::resource('cocktails', CocktailController::class);
+Route::resource('cantina-items', CantinaItemController::class)->except(['index', 'show']);
+Route::resource('cantina-categories', CantinaCategoryController::class)->except(['show']);
 Route::resource('cocktail-categories', CocktailCategoryController::class);
 Route::post('/admin/dishes/reorder', [DishController::class, 'reorder'])->name('dishes.reorder');
 Route::post('/admin/cocktails/reorder', [CocktailController::class, 'reorder'])->name('cocktails.reorder');
 Route::post('/admin/wines/reorder', [WineController::class, 'reorder'])->name('wines.reorder');
+Route::post('/admin/cantina/reorder', [CantinaItemController::class, 'reorder'])->name('cantina.reorder');
 
 Route::prefix('experiencias')->name('experiences.')->group(function () {
     Route::get('/', [EventPublicController::class, 'index'])->name('index');
@@ -100,16 +110,28 @@ Route::middleware(['auth', 'role:admin,manager'])->group(function () {
         Route::post('/promotions', [EventPromotionController::class, 'store'])->name('promotions.store');
     });
 
+    Route::prefix('admin/specials')->name('admin.specials.')->group(function () {
+        Route::get('/', [SpecialController::class, 'index'])->name('index');
+        Route::get('/create', [SpecialController::class, 'create'])->name('create');
+        Route::post('/', [SpecialController::class, 'store'])->name('store');
+        Route::get('/{special}/edit', [SpecialController::class, 'edit'])->name('edit');
+        Route::put('/{special}', [SpecialController::class, 'update'])->name('update');
+        Route::delete('/{special}', [SpecialController::class, 'destroy'])->name('destroy');
+    });
+
     Route::patch('dishes/{dish}/toggle-visibility', [DishController::class, 'toggleVisibility'])->name('dishes.toggleVisibility');
     Route::patch('dishes/{dish}/toggle-featured', [DishController::class, 'toggleFeatured'])->name('dishes.toggleFeatured');
     Route::patch('cocktails/{cocktail}/toggle-visibility', [CocktailController::class, 'toggleVisibility'])->name('cocktails.toggleVisibility');
     Route::patch('cocktails/{cocktail}/toggle-featured', [CocktailController::class, 'toggleFeatured'])->name('cocktails.toggleFeatured');
     Route::patch('wines/{wine}/toggle-visibility', [WineController::class, 'toggleVisibility'])->name('wines.toggleVisibility');
     Route::patch('wines/{wine}/toggle-featured', [WineController::class, 'toggleFeatured'])->name('wines.toggleFeatured');
+    Route::patch('cantina-items/{cantinaItem}/toggle-visibility', [CantinaItemController::class, 'toggleVisibility'])->name('cantina-items.toggleVisibility');
+    Route::patch('cantina-items/{cantinaItem}/toggle-featured', [CantinaItemController::class, 'toggleFeatured'])->name('cantina-items.toggleFeatured');
 
     Route::post('/admin/dishes/reorder', [DishController::class, 'reorder'])->name('dishes.reorder');
     Route::post('/admin/cocktails/reorder', [CocktailController::class, 'reorder'])->name('cocktails.reorder');
     Route::post('/admin/wines/reorder', [WineController::class, 'reorder'])->name('wines.reorder');
+    Route::post('/admin/cantina/reorder', [CantinaItemController::class, 'reorder'])->name('cantina.reorder');
 
     Route::prefix('admin/printers')->name('admin.printers.')->group(function () {
         Route::post('/', [PrinterAdminController::class, 'storePrinter'])->name('store');
@@ -141,12 +163,15 @@ Route::middleware(['auth', 'role:admin,manager'])->group(function () {
     });
     Route::post('/admin/cocktail-categories/reorder', [CocktailCategoryController::class, 'reorder'])->name('cocktail-categories.reorder');
     Route::post('/admin/wine-categories/reorder', [WineCategoryController::class, 'reorder'])->name('wine-categories.reorder');
+    Route::post('/admin/cantina-categories/reorder', [CantinaCategoryController::class, 'reorder'])->name('cantina-categories.reorder');
     Route::patch('/admin/categories/{category}/toggle-cover', [CategoryController::class, 'toggleCover'])->name('categories.toggleCover');
     Route::patch('/admin/cocktail-categories/{cocktailCategory}/toggle-cover', [CocktailCategoryController::class, 'toggleCover'])->name('cocktail-categories.toggleCover');
     Route::patch('/admin/wine-categories/{wineCategory}/toggle-cover', [WineCategoryController::class, 'toggleCover'])->name('wine-categories.toggleCover');
+    Route::patch('/admin/cantina-categories/{cantinaCategory}/toggle-cover', [CantinaCategoryController::class, 'toggleCover'])->name('cantina-categories.toggleCover');
     Route::post('/admin/categories/{category}/featured-items', [CategoryController::class, 'updateFeaturedItems'])->name('categories.featuredItems');
     Route::post('/admin/cocktail-categories/{cocktailCategory}/featured-items', [CocktailCategoryController::class, 'updateFeaturedItems'])->name('cocktail-categories.featuredItems');
     Route::post('/admin/wine-categories/{wineCategory}/featured-items', [WineCategoryController::class, 'updateFeaturedItems'])->name('wine-categories.featuredItems');
+    Route::post('/admin/cantina-categories/{cantinaCategory}/featured-items', [CantinaCategoryController::class, 'updateFeaturedItems'])->name('cantina-categories.featuredItems');
     Route::post('/admin/categories/{category}/subcategories', [CategorySubcategoryController::class, 'store'])->name('category-subcategories.store');
     Route::patch('/admin/subcategories/{subcategory}', [CategorySubcategoryController::class, 'update'])->name('category-subcategories.update');
     Route::delete('/admin/subcategories/{subcategory}', [CategorySubcategoryController::class, 'destroy'])->name('category-subcategories.destroy');

@@ -9,6 +9,8 @@ use App\Models\Cocktail;
 use App\Models\CocktailCategory;
 use App\Models\Wine;
 use App\Models\WineCategory;
+use App\Models\CantinaCategory;
+use App\Models\CantinaItem;
 use App\Models\Setting;
 use App\Models\Popup; // Añadir el modelo Popup
 use App\Models\WineType;
@@ -96,6 +98,8 @@ class AdminController extends Controller
         $dishes = Dish::with('category')->get();
         $cocktails = Cocktail::with(['category', 'subcategory'])->get();
         $cocktailCategories = CocktailCategory::with(['items.subcategory', 'subcategories'])->orderBy('order')->get();
+        $cantinaItems = CantinaItem::with('category')->get();
+        $cantinaCategories = CantinaCategory::with('items')->orderBy('order')->get();
         $wines = Wine::with(['category', 'subcategory'])->get();
         $wineCategories = WineCategory::with(['items.subcategory', 'subcategories'])->orderBy('order')->get();
         $settings = Setting::first();
@@ -104,7 +108,7 @@ class AdminController extends Controller
 
         $managers = User::where('role', 'manager')->orderBy('name')->get();
 
-        return view('admin', compact('categories', 'dishes', 'cocktails', 'cocktailCategories', 'wines', 'wineCategories', 'settings','popups', 'managers'));
+        return view('admin', compact('categories', 'dishes', 'cocktails', 'cocktailCategories', 'cantinaItems', 'cantinaCategories', 'wines', 'wineCategories', 'settings', 'popups', 'managers'));
     }
 
     public function newAdminPanel()
@@ -113,6 +117,8 @@ class AdminController extends Controller
         $dishes = Dish::with('category')->get();
         $cocktails = Cocktail::with(['category', 'subcategory'])->get();
         $cocktailCategories = CocktailCategory::with(['items.subcategory', 'subcategories'])->orderBy('order')->get();
+        $cantinaItems = CantinaItem::with('category')->get();
+        $cantinaCategories = CantinaCategory::with('items')->orderBy('order')->get();
         $wines = Wine::with(['category', 'subcategory'])->get();
         $wineCategories = WineCategory::with(['items.subcategory', 'subcategories'])->orderBy('order')->get();
         $settings = Setting::first();
@@ -306,6 +312,8 @@ $foodPairings = FoodPairing::all();
             'dishes',
             'cocktails',
             'cocktailCategories',
+            'cantinaItems',
+            'cantinaCategories',
             'wines',
             'wineCategories',
             'settings',
@@ -340,23 +348,28 @@ $foodPairings = FoodPairing::all();
             'background_image_menu' => 'nullable|image',
             'background_image_cocktails' => 'nullable|image',
             'background_image_wines' => 'nullable|image',
+            'background_image_cantina' => 'nullable|image',
             'logo' => 'nullable|image',
             'text_color_cover' => 'nullable|string',
             'text_color_menu' => 'nullable|string',
             'text_color_cocktails' => 'nullable|string',
             'text_color_wines' => 'nullable|string',
+            'text_color_cantina' => 'nullable|string',
             'card_opacity_cover' => 'nullable|numeric|between:0,1',
             'card_opacity_menu' => 'nullable|numeric|between:0,1',
             'card_opacity_cocktails' => 'nullable|numeric|between:0,1',
             'card_opacity_wines' => 'nullable|numeric|between:0,1',
+            'card_opacity_cantina' => 'nullable|numeric|between:0,1',
             'font_family_cover' => 'nullable|string',
             'font_family_menu' => 'nullable|string',
             'font_family_cocktails' => 'nullable|string',
             'font_family_wines' => 'nullable|string',
+            'font_family_cantina' => 'nullable|string',
             'button_color_cover' => 'nullable|string',
             'button_color_menu' => 'nullable|string',
             'button_color_cocktails' => 'nullable|string',
             'button_color_wines' => 'nullable|string',
+            'button_color_cantina' => 'nullable|string',
             'button_font_size_cover' => 'nullable|integer',
             'category_name_bg_color_menu' => 'nullable|string',
             'category_name_text_color_menu' => 'nullable|string',
@@ -373,9 +386,13 @@ $foodPairings = FoodPairing::all();
             'category_name_font_size_wines' => 'nullable|integer',
             'subcategory_name_bg_color_wines' => 'nullable|string',
             'subcategory_name_text_color_wines' => 'nullable|string',
+            'category_name_bg_color_cantina' => 'nullable|string',
+            'category_name_text_color_cantina' => 'nullable|string',
+            'category_name_font_size_cantina' => 'nullable|integer',
             'card_bg_color_menu' => 'nullable|string',
             'card_bg_color_cocktails' => 'nullable|string',
             'card_bg_color_wines' => 'nullable|string',
+            'card_bg_color_cantina' => 'nullable|string',
             'facebook_url' => 'nullable|url',
             'twitter_url' => 'nullable|url',
             'instagram_url' => 'nullable|url',
@@ -386,12 +403,14 @@ $foodPairings = FoodPairing::all();
             'button_label_menu' => 'nullable|string|max:255',
             'button_label_cocktails' => 'nullable|string|max:255',
             'button_label_wines' => 'nullable|string|max:255',
+            'button_label_cantina' => 'nullable|string|max:255',
             'button_label_events' => 'nullable|string|max:255',
             'button_label_vip' => 'nullable|string|max:255',
             'button_label_reservations' => 'nullable|string|max:255',
             'tab_label_menu' => 'nullable|string|max:255',
             'tab_label_cocktails' => 'nullable|string|max:255',
             'tab_label_wines' => 'nullable|string|max:255',
+            'tab_label_cantina' => 'nullable|string|max:255',
             'tab_label_events' => 'nullable|string|max:255',
             'tab_label_loyalty' => 'nullable|string|max:255',
             'tip_presets' => 'nullable|string',
@@ -404,6 +423,7 @@ $foodPairings = FoodPairing::all();
         $buttonLabelMenu = $this->sanitizeLabel($request->input('button_label_menu', $settings->button_label_menu));
         $buttonLabelCocktails = $this->sanitizeLabel($request->input('button_label_cocktails', $settings->button_label_cocktails));
         $buttonLabelWines = $this->sanitizeLabel($request->input('button_label_wines', $settings->button_label_wines));
+        $buttonLabelCantina = $this->sanitizeLabel($request->input('button_label_cantina', $settings->button_label_cantina));
         $buttonLabelEvents = $this->sanitizeLabel($request->input('button_label_events', $settings->button_label_events));
 
         if ($request->hasFile('background_image_cover')) {
@@ -421,6 +441,10 @@ $foodPairings = FoodPairing::all();
         if ($request->hasFile('background_image_wines')) {
             $path = $request->file('background_image_wines')->store('background_images', 'public');
             $settings->background_image_wines = $path;
+        }
+        if ($request->hasFile('background_image_cantina')) {
+            $path = $request->file('background_image_cantina')->store('background_images', 'public');
+            $settings->background_image_cantina = $path;
         }
         if ($request->hasFile('logo')) {
             $path = $request->file('logo')->store('logos', 'public');
@@ -464,6 +488,9 @@ $foodPairings = FoodPairing::all();
         if ($request->hasFile('cta_image_cocktails')) {
             $settings->cta_image_cocktails = $request->file('cta_image_cocktails')->store('cta_images', 'public');
         }
+        if ($request->hasFile('cta_image_cantina')) {
+            $settings->cta_image_cantina = $request->file('cta_image_cantina')->store('cta_images', 'public');
+        }
         if ($request->hasFile('cta_image_events')) {
             $settings->cta_image_events = $request->file('cta_image_events')->store('cta_images', 'public');
         }
@@ -486,6 +513,8 @@ $foodPairings = FoodPairing::all();
             $settings->cover_cta_cafe_text_color = $request->input('cover_cta_cafe_text_color', $settings->cover_cta_cafe_text_color);
             $settings->cover_cta_cocktails_bg_color = $request->input('cover_cta_cocktails_bg_color', $settings->cover_cta_cocktails_bg_color);
             $settings->cover_cta_cocktails_text_color = $request->input('cover_cta_cocktails_text_color', $settings->cover_cta_cocktails_text_color);
+            $settings->cover_cta_cantina_bg_color = $request->input('cover_cta_cantina_bg_color', $settings->cover_cta_cantina_bg_color);
+            $settings->cover_cta_cantina_text_color = $request->input('cover_cta_cantina_text_color', $settings->cover_cta_cantina_text_color);
             $settings->cover_cta_events_bg_color = $request->input('cover_cta_events_bg_color', $settings->cover_cta_events_bg_color);
             $settings->cover_cta_events_text_color = $request->input('cover_cta_events_text_color', $settings->cover_cta_events_text_color);
             $settings->cover_cta_reservations_bg_color = $request->input('cover_cta_reservations_bg_color', $settings->cover_cta_reservations_bg_color);
@@ -496,22 +525,26 @@ $foodPairings = FoodPairing::all();
         $settings->text_color_menu = $request->input('text_color_menu', $settings->text_color_menu);
         $settings->text_color_cocktails = $request->input('text_color_cocktails', $settings->text_color_cocktails);
         $settings->text_color_wines = $request->input('text_color_wines', $settings->text_color_wines);
+        $settings->text_color_cantina = $request->input('text_color_cantina', $settings->text_color_cantina);
 
         $settings->card_opacity_cover = $request->input('card_opacity_cover', $settings->card_opacity_cover);
         $settings->card_opacity_menu = $request->input('card_opacity_menu', $settings->card_opacity_menu);
         $settings->card_opacity_cocktails = $request->input('card_opacity_cocktails', $settings->card_opacity_cocktails);
         $settings->card_opacity_wines = $request->input('card_opacity_wines', $settings->card_opacity_wines);
+        $settings->card_opacity_cantina = $request->input('card_opacity_cantina', $settings->card_opacity_cantina);
 
         $settings->font_family_cover = $request->input('font_family_cover', $settings->font_family_cover);
         $settings->font_family_menu = $request->input('font_family_menu', $settings->font_family_menu);
         $settings->font_family_cocktails = $request->input('font_family_cocktails', $settings->font_family_cocktails);
         $settings->font_family_wines = $request->input('font_family_wines', $settings->font_family_wines);
+        $settings->font_family_cantina = $request->input('font_family_cantina', $settings->font_family_cantina);
 
         $settings->button_color_cover = $request->input('button_color_cover', $settings->button_color_cover);
         $settings->card_bg_color_cover = $request->input('card_bg_color_cover', $settings->card_bg_color_cover);
         $settings->button_color_menu = $request->input('button_color_menu', $settings->button_color_menu);
         $settings->button_color_cocktails = $request->input('button_color_cocktails', $settings->button_color_cocktails);
         $settings->button_color_wines = $request->input('button_color_wines', $settings->button_color_wines);
+        $settings->button_color_cantina = $request->input('button_color_cantina', $settings->button_color_cantina);
 
         $settings->button_font_size_cover = $request->input('button_font_size_cover', $settings->button_font_size_cover);
 
@@ -532,10 +565,14 @@ $foodPairings = FoodPairing::all();
         $settings->category_name_font_size_wines = $request->input('category_name_font_size_wines', $settings->category_name_font_size_wines);
         $settings->subcategory_name_bg_color_wines = $request->input('subcategory_name_bg_color_wines', $settings->subcategory_name_bg_color_wines);
         $settings->subcategory_name_text_color_wines = $request->input('subcategory_name_text_color_wines', $settings->subcategory_name_text_color_wines);
+        $settings->category_name_bg_color_cantina = $request->input('category_name_bg_color_cantina', $settings->category_name_bg_color_cantina);
+        $settings->category_name_text_color_cantina = $request->input('category_name_text_color_cantina', $settings->category_name_text_color_cantina);
+        $settings->category_name_font_size_cantina = $request->input('category_name_font_size_cantina', $settings->category_name_font_size_cantina);
 
         $settings->card_bg_color_menu = $request->input('card_bg_color_menu', $settings->card_bg_color_menu);
         $settings->card_bg_color_cocktails = $request->input('card_bg_color_cocktails', $settings->card_bg_color_cocktails);
         $settings->card_bg_color_wines = $request->input('card_bg_color_wines', $settings->card_bg_color_wines);
+        $settings->card_bg_color_cantina = $request->input('card_bg_color_cantina', $settings->card_bg_color_cantina);
 
         $settings->facebook_url = $request->input('facebook_url', $settings->facebook_url);
         $settings->twitter_url = $request->input('twitter_url', $settings->twitter_url);
@@ -565,6 +602,7 @@ $foodPairings = FoodPairing::all();
         $settings->button_label_menu = $buttonLabelMenu;
         $settings->button_label_cocktails = $buttonLabelCocktails;
         $settings->button_label_wines = $buttonLabelWines;
+        $settings->button_label_cantina = $buttonLabelCantina;
         $settings->button_label_events = $buttonLabelEvents;
         $settings->button_label_vip = $request->input('button_label_vip', $settings->button_label_vip);
         $settings->button_label_reservations = $request->input('button_label_reservations', $settings->button_label_reservations);
@@ -572,11 +610,17 @@ $foodPairings = FoodPairing::all();
             $settings->tab_label_menu = $this->resolveTabLabel($request->input('tab_label_menu'), $buttonLabelMenu);
             $settings->tab_label_cocktails = $this->resolveTabLabel($request->input('tab_label_cocktails'), $buttonLabelCocktails);
             $settings->tab_label_wines = $this->resolveTabLabel($request->input('tab_label_wines'), $buttonLabelWines);
+            if (Schema::hasColumn('settings', 'tab_label_cantina')) {
+                $settings->tab_label_cantina = $this->resolveTabLabel($request->input('tab_label_cantina'), $buttonLabelCantina);
+            }
             $settings->tab_label_events = $this->resolveTabLabel($request->input('tab_label_events'), $buttonLabelEvents ?: 'Eventos');
             $settings->tab_label_loyalty = $this->resolveTabLabel($request->input('tab_label_loyalty'), $settings->tab_label_loyalty ?? 'Fidelidad');
             $settings->show_tab_menu = $request->boolean('show_tab_menu', (bool) $settings->show_tab_menu);
             $settings->show_tab_cocktails = $request->boolean('show_tab_cocktails', (bool) $settings->show_tab_cocktails);
             $settings->show_tab_wines = $request->boolean('show_tab_wines', (bool) $settings->show_tab_wines);
+            if (Schema::hasColumn('settings', 'show_tab_cantina')) {
+                $settings->show_tab_cantina = $request->boolean('show_tab_cantina', (bool) $settings->show_tab_cantina);
+            }
             $settings->show_tab_events = $request->boolean('show_tab_events', (bool) $settings->show_tab_events);
             $settings->show_tab_campaigns = $request->boolean('show_tab_campaigns', (bool) $settings->show_tab_campaigns);
             $settings->show_tab_popups = $request->boolean('show_tab_popups', (bool) $settings->show_tab_popups);
@@ -587,6 +631,9 @@ $foodPairings = FoodPairing::all();
             $settings->show_cta_menu = $request->boolean('show_cta_menu', (bool) $settings->show_cta_menu);
             $settings->show_cta_cafe = $request->boolean('show_cta_cafe', (bool) $settings->show_cta_cafe);
             $settings->show_cta_cocktails = $request->boolean('show_cta_cocktails', (bool) $settings->show_cta_cocktails);
+            if (Schema::hasColumn('settings', 'show_cta_cantina')) {
+                $settings->show_cta_cantina = $request->boolean('show_cta_cantina', (bool) $settings->show_cta_cantina);
+            }
             $settings->show_cta_events = $request->boolean('show_cta_events', (bool) $settings->show_cta_events);
             $settings->show_cta_reservations = $request->boolean('show_cta_reservations', (bool) $settings->show_cta_reservations);
         }

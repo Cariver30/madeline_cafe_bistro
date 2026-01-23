@@ -9,11 +9,13 @@
         'menu' => $settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú',
         'cocktails' => $settings->tab_label_cocktails ?? $settings->button_label_cocktails ?? 'Cócteles',
         'wines' => $settings->tab_label_wines ?? $settings->button_label_wines ?? 'Café & Brunch',
+        'cantina' => $settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina',
         'events' => $settings->tab_label_events ?? 'Eventos',
         'loyalty' => $settings->tab_label_loyalty ?? 'Fidelidad',
     ];
     $tabLabelsSingular = [
         'cocktails' => \Illuminate\Support\Str::singular($tabLabels['cocktails']) ?: $tabLabels['cocktails'],
+        'cantina' => \Illuminate\Support\Str::singular($tabLabels['cantina']) ?: $tabLabels['cantina'],
     ];
 @endphp
 <div class="space-y-10">
@@ -51,6 +53,9 @@
                     @if($settings->show_tab_wines)
                         <button class="tab-button" data-section="wines">{{ $tabLabels['wines'] }}</button>
                     @endif
+                    @if($settings->show_tab_cantina)
+                        <button class="tab-button" data-section="cantina">{{ $tabLabels['cantina'] }}</button>
+                    @endif
                     <button class="tab-button" data-section="featured">Lo más vendido</button>
                 </div>
             </div>
@@ -77,6 +82,7 @@
                     @if($settings->show_tab_campaigns)
                         <button class="tab-button" data-section="campaigns">Campañas</button>
                     @endif
+                    <button class="tab-button" data-section="specials">Especiales</button>
                     @if($settings->show_tab_popups)
                         <button class="tab-button" data-section="popups">Pop-ups</button>
                     @endif
@@ -287,6 +293,22 @@
                 </div>
             </div>
 
+            <div id="cantina" class="section-panel">
+                <div class="inner-panel space-y-4">
+                    <h3 class="inner-title">{{ $tabLabels['cantina'] }}</h3>
+                    <div class="subnav">
+                        <button class="subnav-button active" data-target="cantina-create">Crear {{ \Illuminate\Support\Str::lower($tabLabelsSingular['cantina']) }}</button>
+                        <button class="subnav-button" data-target="cantina-config">Configuración de {{ $tabLabels['cantina'] }}</button>
+                    </div>
+                    <div id="cantina-create" class="subnav-panel show">
+                        @include('admin.partials.manage-cantina', ['cantinaLabel' => $tabLabels['cantina']])
+                    </div>
+                    <div id="cantina-config" class="subnav-panel">
+                        @include('admin.partials.cantina-config', ['cantinaLabel' => $tabLabels['cantina']])
+                    </div>
+                </div>
+            </div>
+
             <div id="featured" class="section-panel">
                 @include('admin.partials.featured-tabs')
             </div>
@@ -365,6 +387,17 @@
                     <div class="flex flex-wrap gap-3">
                         <a href="{{ route('admin.events.promotions.index') }}" class="primary-button inline-flex justify-center">Ver campañas</a>
                         <a href="{{ route('admin.events.promotions.create') }}" class="ghost-button inline-flex justify-center">Crear nueva</a>
+                    </div>
+                </div>
+            </div>
+
+            <div id="specials" class="section-panel">
+                <div class="inner-panel space-y-4">
+                    <h3 class="inner-title">Especiales y ofertas</h3>
+                    <p class="inner-text">Crea especiales por día y hora, seleccionando categorías e items visibles de las vistas activas.</p>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="{{ route('admin.specials.index') }}" class="primary-button inline-flex justify-center">Ver especiales</a>
+                        <a href="{{ route('admin.specials.create') }}" class="ghost-button inline-flex justify-center">Crear especial</a>
                     </div>
                 </div>
             </div>

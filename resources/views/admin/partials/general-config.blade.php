@@ -35,6 +35,13 @@
                 @endif
             </div>
             <div class="col-md-4">
+                <label class="form-label">CTA Cantina</label>
+                <input type="file" class="form-control" name="cta_image_cantina">
+                @if($settings->cta_image_cantina)
+                    <img src="{{ asset('storage/' . $settings->cta_image_cantina) }}" class="img-fluid rounded mt-2" alt="CTA Cantina">
+                @endif
+            </div>
+            <div class="col-md-4">
                 <label class="form-label">CTA Eventos</label>
                 <input type="file" class="form-control" name="cta_image_events">
                 @if($settings->cta_image_events)
@@ -58,6 +65,7 @@
                 'menu' => 'Menú',
                 'cafe' => 'Café & Brunch',
                 'cocktails' => 'Bebidas',
+                'cantina' => 'Cantina',
                 'events' => 'Eventos',
                 'reservations' => 'Reservas',
             ];
@@ -86,6 +94,7 @@
                     'show_cta_menu' => 'Mostrar CTA Menú',
                     'show_cta_cafe' => 'Mostrar CTA Café & Brunch',
                     'show_cta_cocktails' => 'Mostrar CTA Bebidas',
+                    'show_cta_cantina' => 'Mostrar CTA Cantina',
                     'show_cta_events' => 'Mostrar CTA Eventos',
                     'show_cta_reservations' => 'Mostrar CTA Reservas',
                 ];
@@ -242,7 +251,11 @@
                 <input type="text" class="form-control" id="button_label_wines" name="button_label_wines" value="{{ $settings->button_label_wines ?? 'Cafe' }}">
             </div>
             <div class="col-md-6">
-                <label for="button_label_events" class="form-label">Botón principal 4</label>
+                <label for="button_label_cantina" class="form-label">Botón principal 4</label>
+                <input type="text" class="form-control" id="button_label_cantina" name="button_label_cantina" value="{{ $settings->button_label_cantina ?? 'Cantina' }}">
+            </div>
+            <div class="col-md-6">
+                <label for="button_label_events" class="form-label">Botón principal 5</label>
                 <input type="text" class="form-control" id="button_label_events" name="button_label_events" value="{{ $settings->button_label_events ?? 'Eventos especiales' }}">
             </div>
             <div class="col-md-6">
@@ -270,6 +283,10 @@
             <div class="col-md-6">
                 <label for="tab_label_wines" class="form-label">Nombre para “Café &amp; Brunch”</label>
                 <input type="text" class="form-control" id="tab_label_wines" name="tab_label_wines" value="{{ $settings->tab_label_wines ?? 'Café & Brunch' }}">
+            </div>
+            <div class="col-md-6">
+                <label for="tab_label_cantina" class="form-label">Nombre para “Cantina”</label>
+                <input type="text" class="form-control" id="tab_label_cantina" name="tab_label_cantina" value="{{ $settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina' }}">
             </div>
             <div class="col-md-6">
                 <label for="tab_label_events" class="form-label">Nombre para “Eventos”</label>
@@ -300,6 +317,13 @@
                     <input type="hidden" name="show_tab_wines" value="0">
                     <input class="form-check-input" type="checkbox" id="show_tab_wines" name="show_tab_wines" value="1" {{ $settings->show_tab_wines ? 'checked' : '' }}>
                     <label class="form-check-label" for="show_tab_wines">Mostrar Café &amp; Brunch</label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check form-switch">
+                    <input type="hidden" name="show_tab_cantina" value="0">
+                    <input class="form-check-input" type="checkbox" id="show_tab_cantina" name="show_tab_cantina" value="1" {{ ($settings->show_tab_cantina ?? true) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="show_tab_cantina">Mostrar Cantina</label>
                 </div>
             </div>
             <div class="col-md-4">
