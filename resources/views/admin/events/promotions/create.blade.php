@@ -40,6 +40,7 @@
         <div>
             <label class="input-label">Imagen principal (hero)</label>
             <input type="file" name="hero_image" class="input-control">
+            <p class="text-xs text-slate-400 mt-2">Formatos JPG/PNG/WEBP/GIF · Máx 10 MB.</p>
         </div>
         <div>
             <label class="input-label">Contenido (se transforma a HTML automáticamente)</label>
@@ -52,6 +53,7 @@
                 <input type="file" name="assets[]" multiple class="hidden" id="assetInput">
                 <span class="text-sm text-slate-300">Arrastra archivos o toca para seleccionar</span>
             </label>
+            <p class="text-xs text-slate-400 mt-2">PDF, GIF, MP4/MOV/WEBM, JPG/PNG/WEBP · Máx 20 MB por archivo.</p>
             <ul id="assetList" class="mt-2 text-sm text-slate-400 space-y-1"></ul>
         </div>
         <label class="flex items-center gap-2 text-sm text-slate-200">

@@ -94,7 +94,7 @@
                         <label for="image" class="block text-sm font-semibold text-slate-700 mb-1">Imagen</label>
                         <input type="file" id="image" name="image"
                                class="w-full rounded-2xl border border-dashed border-slate-300 px-4 py-2.5 bg-slate-50">
-                        <p class="text-xs text-slate-500 mt-1">La imagen actual se mantendrá si no cargas otra.</p>
+                        <p class="text-xs text-slate-500 mt-1">JPG/PNG/WEBP/GIF · Máx 6 MB. La imagen actual se mantendrá si no cargas otra.</p>
                         <img src="{{ asset('storage/' . $popup->image) }}" alt="{{ $popup->title }}" class="mt-3 rounded-2xl border border-slate-200 w-52 object-cover">
                     </div>
                 </div>

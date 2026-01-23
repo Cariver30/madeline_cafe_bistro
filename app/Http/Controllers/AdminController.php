@@ -696,7 +696,7 @@ $foodPairings = FoodPairing::all();
     {
         $request->validate([
             'title' => 'required',
-            'image' => 'required|image',
+            'image' => 'required|file|mimes:jpg,jpeg,png,webp,gif|max:6144',
             'view' => 'required',
             'start_date' => 'required|date',
             'end_date' => 'required|date',
@@ -729,7 +729,7 @@ $foodPairings = FoodPairing::all();
     {
         $request->validate([
             'title' => 'required',
-            'image' => 'nullable|image',
+            'image' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif|max:6144',
             'view' => 'required',
             'start_date' => 'required|date',
             'end_date' => 'required|date',

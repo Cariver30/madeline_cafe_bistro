@@ -31,8 +31,8 @@ class EventPromotionController extends Controller
             'subject' => 'required|string|max:255',
             'preview_text' => 'nullable|string|max:255',
             'body_html' => 'required|string',
-            'hero_image' => 'nullable|image|max:4096',
-            'assets.*' => 'nullable|file|max:8192',
+            'hero_image' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif|max:10240',
+            'assets.*' => 'nullable|file|mimes:pdf,gif,mp4,mov,webm,jpg,jpeg,png,webp|max:20480',
             'send_now' => 'boolean',
         ]);
 

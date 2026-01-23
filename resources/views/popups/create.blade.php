@@ -90,7 +90,7 @@
                         <label for="image" class="block text-sm font-semibold text-slate-700 mb-1">Imagen</label>
                         <input type="file" id="image" name="image" required
                                class="w-full rounded-2xl border border-dashed border-slate-300 px-4 py-2.5 bg-slate-50">
-                        <p class="text-xs text-slate-500 mt-1">Preferible 16:9 o 4:5 en JPG/PNG.</p>
+                        <p class="text-xs text-slate-500 mt-1">Preferible 16:9 o 4:5 · JPG/PNG/WEBP/GIF · Máx 6 MB.</p>
                     </div>
                 </div>
 

@@ -89,7 +89,9 @@ class CampaignController extends Controller
 
     protected function validatePopup(Request $request, bool $isCreate): array
     {
-        $imageRule = $isCreate ? ['required', 'image'] : ['nullable', 'image'];
+        $imageRule = $isCreate
+            ? ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:6144']
+            : ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:6144'];
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
