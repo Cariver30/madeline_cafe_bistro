@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     @php
-        $seoTitle = 'Kfeina · Café cosechado en casa, desayunos y brunch creativo';
-        $seoDescription = 'Kfeina prepara café cosechado por ellos, desayunos, brunch y una variedad de platos creativos.';
+        $seoTitle = 'Takbron · Taquería y cantina mexicana en la montaña de Puerto Rico';
+        $seoDescription = 'Takbron es taquería y cantina mexicana en la montaña de Puerto Rico, con sabores exquisitos, gran variedad y tragos exóticos. Vive una variedad de margaritas única.';
         $seoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
             : asset('storage/default-logo.png');
@@ -461,17 +461,29 @@
             const now = new Date();
             const today = now.getDay();
 
+            const getItemsArray = (value) => {
+                if (Array.isArray(value)) {
+                    return value;
+                }
+                if (value && typeof value === 'object') {
+                    return Object.values(value);
+                }
+                return [];
+            };
+
             const renderFeatured = (slug) => {
                 const group = featuredData[slug];
                 if (!group || !tagEl || !titleEl || !descriptionEl || !itemsEl) {
                     return;
                 }
 
+                const items = getItemsArray(group.items);
+
                 tagEl.textContent = group.subtitle || '';
                 titleEl.textContent = group.title || '';
                 descriptionEl.textContent = group.source || '';
-                itemsEl.innerHTML = (group.items || []).length
-                    ? group.items.map(item => `
+                itemsEl.innerHTML = items.length
+                    ? items.map(item => `
                         <a href="${item.link || '#'}" class="flex items-start justify-between gap-4 pb-3 group" style="color:${featuredTextColor}; border-bottom:1px solid ${featuredBorderColor};">
                             <div class="flex items-start gap-3">
                                 ${item.image

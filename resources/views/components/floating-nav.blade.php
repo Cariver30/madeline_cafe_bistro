@@ -7,6 +7,7 @@
     $showCocktails = ($settings->show_tab_cocktails ?? true) && ($settings->show_cta_cocktails ?? true);
     $showWines = ($settings->show_tab_wines ?? true) && ($settings->show_cta_cafe ?? true);
     $showCantina = ($settings->show_tab_cantina ?? true) && ($settings->show_cta_cantina ?? true);
+    $showSpecials = ($settings->show_cta_specials ?? true);
 
     $navLinks = [
         ['href' => url('/'), 'icon' => 'fas fa-home', 'label' => 'Inicio'],
@@ -23,6 +24,9 @@
     }
     if ($showCantina) {
         $navLinks[] = ['href' => url('/cantina'), 'icon' => 'fas fa-wine-glass-alt', 'label' => $cantinaLabel];
+    }
+    if ($showSpecials) {
+        $navLinks[] = ['href' => url('/especiales'), 'icon' => 'fas fa-star', 'label' => 'Especiales'];
     }
 @endphp
 
