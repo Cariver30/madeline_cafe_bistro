@@ -137,6 +137,7 @@ $foodPairings = FoodPairing::all();
             ->get();
         $managers = User::where('role', 'manager')->orderBy('name')->get();
         $loyaltyCustomers = LoyaltyCustomer::orderByDesc('points')->limit(8)->get();
+        $loyaltyCustomerCount = LoyaltyCustomer::count();
         $printers = Printer::orderBy('name')->get();
         $printTemplates = PrintTemplate::orderBy('name')->get();
         $printerRoutes = PrinterRoute::with(['printer', 'template'])->orderBy('printer_id')->get();
@@ -328,6 +329,7 @@ $foodPairings = FoodPairing::all();
             'loyaltyRewards',
             'staffUsers',
             'loyaltyCustomers',
+            'loyaltyCustomerCount',
             'managers',
             'printers',
             'printTemplates',

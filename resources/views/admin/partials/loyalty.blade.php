@@ -198,6 +198,9 @@
                     <h4 class="text-lg font-semibold text-slate-900 mb-1">Clientes destacados</h4>
                     <p class="text-muted small">Los últimos perfiles con más puntos acumulados.</p>
                 </div>
+                <div class="text-muted small text-end">
+                    <div>Registrados: <strong>{{ $loyaltyCustomerCount ?? $loyaltyCustomers->count() }}</strong></div>
+                </div>
             </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle">
