@@ -8,7 +8,7 @@
     <div class="glass-card">
         <p class="text-xs uppercase tracking-[0.35em] text-amber-400 mb-2">Marketing</p>
         <h1 class="text-3xl font-semibold text-white">Crear campaña promocional</h1>
-        <p class="text-sm text-slate-400">Carga tu hero, arrastra assets (PDF, GIF, videos) y redacta el mensaje para la lista VIP.</p>
+        <p class="text-sm text-slate-400">Arrastra assets (PDF, GIF, videos) y redacta el mensaje para la lista VIP.</p>
     </div>
 
     @if ($errors->any())
@@ -36,11 +36,6 @@
         <div>
             <label class="input-label">Texto de vista previa</label>
             <input type="text" name="preview_text" class="input-control" value="{{ old('preview_text') }}" placeholder="Opcional">
-        </div>
-        <div>
-            <label class="input-label">Imagen principal (hero)</label>
-            <input type="file" name="hero_image" class="input-control">
-            <p class="text-xs text-slate-400 mt-2">Formatos JPG/PNG/WEBP/GIF · Máx 10 MB.</p>
         </div>
         <div>
             <label class="input-label">Contenido (se transforma a HTML automáticamente)</label>

@@ -1,11 +1,11 @@
 @php
     $attachments = collect($promotion->attachments ?? []);
     $imageAssets = $attachments->filter(fn ($asset) => str_starts_with($asset['mime'] ?? '', 'image/'));
-    $heroPath = $promotion->hero_image ?: ($imageAssets->first()['path'] ?? null);
-    $hero = $heroPath
-        ? \Illuminate\Support\Facades\Storage::disk('public')->url($heroPath)
+    $primaryImage = $imageAssets->first();
+    $primaryImageUrl = $primaryImage && isset($primaryImage['path'])
+        ? \Illuminate\Support\Facades\Storage::disk('public')->url($primaryImage['path'])
         : null;
-    $assetLinks = $attachments->map(fn ($asset) => [
+    $assetLinks = $attachments->filter(fn ($asset) => !str_starts_with($asset['mime'] ?? '', 'image/'))->map(fn ($asset) => [
         'name' => $asset['name'] ?? 'Archivo',
         'mime' => $asset['mime'] ?? '',
         'url' => isset($asset['path'])
@@ -35,10 +35,6 @@
             overflow: hidden;
             box-shadow: 0 20px 60px rgba(0,0,0,0.08);
         }
-        .hero img {
-            width: 100%;
-            display: block;
-        }
         .content {
             padding: 32px;
             line-height: 1.6;
@@ -53,46 +49,32 @@
             text-decoration: none;
             font-weight: 600;
         }
-        .footer {
-            text-align: center;
-            font-size: 12px;
-            color: #6b7280;
-            padding: 16px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        @if($hero)
-            <div class="hero">
-                <img src="{{ $hero }}" alt="Promoción">
-            </div>
-        @endif
         <div class="content">
             {!! $promotion->body_html !!}
+
+            @if($primaryImageUrl)
+                <div style="margin-top: 20px; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden;">
+                    <img src="{{ $primaryImageUrl }}" alt="Promoción" style="width: 100%; display: block;">
+                </div>
+            @endif
 
             @if($assetLinks->isNotEmpty())
                 <div style="margin-top: 24px;">
                     <h3 style="margin:0 0 12px; font-size: 16px;">Archivos y recursos</h3>
                     <div style="display: grid; gap: 12px;">
                         @foreach($assetLinks as $asset)
-                            @if(str_starts_with($asset['mime'], 'image/'))
-                                <div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
-                                    <img src="{{ $asset['url'] }}" alt="{{ $asset['name'] }}" style="width: 100%; display: block;">
-                                </div>
-                            @else
-                                <a href="{{ $asset['url'] }}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #111827; color: #fff; text-decoration: none;">
-                                    {{ $asset['name'] }}
-                                </a>
-                            @endif
+                            <a href="{{ $asset['url'] }}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #111827; color: #fff; text-decoration: none;">
+                                {{ $asset['name'] }}
+                            </a>
                         @endforeach
                     </div>
                 </div>
             @endif
         </div>
-    </div>
-    <div class="footer">
-        © {{ date('Y') }} {{ config('app.name', 'Café Negro') }} · Este correo fue enviado desde nuestro panel de experiencias.
     </div>
 </body>
 </html>
