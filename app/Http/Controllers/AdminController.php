@@ -674,6 +674,26 @@ $foodPairings = FoodPairing::all();
         return redirect()->route('admin.new-panel', ['section' => 'general'])->with('success', 'Configuraciones actualizadas con éxito.');
     }
 
+    public function updateContactInfo(Request $request)
+    {
+        $settings = Setting::firstOrCreate([]);
+
+        $data = $request->validate([
+            'phone_number' => ['nullable', 'string'],
+            'business_hours' => ['nullable', 'string'],
+            'cover_location_text' => ['nullable', 'string'],
+        ]);
+
+        $settings->fill([
+            'phone_number' => $data['phone_number'] ?? $settings->phone_number,
+            'business_hours' => $data['business_hours'] ?? $settings->business_hours,
+            'cover_location_text' => $data['cover_location_text'] ?? $settings->cover_location_text,
+        ])->save();
+
+        return redirect()->route('admin.new-panel', ['section' => 'general'])
+            ->with('success', 'Contacto y horarios actualizados.');
+    }
+
     
     // app/Http/Controllers/AdminController.php
 

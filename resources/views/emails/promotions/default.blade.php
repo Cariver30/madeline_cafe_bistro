@@ -1,7 +1,17 @@
 @php
-    $hero = $promotion->hero_image
-        ? \Illuminate\Support\Facades\Storage::disk('public')->url($promotion->hero_image)
+    $attachments = collect($promotion->attachments ?? []);
+    $imageAssets = $attachments->filter(fn ($asset) => str_starts_with($asset['mime'] ?? '', 'image/'));
+    $heroPath = $promotion->hero_image ?: ($imageAssets->first()['path'] ?? null);
+    $hero = $heroPath
+        ? \Illuminate\Support\Facades\Storage::disk('public')->url($heroPath)
         : null;
+    $assetLinks = $attachments->map(fn ($asset) => [
+        'name' => $asset['name'] ?? 'Archivo',
+        'mime' => $asset['mime'] ?? '',
+        'url' => isset($asset['path'])
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($asset['path'])
+            : null,
+    ])->filter(fn ($asset) => !empty($asset['url']));
 @endphp
 
 <!DOCTYPE html>
@@ -60,6 +70,25 @@
         @endif
         <div class="content">
             {!! $promotion->body_html !!}
+
+            @if($assetLinks->isNotEmpty())
+                <div style="margin-top: 24px;">
+                    <h3 style="margin:0 0 12px; font-size: 16px;">Archivos y recursos</h3>
+                    <div style="display: grid; gap: 12px;">
+                        @foreach($assetLinks as $asset)
+                            @if(str_starts_with($asset['mime'], 'image/'))
+                                <div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                                    <img src="{{ $asset['url'] }}" alt="{{ $asset['name'] }}" style="width: 100%; display: block;">
+                                </div>
+                            @else
+                                <a href="{{ $asset['url'] }}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #111827; color: #fff; text-decoration: none;">
+                                    {{ $asset['name'] }}
+                                </a>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
     <div class="footer">

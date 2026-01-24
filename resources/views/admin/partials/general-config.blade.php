@@ -1,3 +1,32 @@
+@php
+    $currentUser = auth()->user();
+    $isManager = $currentUser && $currentUser->isManager();
+@endphp
+
+@if($isManager)
+    <form action="{{ route('admin.contact-info.update') }}" method="POST" class="space-y-4">
+        @csrf
+        <div class="border rounded-3 p-3 mb-4">
+            <h5 class="mb-2">Contacto y horarios</h5>
+            <p class="text-muted small mb-3">Este bloque es el único editable para gerencia.</p>
+            <div class="mb-3">
+                <label for="phone_number" class="form-label">Número de Teléfono</label>
+                <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ $settings->phone_number ?? '' }}">
+            </div>
+            <div class="mb-3">
+                <label for="business_hours" class="form-label">Horarios de Atención</label>
+                <textarea class="form-control" id="business_hours" name="business_hours">{{ $settings->business_hours ?? '' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="cover_location_text" class="form-label">Dirección / ubicación</label>
+                <input type="text" class="form-control" id="cover_location_text" name="cover_location_text" value="{{ $settings->cover_location_text ?? '' }}" placeholder="Café Negro · Miramar">
+            </div>
+            <div class="text-end">
+                <button class="btn btn-primary">Guardar contacto</button>
+            </div>
+        </div>
+    </form>
+@else
 <form action="{{ route('admin.updateBackground') }}" method="POST" enctype="multipart/form-data">
     @csrf
 
@@ -494,4 +523,6 @@
             </table>
         </div>
     </div>
+@endif
+
 @endif
