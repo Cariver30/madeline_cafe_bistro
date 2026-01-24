@@ -85,8 +85,8 @@ Route::prefix('experiencias')->name('experiences.')->group(function () {
 });
 
 Route::middleware(['auth', 'role:admin,manager'])->group(function () {
-    Route::get('/admin/panel', [AdminController::class, 'panel'])->name('admin.panel');
-    Route::get('/admin', [AdminController::class, 'panel'])->name('admin');
+    Route::redirect('/admin/panel', '/admin/new-panel')->name('admin.panel');
+    Route::redirect('/admin', '/admin/new-panel')->name('admin');
     Route::get('/admin/categories', [CategoryController::class, 'showCategories'])->name('admin.categories');
     Route::get('/admin/new-panel', [AdminController::class, 'newAdminPanel'])->name('admin.new-panel');
 
