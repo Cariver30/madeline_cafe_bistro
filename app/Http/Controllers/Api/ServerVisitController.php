@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoyaltyCustomer;
 use App\Models\LoyaltyReward;
 use App\Models\LoyaltyVisit;
 use App\Models\Setting;
@@ -113,5 +114,33 @@ class ServerVisitController extends Controller
                 'points' => $visit->points_awarded,
             ],
         ], Response::HTTP_CREATED);
+    }
+
+    public function lookup(Request $request)
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $email = strtolower(trim($data['email']));
+        $customer = LoyaltyCustomer::where('email', $email)->first();
+
+        if (! $customer) {
+            return response()->json([
+                'found' => false,
+                'message' => 'No encontrado.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->json([
+            'found' => true,
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'points' => $customer->points,
+            ],
+        ]);
     }
 }

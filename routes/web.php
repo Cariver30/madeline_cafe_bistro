@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\PrepLabelAdminController;
 use App\Http\Controllers\Admin\TaxAdminController;
 use App\Http\Controllers\Admin\SpecialController;
 use App\Http\Controllers\Loyalty\InvitationController;
+use App\Http\Controllers\Loyalty\RedemptionController;
 use App\Http\Controllers\Loyalty\ServerDashboardController;
 use App\Http\Controllers\Loyalty\VisitConfirmationController;
 use App\Http\Controllers\CloudPrntController;
@@ -222,6 +223,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
 Route::middleware(['auth', 'role:server'])->group(function () {
     Route::get('/loyalty/dashboard', [ServerDashboardController::class, 'index'])->name('loyalty.dashboard');
     Route::post('/loyalty/visits', [ServerDashboardController::class, 'storeVisit'])->name('loyalty.visit.create');
+    Route::post('/loyalty/customers/lookup', [ServerDashboardController::class, 'lookupCustomer'])->name('loyalty.customer.lookup');
+});
+
+Route::middleware(['auth', 'role:server,pos,manager'])->group(function () {
+    Route::get('/loyalty/redeem/{token}', [RedemptionController::class, 'show'])->name('loyalty.redeem.show');
+    Route::post('/loyalty/redeem/{token}', [RedemptionController::class, 'store'])->name('loyalty.redeem.store');
 });
 
 Route::get('/loyalty/check-in/{token}', [VisitConfirmationController::class, 'show'])->name('loyalty.visit.show');

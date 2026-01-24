@@ -3,6 +3,7 @@
 namespace App\Support\Loyalty;
 
 use App\Mail\LoyaltyRewardUnlockedMail;
+use App\Mail\LoyaltyPointsUpdatedMail;
 use App\Models\LoyaltyCustomer;
 use App\Models\LoyaltyReward;
 use App\Models\LoyaltyVisit;
@@ -10,6 +11,7 @@ use App\Models\Setting;
 use App\Models\TableSession;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class LoyaltyRewardService
 {
@@ -41,6 +43,7 @@ class LoyaltyRewardService
             return $customer->fresh();
         });
 
+        $this->notifyPointsUpdated($customer, (int) $visit->points_awarded);
         $this->notifyUnlockedRewards($customer);
 
         return $customer;
@@ -95,6 +98,7 @@ class LoyaltyRewardService
             return null;
         }
 
+        $this->notifyPointsUpdated($customer, (int) $visit->points_awarded);
         $this->notifyUnlockedRewards($customer);
 
         return $visit;
@@ -112,26 +116,49 @@ class LoyaltyRewardService
                 continue;
             }
 
-            $alreadyPending = $customer->redemptions()
+            $alreadyExists = $customer->redemptions()
                 ->where('loyalty_reward_id', $reward->id)
-                ->whereIn('status', ['pending', 'approved'])
                 ->exists();
 
-            if ($alreadyPending) {
+            if ($alreadyExists) {
                 continue;
             }
 
-            $customer->redemptions()->create([
+            $redemption = $customer->redemptions()->create([
                 'loyalty_reward_id' => $reward->id,
                 'points_used' => $reward->points_required,
+                'qr_token' => Str::uuid()->toString(),
+                'expires_at' => $reward->expiration_days
+                    ? now()->addDays((int) $reward->expiration_days)->toDateString()
+                    : null,
                 'status' => 'pending',
             ]);
 
             try {
-                Mail::to($customer->email)->send(new LoyaltyRewardUnlockedMail($customer, $reward, $settings));
+                Mail::to($customer->email)->send(new LoyaltyRewardUnlockedMail($customer, $reward, $redemption, $settings));
             } catch (\Throwable $e) {
                 report($e);
             }
+        }
+    }
+
+    protected function notifyPointsUpdated(LoyaltyCustomer $customer, int $pointsAwarded): void
+    {
+        $settings = Setting::first();
+
+        if (! $customer->email) {
+            return;
+        }
+
+        try {
+            Mail::to($customer->email)->send(new LoyaltyPointsUpdatedMail(
+                $customer,
+                $pointsAwarded,
+                (int) $customer->points,
+                $settings
+            ));
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 }

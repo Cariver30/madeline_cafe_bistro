@@ -1,5 +1,4 @@
 @php
-    $copy = trim(optional($settings)->loyalty_email_copy ?? '');
     $redeemUrl = route('loyalty.redeem.show', $redemption->qr_token);
     $qrImage = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' . urlencode($redeemUrl);
     $expiresAt = $redemption->expires_at?->format('d M Y');
@@ -9,7 +8,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Recompensa desbloqueada</title>
+    <title>Recompensa por expirar</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -34,21 +33,11 @@
             line-height: 1.6;
         }
         .reward {
-            margin: 28px 0;
-            padding: 20px;
+            margin: 24px 0;
+            padding: 18px;
             border-radius: 16px;
             background: linear-gradient(120deg,#fde68a,#f97316);
             color: #111827;
-        }
-        .cta {
-            display: inline-block;
-            margin-top: 24px;
-            padding: 12px 28px;
-            border-radius: 999px;
-            background: #111827;
-            color: #ffffff;
-            text-decoration: none;
-            font-weight: 600;
         }
         .footer {
             text-align: center;
@@ -61,7 +50,7 @@
 <body>
     <div class="card">
         <h1>Hola {{ $customer->name }},</h1>
-        <p>Acabas de acumular los puntos necesarios para desbloquear una nueva recompensa dentro del programa de fidelidad de {{ config('app.name', 'Café Negro') }}.</p>
+        <p>Tu recompensa está por expirar en <strong>{{ $daysRemaining }} días</strong>.</p>
 
         <div class="reward">
             <h2 style="margin:0 0 8px;">{{ $reward->title }}</h2>
@@ -82,14 +71,8 @@
             </p>
         </div>
 
-        @if($copy)
-            <p>{!! nl2br(e($copy)) !!}</p>
-        @else
-            <p>Preséntate en nuestra barra y muestra este correo para coordinar la redención. Nuestro equipo confirmará la disponibilidad y el mejor momento para disfrutar tu recompensa.</p>
-        @endif
-
         <p class="footer">
-            © {{ date('Y') }} {{ config('app.name', 'Café Negro') }} &middot; Gracias por ser parte de nuestra comunidad.
+            © {{ date('Y') }} {{ config('app.name', 'Café Negro') }} &middot; Gracias por visitarnos.
         </p>
     </div>
 </body>

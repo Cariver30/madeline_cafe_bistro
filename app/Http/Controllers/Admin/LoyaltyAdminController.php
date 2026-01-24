@@ -42,9 +42,15 @@ class LoyaltyAdminController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'points_required' => ['required', 'integer', 'min:1'],
+            'expiration_days' => ['nullable', 'integer', 'in:30,60,90,120'],
         ]);
 
-        LoyaltyReward::create($data);
+        LoyaltyReward::create([
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'points_required' => $data['points_required'],
+            'expiration_days' => $data['expiration_days'] ?? null,
+        ]);
 
         return back()->with('success', 'Recompensa creada.');
     }
@@ -56,12 +62,14 @@ class LoyaltyAdminController extends Controller
             'description' => ['nullable', 'string'],
             'points_required' => ['required', 'integer', 'min:1'],
             'active' => ['nullable', 'boolean'],
+            'expiration_days' => ['nullable', 'integer', 'in:30,60,90,120'],
         ]);
 
         $reward->update([
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'points_required' => $data['points_required'],
+            'expiration_days' => $data['expiration_days'] ?? null,
             'active' => $request->boolean('active'),
         ]);
 

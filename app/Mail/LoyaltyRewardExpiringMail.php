@@ -5,31 +5,34 @@ namespace App\Mail;
 use App\Models\LoyaltyCustomer;
 use App\Models\LoyaltyRedemption;
 use App\Models\LoyaltyReward;
-use App\Models\Setting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class LoyaltyRewardUnlockedMail extends Mailable
+class LoyaltyRewardExpiringMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public LoyaltyCustomer $customer;
     public LoyaltyReward $reward;
     public LoyaltyRedemption $redemption;
-    public ?Setting $settings;
+    public int $daysRemaining;
 
-    public function __construct(LoyaltyCustomer $customer, LoyaltyReward $reward, LoyaltyRedemption $redemption, ?Setting $settings = null)
-    {
+    public function __construct(
+        LoyaltyCustomer $customer,
+        LoyaltyReward $reward,
+        LoyaltyRedemption $redemption,
+        int $daysRemaining
+    ) {
         $this->customer = $customer;
         $this->reward = $reward;
         $this->redemption = $redemption;
-        $this->settings = $settings;
+        $this->daysRemaining = $daysRemaining;
     }
 
     public function build(): self
     {
-        return $this->subject('¡Has desbloqueado una recompensa!')
-            ->view('emails.loyalty.reward-unlocked');
+        return $this->subject('Tu recompensa está por expirar')
+            ->view('emails.loyalty.reward-expiring');
     }
 }

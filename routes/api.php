@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\MenuManagementController;
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\KitchenAreaController;
 use App\Http\Controllers\Api\KitchenOrderController;
+use App\Http\Controllers\Api\LoyaltyRedemptionController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\PaymentManagementController;
 use App\Http\Controllers\Api\PosTicketController;
@@ -39,11 +40,13 @@ Route::prefix('mobile')->group(function () {
     });
     Route::middleware('mobile.api:server,manager,pos')->group(function () {
         Route::get('/tap-to-pay/config', [TapToPayController::class, 'config']);
+        Route::post('/loyalty/redemptions/scan', [LoyaltyRedemptionController::class, 'scan']);
     });
 
     Route::prefix('servers')->middleware('mobile.api:server,manager')->group(function () {
         Route::get('/dashboard', [ServerDashboardController::class, 'summary']);
         Route::get('/visits/summary', [ServerVisitController::class, 'summary']);
+        Route::get('/visits/lookup', [ServerVisitController::class, 'lookup']);
         Route::post('/visits', [ServerVisitController::class, 'store']);
         Route::get('/menu/categories', [ServerMenuController::class, 'menuCategories']);
         Route::get('/cocktails/categories', [ServerMenuController::class, 'cocktailCategories']);
@@ -185,5 +188,9 @@ Route::prefix('servers')->group(function () {
         Route::post('/logout', [MobileAuthController::class, 'logout']);
         Route::get('/visits/summary', [ServerVisitController::class, 'summary']);
         Route::post('/visits', [ServerVisitController::class, 'store']);
+    });
+
+    Route::middleware('mobile.api:server,manager,pos')->group(function () {
+        Route::post('/loyalty/redemptions/scan', [LoyaltyRedemptionController::class, 'scan']);
     });
 });

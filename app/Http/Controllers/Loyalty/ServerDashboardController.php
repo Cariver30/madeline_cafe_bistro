@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Loyalty;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoyaltyCustomer;
+use App\Models\LoyaltyReward;
 use App\Models\LoyaltyVisit;
 use App\Models\Setting;
 use Illuminate\Http\Request;
@@ -15,12 +17,15 @@ class ServerDashboardController extends Controller
         $this->authorizeServer();
 
         $settings = Setting::first();
+        $loyaltyRewards = LoyaltyReward::where('active', true)
+            ->orderBy('points_required')
+            ->get();
         $visits = LoyaltyVisit::where('server_id', auth()->id())
             ->latest()
             ->limit(10)
             ->get();
 
-        return view('loyalty.server.dashboard', compact('settings', 'visits'));
+        return view('loyalty.server.dashboard', compact('settings', 'visits', 'loyaltyRewards'));
     }
 
     public function storeVisit(Request $request)
@@ -48,6 +53,33 @@ class ServerDashboardController extends Controller
         return redirect()->route('loyalty.dashboard')
             ->with('success', 'Visita generada.')
             ->with('active_visit', $visit->qr_token);
+    }
+
+    public function lookupCustomer(Request $request)
+    {
+        $this->authorizeServer();
+
+        $data = $request->validate([
+            'lookup_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $email = strtolower(trim($data['lookup_email']));
+        $customer = LoyaltyCustomer::where('email', $email)->first();
+
+        if (! $customer) {
+            return back()
+                ->withErrors(['lookup_email' => 'No encontramos ese correo.'])
+                ->withInput(['lookup_email' => $data['lookup_email']]);
+        }
+
+        return back()
+            ->with('success', 'Cliente encontrado.')
+            ->with('loyalty_lookup', [
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'points' => $customer->points,
+            ]);
     }
 
     protected function authorizeServer(): void

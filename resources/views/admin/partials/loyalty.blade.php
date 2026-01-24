@@ -124,17 +124,27 @@
         </div>
         <form method="POST" action="{{ route('admin.loyalty.rewards.store') }}" class="row g-3 align-items-end mb-4">
             @csrf
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label text-muted small">Nombre</label>
                 <input type="text" name="title" class="form-control" required>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label text-muted small">Descripción</label>
                 <input type="text" name="description" class="form-control">
             </div>
             <div class="col-md-2">
                 <label class="form-label text-muted small">Puntos</label>
                 <input type="number" name="points_required" min="1" class="form-control" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small">Expira en</label>
+                <select name="expiration_days" class="form-select">
+                    <option value="">Sin expiración</option>
+                    <option value="30">30 días</option>
+                    <option value="60">60 días</option>
+                    <option value="90">90 días</option>
+                    <option value="120">120 días</option>
+                </select>
             </div>
             <div class="col-md-2">
                 <button class="btn btn-outline-dark w-100">Añadir</button>
@@ -150,8 +160,18 @@
                             @method('PUT')
                             <input type="text" name="title" value="{{ $reward->title }}" class="form-control form-control-sm" required>
                             <textarea name="description" rows="2" class="form-control form-control-sm" placeholder="Descripción">{{ $reward->description }}</textarea>
+                            @if(!empty($reward->expiration_days))
+                                <p class="text-muted small mb-0">Expira {{ (int) $reward->expiration_days }} días después del desbloqueo.</p>
+                            @endif
                             <div class="d-flex align-items-center gap-2">
                                 <input type="number" name="points_required" value="{{ $reward->points_required }}" class="form-control form-control-sm" min="1" required>
+                                <select name="expiration_days" class="form-select form-select-sm">
+                                    <option value="" {{ empty($reward->expiration_days) ? 'selected' : '' }}>Sin expiración</option>
+                                    <option value="30" {{ (int) $reward->expiration_days === 30 ? 'selected' : '' }}>30 días</option>
+                                    <option value="60" {{ (int) $reward->expiration_days === 60 ? 'selected' : '' }}>60 días</option>
+                                    <option value="90" {{ (int) $reward->expiration_days === 90 ? 'selected' : '' }}>90 días</option>
+                                    <option value="120" {{ (int) $reward->expiration_days === 120 ? 'selected' : '' }}>120 días</option>
+                                </select>
                                 <div class="form-check ms-3">
                                     <input type="checkbox" name="active" value="1" class="form-check-input" {{ $reward->active ? 'checked' : '' }}>
                                     <label class="form-check-label small">Activa</label>
@@ -186,6 +206,7 @@
                         <th>Nombre</th>
                         <th>Correo</th>
                         <th>Puntos</th>
+                        <th>Fase</th>
                         <th>Última visita</th>
                     </tr>
                 </thead>
@@ -195,11 +216,27 @@
                             <td>{{ $customer->name }}</td>
                             <td>{{ $customer->email }}</td>
                             <td><span class="badge text-bg-primary">{{ $customer->points }}</span></td>
+                            <td class="text-muted small">
+                                @php
+                                    $activeRewards = $loyaltyRewards->where('active', true)->sortBy('points_required');
+                                    $nextReward = $activeRewards->first(fn ($reward) => $reward->points_required > $customer->points);
+                                    $currentReward = $activeRewards->filter(fn ($reward) => $reward->points_required <= $customer->points)->last();
+                                @endphp
+                                @if($currentReward)
+                                    <div>Desbloqueó: {{ $currentReward->title }} ({{ $currentReward->points_required }} pts)</div>
+                                @endif
+                                @if($nextReward)
+                                    <div>Siguiente: {{ $nextReward->title }} ({{ $nextReward->points_required }} pts)</div>
+                                    <div>Faltan {{ max(0, $nextReward->points_required - $customer->points) }} pts</div>
+                                @else
+                                    <div>Máxima recompensa alcanzada.</div>
+                                @endif
+                            </td>
                             <td>{{ optional($customer->last_visit_at)->diffForHumans() ?? '—' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="text-center text-muted small">Todavía no hay visitas confirmadas.</td>
+                            <td colspan="5" class="text-center text-muted small">Todavía no hay visitas confirmadas.</td>
                         </tr>
                     @endforelse
                 </tbody>

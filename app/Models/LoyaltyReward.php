@@ -13,6 +13,7 @@ class LoyaltyReward extends Model
         'title',
         'description',
         'points_required',
+        'expiration_days',
         'active',
     ];
 

@@ -22,11 +22,11 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
 
-        if ($user && $user->isServer()) {
-            return redirect()->route('loyalty.dashboard');
-        }
+        $default = $user && $user->isServer()
+            ? route('loyalty.dashboard')
+            : route('admin.new-panel');
 
-        return redirect()->route('admin.new-panel');
+        return redirect()->intended($default);
     }
 
     public function destroy(Request $request)

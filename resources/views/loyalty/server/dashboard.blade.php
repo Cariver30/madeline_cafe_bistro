@@ -1,3 +1,12 @@
+@php
+    $lookup = session('loyalty_lookup', []);
+    $lookupPoints = $lookup['points'] ?? null;
+    $nextReward = null;
+    if (!empty($loyaltyRewards) && $lookupPoints !== null) {
+        $nextReward = $loyaltyRewards
+            ->first(fn ($reward) => $reward->points_required > $lookupPoints);
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -6,6 +15,7 @@
     <title>Mesero · Check-ins</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-white">
     <header class="p-6 border-b border-white/10 flex justify-between items-center">
@@ -34,19 +44,45 @@
         <section class="grid lg:grid-cols-2 gap-6">
             <article class="bg-white/5 border border-white/10 rounded-3xl p-6">
                 <p class="text-xs uppercase tracking-[0.35em] text-white/60 mb-3">Nueva visita</p>
+                <form method="POST" action="{{ route('loyalty.customer.lookup') }}" class="space-y-3 mb-6">
+                    @csrf
+                    <div>
+                        <label class="text-xs uppercase tracking-[0.3em] text-white/50 block mb-2">Buscar cliente por email</label>
+                        <input type="email" name="lookup_email" required class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-white"
+                               value="{{ old('lookup_email', $lookup['email'] ?? '') }}">
+                    </div>
+                    <button type="submit" class="w-full rounded-full border border-amber-300 text-amber-200 font-semibold py-3">
+                        Buscar cliente
+                    </button>
+                </form>
+                @if($lookupPoints !== null)
+                    <div class="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-6">
+                        <p class="text-xs uppercase tracking-[0.3em] text-white/50">Fase actual</p>
+                        <p class="text-lg font-semibold text-amber-300">{{ $lookupPoints }} pts</p>
+                        @if($nextReward)
+                            <p class="text-white/60 text-sm">Siguiente recompensa: {{ $nextReward->title }} ({{ $nextReward->points_required }} pts)</p>
+                            <p class="text-white/40 text-xs">Faltan {{ max(0, $nextReward->points_required - $lookupPoints) }} pts</p>
+                        @else
+                            <p class="text-white/60 text-sm">Ya alcanzó la recompensa más alta.</p>
+                        @endif
+                    </div>
+                @endif
                 <form method="POST" action="{{ route('loyalty.visit.create') }}" class="space-y-4">
                     @csrf
                     <div>
                         <label class="text-xs uppercase tracking-[0.3em] text-white/50 block mb-2">Nombre del invitado</label>
-                        <input type="text" name="name" required class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-white" value="{{ old('name') }}">
+                        <input type="text" name="name" required class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-white"
+                               value="{{ old('name', $lookup['name'] ?? '') }}">
                     </div>
                     <div>
                         <label class="text-xs uppercase tracking-[0.3em] text-white/50 block mb-2">Correo</label>
-                        <input type="email" name="email" required class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-white" value="{{ old('email') }}">
+                        <input type="email" name="email" required class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-white"
+                               value="{{ old('email', $lookup['email'] ?? '') }}">
                     </div>
                     <div>
                         <label class="text-xs uppercase tracking-[0.3em] text-white/50 block mb-2">Teléfono</label>
-                        <input type="text" name="phone" required class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-white" value="{{ old('phone') }}">
+                        <input type="text" name="phone" required class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-white"
+                               value="{{ old('phone', $lookup['phone'] ?? '') }}">
                     </div>
                     <button type="submit" class="w-full rounded-full bg-amber-400 text-slate-950 font-semibold py-3">Generar QR</button>
                 </form>
@@ -60,6 +96,27 @@
                 </div>
                 <p class="text-xs text-white/50 mt-4">Comparte este QR al invitado para que confirme sus datos.</p>
             </article>
+        </section>
+
+        <section class="bg-white/5 border border-white/10 rounded-3xl p-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.35em] text-white/60">Redenciones</p>
+                    <h2 class="text-xl font-semibold">Validar QR de recompensa</h2>
+                    <p class="text-white/60 text-sm">Escanea el QR del cliente para aprobar la redención.</p>
+                </div>
+                <button id="scanToggle" type="button" class="rounded-full bg-amber-400 text-slate-950 font-semibold px-5 py-2">
+                    Validar QR code
+                </button>
+            </div>
+            <div id="scanPanel" class="hidden">
+                <div class="bg-black/40 border border-white/10 rounded-2xl p-4">
+                    <div id="scanReader" class="flex items-center justify-center"></div>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button id="scanClose" type="button" class="text-sm text-white/70 hover:text-white">Cerrar</button>
+                </div>
+            </div>
         </section>
 
         <section class="bg-white/5 border border-white/10 rounded-3xl p-6">
@@ -102,6 +159,67 @@
                 correctLevel : QRCode.CorrectLevel.H
             });
         @endif
+
+        const scanToggle = document.getElementById('scanToggle');
+        const scanPanel = document.getElementById('scanPanel');
+        const scanClose = document.getElementById('scanClose');
+        let qrScanner = null;
+
+        function resolveRedeemUrl(payload) {
+            if (!payload) {
+                return null;
+            }
+            const text = String(payload).trim();
+            if (text.startsWith('http://') || text.startsWith('https://')) {
+                return text;
+            }
+            if (text.includes('/')) {
+                const parts = text.split('/').filter(Boolean);
+                return `${window.location.origin}/loyalty/redeem/${parts[parts.length - 1]}`;
+            }
+            return `${window.location.origin}/loyalty/redeem/${text}`;
+        }
+
+        async function startScanner() {
+            if (!qrScanner) {
+                qrScanner = new Html5Qrcode('scanReader');
+            }
+
+            await qrScanner.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: 220 },
+                (decodedText) => {
+                    const url = resolveRedeemUrl(decodedText);
+                    if (url) {
+                        window.location.href = url;
+                    }
+                },
+                () => {}
+            );
+        }
+
+        async function stopScanner() {
+            if (qrScanner) {
+                try {
+                    await qrScanner.stop();
+                } catch (_) {
+                }
+            }
+        }
+
+        scanToggle?.addEventListener('click', async () => {
+            scanPanel.classList.remove('hidden');
+            try {
+                await startScanner();
+            } catch (error) {
+                console.error(error);
+            }
+        });
+
+        scanClose?.addEventListener('click', async () => {
+            await stopScanner();
+            scanPanel.classList.add('hidden');
+        });
     </script>
 </body>
 </html>
