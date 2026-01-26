@@ -31,18 +31,31 @@ class EventPromotionController extends Controller
             'subject' => 'required|string|max:255',
             'preview_text' => 'nullable|string|max:255',
             'body_html' => 'required|string',
-            'hero_image' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif|max:10240',
-            'assets.*' => 'nullable|file|mimes:pdf,gif,mp4,mov,webm,jpg,jpeg,png,webp|max:20480',
+            'promo_image' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif|max:10240',
+            'assets.*' => 'nullable|file|mimes:pdf,mp4,mov,webm|max:20480',
             'send_now' => 'boolean',
         ]);
 
-        if ($request->hasFile('hero_image')) {
-            $data['hero_image'] = $request->file('hero_image')->store('promotions', 'public');
+        if ($request->hasFile('promo_image')) {
+            $data['hero_image'] = $request->file('promo_image')->store('promotions', 'public');
         }
 
         $attachments = [];
         if ($request->hasFile('assets')) {
+            $seen = [];
             foreach ($request->file('assets') as $file) {
+                $signature = $file->getClientOriginalName().'|'.$file->getSize();
+                if (isset($seen[$signature])) {
+                    continue;
+                }
+                $seen[$signature] = true;
+                $mime = $file->getMimeType() ?? '';
+                $name = strtolower($file->getClientOriginalName() ?? '');
+                $isImage = str_starts_with($mime, 'image/')
+                    || preg_match('/\\.(jpg|jpeg|png|gif|webp)$/i', $name);
+                if ($isImage) {
+                    continue;
+                }
                 $path = $file->store('promotions', 'public');
                 $attachments[] = [
                     'path' => $path,
@@ -98,10 +111,17 @@ class EventPromotionController extends Controller
 
         $attachments = [];
         foreach ($promotion->attachments ?? [] as $file) {
+            $mime = $file['mime'] ?? '';
+            $name = strtolower($file['name'] ?? '');
+            $isImage = str_starts_with($mime, 'image/')
+                || preg_match('/\\.(jpg|jpeg|png|gif|webp)$/i', $name);
+            if ($isImage) {
+                continue;
+            }
             $contents = Storage::disk('public')->get($file['path']);
             $attachments[] = [
                 'content' => base64_encode($contents),
-                'type' => $file['mime'],
+                'type' => $mime,
                 'filename' => $file['name'],
             ];
         }

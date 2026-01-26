@@ -1,11 +1,15 @@
 @php
     $attachments = collect($promotion->attachments ?? []);
-    $imageAssets = $attachments->filter(fn ($asset) => str_starts_with($asset['mime'] ?? '', 'image/'));
-    $primaryImage = $imageAssets->first();
-    $primaryImageUrl = $primaryImage && isset($primaryImage['path'])
-        ? \Illuminate\Support\Facades\Storage::disk('public')->url($primaryImage['path'])
-        : null;
-    $assetLinks = $attachments->filter(fn ($asset) => !str_starts_with($asset['mime'] ?? '', 'image/'))->map(fn ($asset) => [
+    $primaryImageUrl = null;
+    if ($promotion->hero_image && \Illuminate\Support\Facades\Storage::disk('public')->exists($promotion->hero_image)) {
+        $mime = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($promotion->hero_image) ?: 'image/jpeg';
+        $data = base64_encode(\Illuminate\Support\Facades\Storage::disk('public')->get($promotion->hero_image));
+        $primaryImageUrl = "data:{$mime};base64,{$data}";
+    }
+    $bodyHtml = $promotion->body_html ?? '';
+    $bodyHtml = preg_replace('/<img[^>]*>/i', '', $bodyHtml);
+    $bodyHtml = preg_replace('/<figure[^>]*>.*?<\\/figure>/is', '', $bodyHtml);
+    $assetLinks = $attachments->map(fn ($asset) => [
         'name' => $asset['name'] ?? 'Archivo',
         'mime' => $asset['mime'] ?? '',
         'url' => isset($asset['path'])
@@ -54,7 +58,7 @@
 <body>
     <div class="container">
         <div class="content">
-            {!! $promotion->body_html !!}
+            {!! $bodyHtml !!}
 
             @if($primaryImageUrl)
                 <div style="margin-top: 20px; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden;">

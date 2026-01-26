@@ -241,7 +241,7 @@
                 </div>
             </div>
 
-            @if($currentUser?->isAdmin())
+            @if($currentUser && $currentUser->hasRole(['admin', 'manager']))
                 <div id="general" class="section-panel">
                     <div class="inner-panel">
                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">

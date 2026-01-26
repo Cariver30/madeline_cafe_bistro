@@ -8,7 +8,7 @@
     <div class="glass-card">
         <p class="text-xs uppercase tracking-[0.35em] text-amber-400 mb-2">Marketing</p>
         <h1 class="text-3xl font-semibold text-white">Crear campaña promocional</h1>
-        <p class="text-sm text-slate-400">Arrastra assets (PDF, GIF, videos) y redacta el mensaje para la lista VIP.</p>
+        <p class="text-sm text-slate-400">Sube una imagen principal y adjunta archivos PDF o video para la lista VIP.</p>
     </div>
 
     @if ($errors->any())
@@ -43,12 +43,17 @@
             <p class="text-xs text-slate-400 mt-2">Tip: si solo escribes texto normal, lo transformaremos en párrafos HTML con el template por defecto.</p>
         </div>
         <div>
-            <label class="input-label">Assets (PDF, GIF, videos)</label>
+            <label class="input-label">Imagen principal</label>
+            <input type="file" name="promo_image" class="input-control" accept="image/*">
+            <p class="text-xs text-slate-400 mt-2">JPG/PNG/WEBP/GIF · Máx 10 MB.</p>
+        </div>
+        <div>
+            <label class="input-label">Assets (PDF, videos)</label>
             <label class="dropzone" id="assetDropzone">
-                <input type="file" name="assets[]" multiple class="hidden" id="assetInput">
+                <input type="file" name="assets[]" multiple class="hidden" id="assetInput" accept="application/pdf,video/mp4,video/quicktime,video/webm">
                 <span class="text-sm text-slate-300">Arrastra archivos o toca para seleccionar</span>
             </label>
-            <p class="text-xs text-slate-400 mt-2">PDF, GIF, MP4/MOV/WEBM, JPG/PNG/WEBP · Máx 20 MB por archivo.</p>
+            <p class="text-xs text-slate-400 mt-2">PDF, MP4/MOV/WEBM · Máx 20 MB por archivo.</p>
             <ul id="assetList" class="mt-2 text-sm text-slate-400 space-y-1"></ul>
         </div>
         <label class="flex items-center gap-2 text-sm text-slate-200">
