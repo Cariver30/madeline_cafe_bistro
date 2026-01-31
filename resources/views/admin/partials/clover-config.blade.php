@@ -41,6 +41,7 @@
                 <label class="form-check-label" for="clover_clear_token">Limpiar token guardado</label>
             </div>
             <div class="d-flex flex-wrap gap-2 mt-3">
+                <button class="btn btn-success" type="submit">Guardar credenciales</button>
                 <button class="btn btn-outline-secondary" type="submit" formaction="{{ route('admin.clover.test') }}">Probar conexión</button>
                 <button class="btn btn-dark" type="submit" formaction="{{ route('admin.clover.sync_all') }}">Sync Clover (categorías + items)</button>
                 <a class="btn btn-outline-primary" href="{{ route('admin.clover.index') }}">Mapear categorías</a>
