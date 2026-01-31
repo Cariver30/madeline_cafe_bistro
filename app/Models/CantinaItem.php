@@ -10,6 +10,7 @@ class CantinaItem extends Model
     use HasFactory;
 
     protected $fillable = [
+        'clover_id',
         'name',
         'description',
         'price',
@@ -28,5 +29,10 @@ class CantinaItem extends Model
     public function category()
     {
         return $this->belongsTo(CantinaCategory::class, 'category_id');
+    }
+
+    public function extras()
+    {
+        return $this->morphToMany(Extra::class, 'assignable', 'extra_assignments')->withTimestamps();
     }
 }

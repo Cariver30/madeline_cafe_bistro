@@ -14,7 +14,7 @@ class HomeController extends Controller
 {
     public function cover()
     {
-        $settings = Setting::first();
+        $settings = Setting::firstOrCreate([]);
         $featuredGroups = FeaturedGroupBuilder::build();
         $popups = Popup::where('active', 1)
             ->where('view', 'cover')
@@ -27,7 +27,7 @@ class HomeController extends Controller
 
     public function menu()
     {
-        $settings = Setting::first();
+        $settings = Setting::firstOrCreate([]);
         $categories = Category::with('dishes')->get();
         return view('menu', compact('settings', 'categories'));
     }

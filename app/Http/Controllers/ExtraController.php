@@ -25,6 +25,7 @@ class ExtraController extends Controller
             $active = (bool) ($data['active'] ?? false);
             $groupRequired = (bool) ($data['group_required'] ?? false);
             $maxSelect = $data['max_select'] ?? null;
+            $minSelect = $data['min_select'] ?? null;
             $options = $data['options'] ?? [];
 
             foreach ($options as $option) {
@@ -33,6 +34,7 @@ class ExtraController extends Controller
                     'group_name' => $data['group_name'],
                     'group_required' => $groupRequired,
                     'max_select' => $maxSelect,
+                    'min_select' => $minSelect,
                     'kind' => $data['kind'],
                     'price' => $option['price'],
                     'description' => $option['description'] ?? null,
@@ -89,6 +91,7 @@ class ExtraController extends Controller
             'kind' => ['required', Rule::in(Extra::KINDS)],
             'group_required' => ['nullable', 'boolean'],
             'max_select' => ['nullable', 'integer', 'min:1', 'max:99'],
+            'min_select' => ['nullable', 'integer', 'min:1', 'max:99'],
             'price' => ['required', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:500'],
             'view_scope' => ['required', Rule::in(Extra::VIEW_SCOPES)],
@@ -103,6 +106,7 @@ class ExtraController extends Controller
             'kind' => ['required', Rule::in(Extra::KINDS)],
             'group_required' => ['nullable', 'boolean'],
             'max_select' => ['nullable', 'integer', 'min:1', 'max:99'],
+            'min_select' => ['nullable', 'integer', 'min:1', 'max:99'],
             'view_scope' => ['required', Rule::in(Extra::VIEW_SCOPES)],
             'active' => ['boolean'],
             'options' => ['required', 'array', 'min:1'],

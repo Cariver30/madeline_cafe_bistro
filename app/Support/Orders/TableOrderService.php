@@ -115,7 +115,7 @@ class TableOrderService
         $item = $model::where('id', $id)
             ->where('visible', true)
             ->with(['category', 'extras' => function ($extraQuery) {
-                $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'kind', 'price', 'description', 'active')
+                $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'min_select', 'kind', 'price', 'description', 'active')
                     ->where('active', true);
             }, 'prepLabels' => function ($labelQuery) {
                 $labelQuery->where('active', true);
@@ -183,7 +183,8 @@ class TableOrderService
     private function validateExtrasSelection($item, array $extrasPayload): void
     {
         if (empty($extrasPayload) || $item->extras->isEmpty()) {
-            $hasRequired = $item->extras->contains(fn ($extra) => (bool) $extra->group_required);
+            $hasRequired = $item->extras->contains(fn ($extra) => (bool) $extra->group_required)
+                || $item->extras->contains(fn ($extra) => (int) ($extra->min_select ?? 0) > 0);
             if ($hasRequired) {
                 throw new \RuntimeException('extras_required');
             }
@@ -212,12 +213,15 @@ class TableOrderService
         foreach ($grouped as $groupName => $groupExtras) {
             $required = $groupExtras->contains(fn ($extra) => (bool) $extra->group_required);
             $maxSelect = $groupExtras->max('max_select');
+            $minSelect = $groupExtras->max('min_select');
             if (!$maxSelect && $groupExtras->contains(fn ($extra) => $extra->kind === 'modifier')) {
                 $maxSelect = 1;
             }
             $selectedCount = $selectedCounts->get($groupName, 0);
 
-            if ($required && $selectedCount === 0) {
+            $requiredMin = max($required ? 1 : 0, (int) ($minSelect ?? 0));
+
+            if ($requiredMin > 0 && $selectedCount < $requiredMin) {
                 throw new \RuntimeException('extras_required');
             }
             if ($maxSelect && $selectedCount > $maxSelect) {

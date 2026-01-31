@@ -200,13 +200,14 @@ export async function createServerOrder(
   token: string,
   sessionId: number,
   items: ServerOrderItemPayload[],
-): Promise<void> {
+): Promise<{order_id: number; batch_id: number}> {
   try {
-    await client.post(
+    const {data} = await client.post<{order_id: number; batch_id: number}>(
       `${SERVER_API}/table-sessions/${sessionId}/orders`,
       {items},
       authHeaders(token),
     );
+    return data;
   } catch (error) {
     throw new Error(extractMessage(error));
   }
@@ -334,6 +335,7 @@ export async function sendPosReceipt(
     throw new Error(extractMessage(error));
   }
 }
+
 
 export async function createPosPayment(
   token: string,
@@ -544,6 +546,7 @@ export async function sendServerReceipt(
     throw new Error(extractMessage(error));
   }
 }
+
 
 export async function transferServerTableSession(
   token: string,

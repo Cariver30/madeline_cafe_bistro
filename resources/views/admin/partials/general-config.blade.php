@@ -19,7 +19,7 @@
             </div>
             <div class="mb-3">
                 <label for="cover_location_text" class="form-label">Dirección / ubicación</label>
-                <input type="text" class="form-control" id="cover_location_text" name="cover_location_text" value="{{ $settings->cover_location_text ?? '' }}" placeholder="Café Negro · Miramar">
+                <input type="text" class="form-control" id="cover_location_text" name="cover_location_text" value="{{ $settings->cover_location_text ?? '' }}" placeholder="{{ config('app.name', 'Restaurant') }}">
             </div>
             <div class="text-end">
                 <button class="btn btn-primary">Guardar contacto</button>
@@ -40,13 +40,20 @@
 
     <div class="border rounded-3 p-3 mb-4">
         <h5 class="mb-3">Imágenes para los CTA de portada</h5>
-        <p class="text-muted small mb-3">Cada botón (Menú, Café, Bebidas, Eventos, Reservas) puede mostrar una imagen. Deja el campo vacío para usar solo texto.</p>
+        <p class="text-muted small mb-3">Cada botón (Menú, Ordenar en línea, Café, Bebidas, Eventos, Reservas) puede mostrar una imagen. Deja el campo vacío para usar solo texto.</p>
         <div class="row g-3">
             <div class="col-md-4">
                 <label class="form-label">CTA Menú</label>
                 <input type="file" class="form-control" name="cta_image_menu">
                 @if($settings->cta_image_menu)
                     <img src="{{ asset('storage/' . $settings->cta_image_menu) }}" class="img-fluid rounded mt-2" alt="CTA Menú">
+                @endif
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">CTA Ordenar en línea</label>
+                <input type="file" class="form-control" name="cta_image_online">
+                @if($settings->cta_image_online)
+                    <img src="{{ asset('storage/' . $settings->cta_image_online) }}" class="img-fluid rounded mt-2" alt="CTA Ordenar en línea">
                 @endif
             </div>
             <div class="col-md-4">
@@ -92,6 +99,7 @@
         @php
             $ctaKeys = [
                 'menu' => 'Menú',
+                'online' => 'Ordenar en línea',
                 'cafe' => 'Café & Brunch',
                 'cocktails' => 'Bebidas',
                 'cantina' => 'Cantina',
@@ -121,6 +129,7 @@
             @php
                 $ctaVisibility = [
                     'show_cta_menu' => 'Mostrar CTA Menú',
+                    'show_cta_online' => 'Mostrar CTA Ordenar en línea',
                     'show_cta_cafe' => 'Mostrar CTA Café & Brunch',
                     'show_cta_cocktails' => 'Mostrar CTA Bebidas',
                     'show_cta_cantina' => 'Mostrar CTA Cantina',
@@ -159,6 +168,65 @@
     <div class="mb-3">
         <label for="business_hours" class="form-label">Horarios de Atención</label>
         <textarea class="form-control" id="business_hours" name="business_hours">{{ $settings->business_hours ?? '' }}</textarea>
+    </div>
+
+    @php
+        $onlineSchedule = $settings->online_schedule ?? [];
+        $onlinePauseMessage = $settings->online_pause_message ?? 'Por el momento no estamos tomando órdenes en línea.';
+        $onlineDays = [
+            'mon' => 'Lunes',
+            'tue' => 'Martes',
+            'wed' => 'Miércoles',
+            'thu' => 'Jueves',
+            'fri' => 'Viernes',
+            'sat' => 'Sábado',
+            'sun' => 'Domingo',
+        ];
+    @endphp
+    <div class="border rounded-3 p-3 mb-4">
+        <h5 class="mb-2">Ordenar en línea (control)</h5>
+        <p class="text-muted small mb-3">Configura si el sistema acepta órdenes online y define horarios por día.</p>
+        <div class="form-check form-switch mb-3">
+            <input type="hidden" name="online_enabled" value="0">
+            <input class="form-check-input" type="checkbox" id="online_enabled" name="online_enabled" value="1" {{ ($settings->online_enabled ?? true) ? 'checked' : '' }}>
+            <label class="form-check-label" for="online_enabled">Ordenar en línea activo</label>
+        </div>
+        <div class="mb-3">
+            <label for="online_pause_message" class="form-label">Mensaje cuando está cerrado</label>
+            <input type="text" class="form-control" id="online_pause_message" name="online_pause_message" value="{{ $onlinePauseMessage }}" placeholder="Por el momento no estamos tomando órdenes en línea.">
+        </div>
+        <div class="row g-3">
+            @foreach ($onlineDays as $dayKey => $dayLabel)
+                @php
+                    $dayConfig = $onlineSchedule[$dayKey] ?? [];
+                    $dayClosed = (bool) ($dayConfig['closed'] ?? false);
+                    $dayStart = $dayConfig['start'] ?? '';
+                    $dayEnd = $dayConfig['end'] ?? '';
+                @endphp
+                <div class="col-12 col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <strong>{{ $dayLabel }}</strong>
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="online_schedule[{{ $dayKey }}][closed]" value="0">
+                                <input class="form-check-input" type="checkbox" id="online_schedule_{{ $dayKey }}_closed" name="online_schedule[{{ $dayKey }}][closed]" value="1" {{ $dayClosed ? 'checked' : '' }}>
+                                <label class="form-check-label" for="online_schedule_{{ $dayKey }}_closed">Cerrado</label>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small text-muted">Desde</label>
+                                <input type="time" class="form-control" name="online_schedule[{{ $dayKey }}][start]" value="{{ $dayStart }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-muted">Hasta</label>
+                                <input type="time" class="form-control" name="online_schedule[{{ $dayKey }}][end]" value="{{ $dayEnd }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
     </div>
 
     @php
@@ -243,11 +311,11 @@
             </div>
             <div class="col-md-6">
                 <label for="cover_location_text" class="form-label">Texto de ubicación</label>
-                <input type="text" class="form-control" id="cover_location_text" name="cover_location_text" value="{{ $settings->cover_location_text ?? '' }}" placeholder="Café Negro · Miramar">
+                <input type="text" class="form-control" id="cover_location_text" name="cover_location_text" value="{{ $settings->cover_location_text ?? '' }}" placeholder="{{ config('app.name', 'Restaurant') }}">
             </div>
             <div class="col-12">
                 <label for="cover_hero_title" class="form-label">Título principal</label>
-                <input type="text" class="form-control" id="cover_hero_title" name="cover_hero_title" value="{{ $settings->cover_hero_title ?? '' }}" placeholder="Bienvenido a Café Negro. ...">
+                <input type="text" class="form-control" id="cover_hero_title" name="cover_hero_title" value="{{ $settings->cover_hero_title ?? '' }}" placeholder="Bienvenido. ...">
             </div>
             <div class="col-12">
                 <label for="cover_hero_paragraph" class="form-label">Descripción</label>
@@ -270,6 +338,10 @@
             <div class="col-md-6">
                 <label for="button_label_menu" class="form-label">Botón principal 1</label>
                 <input type="text" class="form-control" id="button_label_menu" name="button_label_menu" value="{{ $settings->button_label_menu ?? 'Menú' }}">
+            </div>
+            <div class="col-md-6">
+                <label for="button_label_online" class="form-label">Botón ordenar en línea</label>
+                <input type="text" class="form-control" id="button_label_online" name="button_label_online" value="{{ $settings->button_label_online ?? 'Ordenar en línea' }}">
             </div>
             <div class="col-md-6">
                 <label for="button_label_cocktails" class="form-label">Botón principal 2</label>

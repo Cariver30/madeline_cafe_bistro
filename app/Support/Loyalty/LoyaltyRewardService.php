@@ -9,9 +9,11 @@ use App\Models\LoyaltyReward;
 use App\Models\LoyaltyVisit;
 use App\Models\Setting;
 use App\Models\TableSession;
+use App\Support\CloverBillingClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Throwable;
 
 class LoyaltyRewardService
 {
@@ -45,6 +47,7 @@ class LoyaltyRewardService
 
         $this->notifyPointsUpdated($customer, (int) $visit->points_awarded);
         $this->notifyUnlockedRewards($customer);
+        $this->recordMeteredVisit($visit->fresh());
 
         return $customer;
     }
@@ -100,8 +103,47 @@ class LoyaltyRewardService
 
         $this->notifyPointsUpdated($customer, (int) $visit->points_awarded);
         $this->notifyUnlockedRewards($customer);
+        $this->recordMeteredVisit($visit->fresh());
 
         return $visit;
+    }
+
+    protected function recordMeteredVisit(LoyaltyVisit $visit): void
+    {
+        if ($visit->metered_at) {
+            return;
+        }
+
+        if (!config('services.clover.live_metrics', false)) {
+            return;
+        }
+
+        $eventId = config('services.clover.loyalty_metered_event_id')
+            ?: config('services.clover.metered_event_id');
+        if (!$eventId) {
+            return;
+        }
+
+        $settings = Setting::first();
+        $merchantId = $settings?->clover_merchant_id;
+        if (!$merchantId) {
+            return;
+        }
+
+        $billingClient = CloverBillingClient::fromSettings($settings);
+        if (!$billingClient) {
+            return;
+        }
+
+        try {
+            $billingClient->reportEvent($eventId, $merchantId, 1);
+            $visit->forceFill([
+                'metered_at' => now(),
+                'metered_event_id' => $eventId,
+            ])->save();
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     protected function notifyUnlockedRewards(LoyaltyCustomer $customer): void

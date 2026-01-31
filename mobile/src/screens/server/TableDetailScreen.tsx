@@ -282,6 +282,9 @@ const TableDetailScreen = ({navigation, route}: Props) => {
                 </Text>
                 <Text style={styles.orderMeta}>
                   {order.status}
+                  {order.clover_status
+                    ? ` · Clover: ${String(order.clover_status).toUpperCase()}`
+                    : ''}
                   {formatTime(order.created_at)
                     ? ` · ${formatTime(order.created_at)}`
                     : ''}

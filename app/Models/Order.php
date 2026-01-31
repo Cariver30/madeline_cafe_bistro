@@ -12,6 +12,16 @@ class Order extends Model
     protected $fillable = [
         'table_session_id',
         'server_id',
+        'channel',
+        'public_token',
+        'customer_name',
+        'customer_email',
+        'customer_phone',
+        'pickup_at',
+        'notes',
+        'checkout_id',
+        'checkout_url',
+        'checkout_status',
         'status',
         'confirmed_at',
         'cancelled_at',
@@ -30,6 +40,7 @@ class Order extends Model
         'paid_at' => 'datetime',
         'paid_total' => 'decimal:2',
         'tip_total' => 'decimal:2',
+        'pickup_at' => 'datetime',
     ];
 
     public function tableSession()

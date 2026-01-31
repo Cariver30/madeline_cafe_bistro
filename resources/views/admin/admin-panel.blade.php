@@ -94,6 +94,7 @@
                     <p class="tab-group-title">Sistema</p>
                     <div class="tab-group-buttons">
                         <button class="tab-button" data-section="general">Configuraciones</button>
+                        <button class="tab-button" data-section="clover">Configuración Clover</button>
                     </div>
                 </div>
             @endif
@@ -175,7 +176,11 @@
                                     <div class="flex items-center justify-between text-sm">
                                         <div>
                                             <p class="font-semibold text-slate-900">
-                                                {{ $channel['channel'] === 'walkin' ? 'Walk-in' : ($channel['channel'] === 'phone' ? 'Teléfono' : 'Mesa') }}
+                                                {{ $channel['channel'] === 'walkin'
+                                                    ? 'Walk-in'
+                                                    : ($channel['channel'] === 'phone'
+                                                        ? 'Teléfono'
+                                                        : ($channel['channel'] === 'clover' ? 'Clover' : 'Mesa')) }}
                                             </p>
                                             <p class="text-xs text-slate-500">{{ $channel['orders_count'] }} órdenes</p>
                                         </div>
@@ -252,6 +257,21 @@
                             <button type="button" class="btn btn-outline-light btn-sm" data-section="dashboard">Cerrar</button>
                         </div>
                         @include('admin.partials.general-config')
+                    </div>
+                </div>
+            @endif
+
+            @if($currentUser && $currentUser->isAdmin())
+                <div id="clover" class="section-panel">
+                    <div class="inner-panel">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+                            <div>
+                                <h3 class="inner-title mb-1">Configuración Clover</h3>
+                                <p class="inner-text m-0">Credenciales, sync, dispositivos y mapeos.</p>
+                            </div>
+                            <button type="button" class="btn btn-outline-light btn-sm" data-section="dashboard">Cerrar</button>
+                        </div>
+                        @include('admin.partials.clover-config')
                     </div>
                 </div>
             @endif

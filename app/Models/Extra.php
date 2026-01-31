@@ -19,6 +19,8 @@ class Extra extends Model
         'description',
         'view_scope',
         'active',
+        'clover_id',
+        'clover_group_id',
     ];
 
     protected $casts = [
@@ -38,6 +40,7 @@ class Extra extends Model
         'menu',
         'coffee',
         'cocktails',
+        'cantina',
     ];
 
     public function scopeForView($query, string $view): void

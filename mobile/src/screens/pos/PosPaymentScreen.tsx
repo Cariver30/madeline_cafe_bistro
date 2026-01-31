@@ -488,6 +488,7 @@ const PosPaymentScreen = ({navigation, route}: NativeStackScreenProps<PosStackPa
     }
   };
 
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -519,19 +520,21 @@ const PosPaymentScreen = ({navigation, route}: NativeStackScreenProps<PosStackPa
                 {receiptLines.length} items · ${summarySubtotal.toFixed(2)}
               </Text>
             </View>
-            <TouchableOpacity
-              style={[
-                styles.receiptButton,
-                sendingReceipt && styles.receiptButtonDisabled,
-              ]}
-              onPress={handleSendReceipt}
-              disabled={sendingReceipt}>
-              {sendingReceipt ? (
-                <ActivityIndicator color="#0f172a" />
-              ) : (
-                <Text style={styles.receiptButtonText}>Enviar cuenta</Text>
-              )}
-            </TouchableOpacity>
+            <View style={styles.receiptActions}>
+              <TouchableOpacity
+                style={[
+                  styles.receiptButton,
+                  sendingReceipt && styles.receiptButtonDisabled,
+                ]}
+                onPress={handleSendReceipt}
+                disabled={sendingReceipt}>
+                {sendingReceipt ? (
+                  <ActivityIndicator color="#0f172a" />
+                ) : (
+                  <Text style={styles.receiptButtonText}>Enviar cuenta</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
           {receiptNotice ? (
             <Text style={styles.receiptNotice}>{receiptNotice}</Text>
@@ -1127,6 +1130,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
+  },
+  receiptActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   receiptTitle: {
     color: '#f8fafc',

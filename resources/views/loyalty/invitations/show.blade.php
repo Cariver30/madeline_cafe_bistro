@@ -8,7 +8,7 @@
 </head>
 <body class="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4">
     <div class="w-full max-w-md bg-white/10 border border-white/20 rounded-3xl p-8 backdrop-blur">
-        <p class="text-xs uppercase tracking-[0.3em] text-amber-300 mb-4">Accesos Cafe Negro</p>
+        <p class="text-xs uppercase tracking-[0.3em] text-amber-300 mb-4">Accesos Madeline Bistro</p>
         <h1 class="text-2xl font-semibold mb-2">Configura tu contraseña</h1>
         <p class="text-white/70 text-sm mb-6">
             Acceso para {{ $roleLabel ?? 'mesero' }}. Ingresa una contraseña segura para continuar.

@@ -31,6 +31,8 @@ use App\Models\PrepArea;
 use App\Models\PrepLabel;
 use App\Models\Tax;
 
+use App\Support\CloverClient;
+use App\Support\CloverSyncService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +115,9 @@ class AdminController extends Controller
 
     public function newAdminPanel()
     {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+
         $categories = Category::with(['dishes.subcategory', 'subcategories'])->orderBy('order')->get();
         $dishes = Dish::with('category')->get();
         $cocktails = Cocktail::with(['category', 'subcategory'])->get();
@@ -307,6 +312,56 @@ $foodPairings = FoodPairing::all();
                 ];
             });
 
+        $cloverClient = CloverClient::fromSettings($settings);
+        // Only fetch Clover metrics when explicitly requested to avoid blocking the admin panel.
+        $cloverLiveMetrics = (bool) config('services.clover.live_metrics', false)
+            && request()->boolean('clover_live');
+        if ($cloverClient && $cloverLiveMetrics) {
+            try {
+                $cloverService = new CloverSyncService($cloverClient);
+                $todaySummary = $cloverService->rangeSummary($today, $todayEnd);
+                $yesterdaySummary = $cloverService->rangeSummary($yesterday, $yesterdayEnd);
+                $weekSummary = $cloverService->rangeSummary($weekStart, $weekEnd);
+                $prevWeekSummary = $cloverService->rangeSummary($prevWeekStart, $prevWeekEnd);
+
+                $salesDeltaPercent = null;
+                if (($yesterdaySummary['sales_total'] ?? 0) > 0) {
+                    $salesDeltaPercent = (($todaySummary['sales_total'] - $yesterdaySummary['sales_total']) / $yesterdaySummary['sales_total']) * 100;
+                }
+
+                $salesWeekDelta = null;
+                if (($prevWeekSummary['sales_total'] ?? 0) > 0) {
+                    $salesWeekDelta = (($weekSummary['sales_total'] - $prevWeekSummary['sales_total']) / $prevWeekSummary['sales_total']) * 100;
+                }
+
+                $opsTotals = [
+                    'sales_total' => round((float) ($todaySummary['sales_total'] ?? 0), 2),
+                    'tips_total' => round((float) ($todaySummary['tips_total'] ?? 0), 2),
+                    'orders_count' => (int) ($todaySummary['orders_count'] ?? 0),
+                    'open_tables' => 0,
+                    'open_tickets' => 0,
+                    'voided_total' => 0,
+                    'sales_total_yesterday' => round((float) ($yesterdaySummary['sales_total'] ?? 0), 2),
+                    'sales_delta_percent' => $salesDeltaPercent !== null ? round($salesDeltaPercent, 1) : null,
+                    'sales_week_total' => round((float) ($weekSummary['sales_total'] ?? 0), 2),
+                    'sales_week_prev' => round((float) ($prevWeekSummary['sales_total'] ?? 0), 2),
+                    'sales_week_delta_percent' => $salesWeekDelta !== null ? round($salesWeekDelta, 1) : null,
+                ];
+
+                $opsSalesByChannel = [
+                    [
+                        'channel' => 'clover',
+                        'sales_total' => round((float) ($todaySummary['sales_total'] ?? 0), 2),
+                        'orders_count' => (int) ($todaySummary['orders_count'] ?? 0),
+                    ],
+                ];
+
+                $opsTopItems = $cloverService->topSellers($today, $todayEnd, 5);
+            } catch (\Throwable $exception) {
+                // fallback to local ops data if Clover is not reachable
+            }
+        }
+
 
         return view('admin.admin-panel', compact(
             'categories',
@@ -409,6 +464,12 @@ $foodPairings = FoodPairing::all();
             'instagram_url' => 'nullable|url',
             'phone_number' => 'nullable|string',
             'business_hours' => 'nullable|string',
+            'online_enabled' => 'nullable|boolean',
+            'online_pause_message' => 'nullable|string|max:255',
+            'online_schedule' => 'nullable|array',
+            'online_schedule.*.start' => 'nullable|date_format:H:i',
+            'online_schedule.*.end' => 'nullable|date_format:H:i',
+            'online_schedule.*.closed' => 'nullable|boolean',
             'fixed_bottom_font_size' => 'nullable|integer',
             'fixed_bottom_font_color' => 'nullable|string',
             'button_label_menu' => 'nullable|string|max:255',
@@ -418,6 +479,11 @@ $foodPairings = FoodPairing::all();
             'button_label_events' => 'nullable|string|max:255',
             'button_label_vip' => 'nullable|string|max:255',
             'button_label_reservations' => 'nullable|string|max:255',
+            'button_label_online' => 'nullable|string|max:255',
+            'cta_image_online' => 'nullable|image',
+            'cover_cta_online_bg_color' => 'nullable|string',
+            'cover_cta_online_text_color' => 'nullable|string',
+            'show_cta_online' => 'nullable|boolean',
             'tab_label_menu' => 'nullable|string|max:255',
             'tab_label_cocktails' => 'nullable|string|max:255',
             'tab_label_wines' => 'nullable|string|max:255',
@@ -427,6 +493,12 @@ $foodPairings = FoodPairing::all();
             'tip_presets' => 'nullable|string',
             'tip_allow_custom' => 'nullable|boolean',
             'tip_allow_skip' => 'nullable|boolean',
+            'clover_merchant_id' => 'nullable|string|max:255',
+            'clover_access_token' => 'nullable|string|max:2048',
+            'clover_env' => 'nullable|string|in:production,sandbox',
+            'clover_device_host' => 'nullable|string|max:255',
+            'clover_device_token' => 'nullable|string|max:2048',
+            'clover_clear_token' => 'nullable|boolean',
         ]);
 
         $settings = Setting::first();
@@ -436,6 +508,7 @@ $foodPairings = FoodPairing::all();
         $buttonLabelWines = $this->sanitizeLabel($request->input('button_label_wines', $settings->button_label_wines));
         $buttonLabelCantina = $this->sanitizeLabel($request->input('button_label_cantina', $settings->button_label_cantina));
         $buttonLabelEvents = $this->sanitizeLabel($request->input('button_label_events', $settings->button_label_events));
+        $buttonLabelOnline = $this->sanitizeLabel($request->input('button_label_online', $settings->button_label_online));
 
         if ($request->hasFile('background_image_cover')) {
             $path = $request->file('background_image_cover')->store('background_images', 'public');
@@ -512,6 +585,9 @@ $foodPairings = FoodPairing::all();
         if ($request->hasFile('cta_image_reservations')) {
             $settings->cta_image_reservations = $request->file('cta_image_reservations')->store('cta_images', 'public');
         }
+        if ($request->hasFile('cta_image_online')) {
+            $settings->cta_image_online = $request->file('cta_image_online')->store('cta_images', 'public');
+        }
 
         $settings->text_color_cover = $request->input('text_color_cover', $settings->text_color_cover);
         if (Schema::hasColumn('settings', 'text_color_cover_secondary')) {
@@ -534,6 +610,8 @@ $foodPairings = FoodPairing::all();
             $settings->cover_cta_events_text_color = $request->input('cover_cta_events_text_color', $settings->cover_cta_events_text_color);
             $settings->cover_cta_reservations_bg_color = $request->input('cover_cta_reservations_bg_color', $settings->cover_cta_reservations_bg_color);
             $settings->cover_cta_reservations_text_color = $request->input('cover_cta_reservations_text_color', $settings->cover_cta_reservations_text_color);
+            $settings->cover_cta_online_bg_color = $request->input('cover_cta_online_bg_color', $settings->cover_cta_online_bg_color);
+            $settings->cover_cta_online_text_color = $request->input('cover_cta_online_text_color', $settings->cover_cta_online_text_color);
             $settings->cover_cta_vip_bg_color = $request->input('cover_cta_vip_bg_color', $settings->cover_cta_vip_bg_color);
             $settings->cover_cta_vip_text_color = $request->input('cover_cta_vip_text_color', $settings->cover_cta_vip_text_color);
         }
@@ -602,6 +680,26 @@ $foodPairings = FoodPairing::all();
         $settings->instagram_url = $request->input('instagram_url', $settings->instagram_url);
         $settings->phone_number = $request->input('phone_number', $settings->phone_number);
         $settings->business_hours = $request->input('business_hours', $settings->business_hours);
+        if (Schema::hasColumn('settings', 'online_enabled')) {
+            $settings->online_enabled = $request->boolean('online_enabled', (bool) ($settings->online_enabled ?? true));
+            $settings->online_pause_message = $request->input('online_pause_message', $settings->online_pause_message);
+
+            $scheduleInput = $request->input('online_schedule');
+            if (is_array($scheduleInput)) {
+                $normalizedSchedule = [];
+                foreach ($scheduleInput as $dayKey => $dayConfig) {
+                    if (! is_array($dayConfig)) {
+                        continue;
+                    }
+                    $normalizedSchedule[$dayKey] = [
+                        'closed' => (bool) ($dayConfig['closed'] ?? false),
+                        'start' => $dayConfig['start'] ?? null,
+                        'end' => $dayConfig['end'] ?? null,
+                    ];
+                }
+                $settings->online_schedule = $normalizedSchedule;
+            }
+        }
 
         $settings->fixed_bottom_font_size = $request->input('fixed_bottom_font_size', $settings->fixed_bottom_font_size);
         $settings->fixed_bottom_font_color = $request->input('fixed_bottom_font_color', $settings->fixed_bottom_font_color);
@@ -629,6 +727,7 @@ $foodPairings = FoodPairing::all();
         $settings->button_label_events = $buttonLabelEvents;
         $settings->button_label_vip = $request->input('button_label_vip', $settings->button_label_vip);
         $settings->button_label_reservations = $request->input('button_label_reservations', $settings->button_label_reservations);
+        $settings->button_label_online = $buttonLabelOnline;
         if (Schema::hasColumn('settings', 'tab_label_menu')) {
             $settings->tab_label_menu = $this->resolveTabLabel($request->input('tab_label_menu'), $buttonLabelMenu);
             $settings->tab_label_cocktails = $this->resolveTabLabel($request->input('tab_label_cocktails'), $buttonLabelCocktails);
@@ -659,6 +758,9 @@ $foodPairings = FoodPairing::all();
             }
             $settings->show_cta_events = $request->boolean('show_cta_events', (bool) $settings->show_cta_events);
             $settings->show_cta_reservations = $request->boolean('show_cta_reservations', (bool) $settings->show_cta_reservations);
+            if (Schema::hasColumn('settings', 'show_cta_online')) {
+                $settings->show_cta_online = $request->boolean('show_cta_online', (bool) $settings->show_cta_online);
+            }
         }
         if (Schema::hasColumn('settings', 'show_cta_vip')) {
             $settings->show_cta_vip = $request->boolean('show_cta_vip', (bool) $settings->show_cta_vip);
@@ -669,6 +771,24 @@ $foodPairings = FoodPairing::all();
             $settings->featured_card_text_color = $request->input('featured_card_text_color', $settings->featured_card_text_color);
             $settings->featured_tab_bg_color = $request->input('featured_tab_bg_color', $settings->featured_tab_bg_color);
             $settings->featured_tab_text_color = $request->input('featured_tab_text_color', $settings->featured_tab_text_color);
+        }
+
+        if ($request->has('clover_merchant_id')) {
+            $settings->clover_merchant_id = $request->input('clover_merchant_id') ?: null;
+        }
+        if ($request->has('clover_env')) {
+            $settings->clover_env = $request->input('clover_env') ?: 'production';
+        }
+        if ($request->has('clover_device_host')) {
+            $settings->clover_device_host = $request->input('clover_device_host') ?: null;
+        }
+        if ($request->has('clover_device_token')) {
+            $settings->clover_device_token = $request->input('clover_device_token') ?: null;
+        }
+        if ($request->boolean('clover_clear_token')) {
+            $settings->clover_access_token = null;
+        } elseif ($request->filled('clover_access_token')) {
+            $settings->clover_access_token = $request->input('clover_access_token');
         }
 
         $settings->save();

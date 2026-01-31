@@ -55,6 +55,7 @@ class ExtraManagementController extends Controller
             'group_name' => ['nullable', 'string', 'max:255'],
             'group_required' => ['nullable', 'boolean'],
             'max_select' => ['nullable', 'integer', 'min:1', 'max:99'],
+            'min_select' => ['nullable', 'integer', 'min:1', 'max:99'],
             'kind' => ['required', Rule::in(Extra::KINDS)],
             'price' => ['required', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:500'],

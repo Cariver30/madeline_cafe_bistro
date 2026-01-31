@@ -28,6 +28,7 @@ use App\Http\Controllers\EventPublicController;
 use App\Http\Controllers\EventNotificationController;
 use App\Http\Controllers\Admin\EventPromotionController;
 use App\Http\Controllers\Admin\LoyaltyAdminController;
+use App\Http\Controllers\Admin\CloverController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\PrinterAdminController;
 use App\Http\Controllers\Admin\PrepAreaAdminController;
@@ -40,12 +41,17 @@ use App\Http\Controllers\Loyalty\ServerDashboardController;
 use App\Http\Controllers\Loyalty\VisitConfirmationController;
 use App\Http\Controllers\CloudPrntController;
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\OnlineOrderController;
 
 use App\Http\Controllers\HomeController;
 
 // Rutas públicas
 Route::get('/', [HomeController::class, 'cover'])->name('cover');
 Route::get('/menu', [MenuController::class, 'index'])->name('menu');
+Route::get('/ordenar', [OnlineOrderController::class, 'show'])->name('online.order.show');
+Route::post('/ordenar/checkout', [OnlineOrderController::class, 'checkout'])->name('online.order.checkout');
+Route::get('/ordenar/checkout/{token}', [OnlineOrderController::class, 'checkoutPage'])->name('online.order.checkout.page');
+Route::get('/ordenar/resultado/{status}/{token}', [OnlineOrderController::class, 'result'])->name('online.order.result');
 Route::get('/cantina', [CantinaController::class, 'index'])->name('cantina.index');
 Route::get('/especiales', [SpecialPublicController::class, 'index'])->name('specials.index');
 Route::get('/mesa/{token}', [TableOrderController::class, 'show'])->name('table.order.show');
@@ -216,6 +222,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/settings/edit', [SettingController::class, 'edit'])->name('settings.edit');
     Route::put('/admin/settings/update', [SettingController::class, 'update'])->name('settings.update');
     Route::post('/admin/update-background', [AdminController::class, 'updateBackground'])->name('admin.updateBackground');
+    Route::get('/admin/clover', [CloverController::class, 'index'])->name('admin.clover.index');
+    Route::post('/admin/clover/test', [CloverController::class, 'test'])->name('admin.clover.test');
+    Route::post('/admin/clover/categories/sync', [CloverController::class, 'syncCategories'])->name('admin.clover.categories.sync');
+    Route::post('/admin/clover/items/sync', [CloverController::class, 'syncItems'])->name('admin.clover.items.sync');
+    Route::post('/admin/clover/sync-all', [CloverController::class, 'syncAll'])->name('admin.clover.sync_all');
+    Route::post('/admin/clover/scopes', [CloverController::class, 'updateScopes'])->name('admin.clover.scopes.update');
     Route::post('/admin/managers', [UserManagementController::class, 'storeManager'])->name('admin.managers.store');
     Route::patch('/admin/managers/{user}/toggle', [UserManagementController::class, 'toggleManager'])->name('admin.managers.toggle');
     Route::patch('/admin/managers/{user}/resend', [UserManagementController::class, 'resendInvitation'])->name('admin.managers.resend');

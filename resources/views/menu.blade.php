@@ -11,6 +11,20 @@
         $seoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
             : asset('storage/default-logo.png');
+        $orderChannel = $orderChannel ?? (!empty($orderMode) ? 'table' : 'view');
+        $scopeLabels = [
+            'menu' => $settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú',
+            'cocktails' => $settings->tab_label_cocktails ?? $settings->button_label_cocktails ?? 'Cócteles',
+            'wines' => $settings->tab_label_wines ?? $settings->button_label_wines ?? 'Café & Brunch',
+            'cantina' => $settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina',
+        ];
+        $scopeList = collect($categories ?? [])
+            ->map(fn ($category) => $category->scope ?? 'menu')
+            ->unique()
+            ->values()
+            ->all();
+        $defaultScope = in_array('menu', $scopeList, true) ? 'menu' : ($scopeList[0] ?? 'menu');
+        $showScopeTabs = count($scopeList) > 1 && $orderChannel !== 'view';
     @endphp
     <title>{{ $seoTitle }}</title>
     <meta name="description" content="{{ $seoDescription }}" />
@@ -124,6 +138,37 @@
                 background-attachment: fixed;
             }
         }
+
+        .scope-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .scope-tab {
+            padding: 0.5rem 1.25rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.35);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .scope-tab:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .scope-tab.active {
+            background: {{ $settings->button_color_menu ?? '#FFB347' }};
+            color: #111827;
+            border-color: transparent;
+        }
     </style>
 </head>
 <body class="text-white bg-black/70">
@@ -151,7 +196,12 @@
         <div id="desktopSidebarPanel"
              class="fixed top-0 left-0 h-full w-64 bg-white text-black p-6 space-y-2 shadow-lg overflow-y-auto transition-transform duration-300 ease-in-out lg:translate-x-0">
             @foreach ($categories as $category)
-                <a href="#{{ $category->key ?? ('category' . $category->id) }}" class="block text-lg font-semibold hover:text-blue-500 category-nav-link" data-category-target="{{ $category->key ?? ('category' . $category->id) }}">{{ $category->name }}</a>
+                <a href="#{{ $category->key ?? ('category' . $category->id) }}"
+                   class="block text-lg font-semibold hover:text-blue-500 category-nav-link"
+                   data-category-target="{{ $category->key ?? ('category' . $category->id) }}"
+                   data-scope="{{ $category->scope ?? 'menu' }}">
+                    {{ $category->name }}
+                </a>
             @endforeach
         </div>
     </div>
@@ -163,10 +213,30 @@
     </div>
 @endif
 
+@if (($orderChannel ?? 'view') === 'online' && isset($onlineOrdering) && !($onlineOrdering['enabled'] ?? true))
+    <div class="max-w-3xl mx-auto px-4 pb-6 content-layer">
+        <div class="rounded-2xl bg-amber-200/90 px-4 py-3 text-center text-sm font-semibold text-slate-900 shadow-lg">
+            {{ $onlineOrdering['message'] ?? 'Por el momento no estamos tomando órdenes en línea.' }}
+        </div>
+    </div>
+@endif
+
 @if (empty($orderMode) && !empty($tableSession))
     <div class="max-w-3xl mx-auto px-4 pb-6 content-layer">
         <div class="rounded-2xl bg-amber-400/90 px-4 py-3 text-center text-sm font-semibold text-slate-900 shadow-lg">
             Esta mesa está en modo tradicional. Pide al mesero para ordenar.
+        </div>
+    </div>
+@endif
+
+@if($showScopeTabs)
+    <div class="max-w-5xl mx-auto px-4 content-layer">
+        <div class="scope-tabs" id="scopeTabs" data-default-scope="{{ $defaultScope }}">
+            @foreach($scopeList as $scope)
+                <button type="button" class="scope-tab {{ $scope === $defaultScope ? 'active' : '' }}" data-scope-tab="{{ $scope }}">
+                    {{ $scopeLabels[$scope] ?? ucfirst($scope) }}
+                </button>
+            @endforeach
         </div>
     </div>
 @endif
@@ -181,7 +251,8 @@
     <div class="grid grid-cols-2 gap-4">
         @foreach ($categories as $category)
             <button class="rounded-2xl border border-slate-200 py-4 px-3 text-sm font-semibold text-left shadow bg-white hover:bg-slate-50 category-nav-link"
-                    data-category-target="{{ $category->key ?? ('category' . $category->id) }}">
+                    data-category-target="{{ $category->key ?? ('category' . $category->id) }}"
+                    data-scope="{{ $category->scope ?? 'menu' }}">
                 {{ $category->name }}
             </button>
         @endforeach
@@ -202,7 +273,8 @@
         <div id="categoryChipRow" class="flex gap-3 overflow-x-auto py-3 snap-x snap-mandatory scroll-smooth">
             @foreach ($categories as $category)
                 <button class="category-chip snap-start whitespace-nowrap px-4 py-2 rounded-full border border-white/20 bg-black/40 text-sm font-semibold backdrop-blur-md hover:scale-105 transition category-nav-link"
-                        data-category-target="{{ $category->key ?? ('category' . $category->id) }}">
+                        data-category-target="{{ $category->key ?? ('category' . $category->id) }}"
+                        data-scope="{{ $category->scope ?? 'menu' }}">
                     {{ $category->name }}
                 </button>
             @endforeach
@@ -220,7 +292,10 @@
 <!-- CONTENIDO DE CATEGORÍAS Y PLATOS -->
 <div class="max-w-5xl mx-auto px-4 pb-32 content-layer">
     @foreach ($categories as $category)
-        <section id="{{ $category->key ?? ('category' . $category->id) }}" class="mb-10 category-section" data-category-id="{{ $category->key ?? ('category' . $category->id) }}">
+        <section id="{{ $category->key ?? ('category' . $category->id) }}"
+                 class="mb-10 category-section"
+                 data-category-id="{{ $category->key ?? ('category' . $category->id) }}"
+                 data-scope="{{ $category->scope ?? 'menu' }}">
             <h2 class="text-3xl font-bold text-center mb-6"
                 style="background-color: {{ $settings->category_name_bg_color_menu ?? 'rgba(254, 90, 90, 0.8)' }};
                        color: {{ $settings->category_name_text_color_menu ?? '#f9f9f9' }};
@@ -272,6 +347,7 @@
                                             'kind' => $extra->kind,
                                             'group_required' => (bool) $extra->group_required,
                                             'max_select' => $extra->max_select,
+                                            'min_select' => $extra->min_select,
                                             'price' => number_format($extra->price, 2, '.', ''),
                                             'description' => $extra->description,
                                         ];
@@ -322,6 +398,17 @@
                                         ->unique(fn ($upsell) => $upsell['type'] . '-' . $upsell['id'])
                                         ->values()
                                         ->all();
+                                    $itemTaxesPayload = collect($item->taxes ?? [])
+                                        ->merge($category->taxes ?? collect())
+                                        ->filter(fn($tax) => (bool) ($tax->active ?? true))
+                                        ->unique('id')
+                                        ->map(fn($tax) => [
+                                            'id' => $tax->id,
+                                            'name' => $tax->name,
+                                            'rate' => (float) $tax->rate,
+                                        ])
+                                        ->values()
+                                        ->all();
                                 @endphp
                                 <div id="{{ $itemIdPrefix }}{{ $item->id }}" onclick="openDishModal(this)"
                                     class="dish-card rounded-lg p-4 shadow-lg relative flex items-center cursor-pointer hover:scale-105 transition"
@@ -336,7 +423,8 @@
                                     data-wines="{{ e($winePairs) }}"
                                     data-recommended="{{ e($recommendedPairs) }}"
                                     data-upsells='@json($upsellPayload)'
-                                    data-extras='@json($itemExtrasPayload)'>
+                                    data-extras='@json($itemExtrasPayload)'
+                                    data-taxes='@json($itemTaxesPayload)'>
 
                                     <span class="absolute top-2 right-2 text-xs bg-gray-700 text-white px-2 py-1 rounded">Ver más</span>
 
@@ -397,6 +485,7 @@
                                         'kind' => $extra->kind,
                                         'group_required' => (bool) $extra->group_required,
                                         'max_select' => $extra->max_select,
+                                        'min_select' => $extra->min_select,
                                         'price' => number_format($extra->price, 2, '.', ''),
                                         'description' => $extra->description,
                                     ];
@@ -447,21 +536,33 @@
                                     ->unique(fn ($upsell) => $upsell['type'] . '-' . $upsell['id'])
                                     ->values()
                                     ->all();
+                                $itemTaxesPayload = collect($item->taxes ?? [])
+                                    ->merge($category->taxes ?? collect())
+                                    ->filter(fn($tax) => (bool) ($tax->active ?? true))
+                                    ->unique('id')
+                                    ->map(fn($tax) => [
+                                        'id' => $tax->id,
+                                        'name' => $tax->name,
+                                        'rate' => (float) $tax->rate,
+                                    ])
+                                    ->values()
+                                    ->all();
                             @endphp
-                            <div id="{{ $itemIdPrefix }}{{ $item->id }}" onclick="openDishModal(this)"
-                                class="dish-card rounded-lg p-4 shadow-lg relative flex items-center cursor-pointer hover:scale-105 transition"
-                                style="background-color: {{ $settings->card_bg_color_menu ?? '#191919' }};
-                                       opacity: {{ $settings->card_opacity_menu ?? 0.9 }};"
+                                <div id="{{ $itemIdPrefix }}{{ $item->id }}" onclick="openDishModal(this)"
+                                    class="dish-card rounded-lg p-4 shadow-lg relative flex items-center cursor-pointer hover:scale-105 transition"
+                                    style="background-color: {{ $settings->card_bg_color_menu ?? '#191919' }};
+                                           opacity: {{ $settings->card_opacity_menu ?? 0.9 }};"
                                 data-item-type="{{ $itemType }}"
                                 data-item-id="{{ $item->id }}"
                                 data-name="{{ $item->name }}"
                                 data-description="{{ $item->description }}"
                                 data-price="${{ number_format($item->price, 2) }}"
                                 data-image="{{ $item->image ? asset('storage/' . $item->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}"
-                                data-wines="{{ e($winePairs) }}"
-                                data-recommended="{{ e($recommendedPairs) }}"
-                                data-upsells='@json($upsellPayload)'
-                                data-extras='@json($itemExtrasPayload)'>
+                                    data-wines="{{ e($winePairs) }}"
+                                    data-recommended="{{ e($recommendedPairs) }}"
+                                    data-upsells='@json($upsellPayload)'
+                                    data-extras='@json($itemExtrasPayload)'
+                                    data-taxes='@json($itemTaxesPayload)'>
 
                                 <span class="absolute top-2 right-2 text-xs bg-gray-700 text-white px-2 py-1 rounded">Ver más</span>
 
@@ -516,14 +617,15 @@
                                 return [
                                     'id' => $extra->id,
                                     'name' => $extra->name,
-                                    'group_name' => $extra->group_name,
-                                    'kind' => $extra->kind,
-                                    'group_required' => (bool) $extra->group_required,
-                                    'max_select' => $extra->max_select,
-                                    'price' => number_format($extra->price, 2, '.', ''),
-                                    'description' => $extra->description,
-                                ];
-                            });
+                                'group_name' => $extra->group_name,
+                                'kind' => $extra->kind,
+                                'group_required' => (bool) $extra->group_required,
+                                'max_select' => $extra->max_select,
+                                'min_select' => $extra->min_select,
+                                'price' => number_format($extra->price, 2, '.', ''),
+                                'description' => $extra->description,
+                            ];
+                        });
                             $winePairs = method_exists($item, 'wines') && $item->wines
                                 ? $item->wines->map(fn($wine) => $wine->id.'::'.$wine->name)->implode('|')
                                 : '';
@@ -570,21 +672,33 @@
                                 ->unique(fn ($upsell) => $upsell['type'] . '-' . $upsell['id'])
                                 ->values()
                                 ->all();
+                            $itemTaxesPayload = collect($item->taxes ?? [])
+                                ->merge($category->taxes ?? collect())
+                                ->filter(fn($tax) => (bool) ($tax->active ?? true))
+                                ->unique('id')
+                                ->map(fn($tax) => [
+                                    'id' => $tax->id,
+                                    'name' => $tax->name,
+                                    'rate' => (float) $tax->rate,
+                                ])
+                                ->values()
+                                ->all();
                         @endphp
-                        <div id="{{ $itemIdPrefix }}{{ $item->id }}" onclick="openDishModal(this)"
-                            class="dish-card rounded-lg p-4 shadow-lg relative flex items-center cursor-pointer hover:scale-105 transition"
-                            style="background-color: {{ $settings->card_bg_color_menu ?? '#191919' }};
-                                   opacity: {{ $settings->card_opacity_menu ?? 0.9 }};"
+                            <div id="{{ $itemIdPrefix }}{{ $item->id }}" onclick="openDishModal(this)"
+                                class="dish-card rounded-lg p-4 shadow-lg relative flex items-center cursor-pointer hover:scale-105 transition"
+                                style="background-color: {{ $settings->card_bg_color_menu ?? '#191919' }};
+                                       opacity: {{ $settings->card_opacity_menu ?? 0.9 }};"
                             data-item-type="{{ $itemType }}"
                             data-item-id="{{ $item->id }}"
                             data-name="{{ $item->name }}"
                             data-description="{{ $item->description }}"
                             data-price="${{ number_format($item->price, 2) }}"
                             data-image="{{ $item->image ? asset('storage/' . $item->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}"
-                            data-wines="{{ e($winePairs) }}"
-                            data-recommended="{{ e($recommendedPairs) }}"
-                            data-upsells='@json($upsellPayload)'
-                            data-extras='@json($itemExtrasPayload)'>
+                                data-wines="{{ e($winePairs) }}"
+                                data-recommended="{{ e($recommendedPairs) }}"
+                                data-upsells='@json($upsellPayload)'
+                                data-extras='@json($itemExtrasPayload)'
+                                data-taxes='@json($itemTaxesPayload)'>
 
                             <span class="absolute top-2 right-2 text-xs bg-gray-700 text-white px-2 py-1 rounded">Ver más</span>
 
@@ -714,12 +828,63 @@
                     ✕
                 </button>
 
-                <h3 class="text-2xl font-bold mb-4">Pedido de la mesa</h3>
+                <h3 class="text-2xl font-bold mb-4">
+                    {{ $orderChannel === 'online' ? 'Pedido para llevar' : 'Pedido de la mesa' }}
+                </h3>
                 <div id="cartItems" class="space-y-3"></div>
+                <div id="cartTotals" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    <div class="flex items-center justify-between">
+                        <span>Subtotal</span>
+                        <span id="cartSubtotal">$0.00</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Impuestos</span>
+                        <span id="cartTaxTotal">$0.00</span>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-base font-semibold text-slate-900">
+                        <span>Total</span>
+                        <span id="cartTotal">$0.00</span>
+                    </div>
+                </div>
+
+                @if ($orderChannel === 'online')
+                    <div class="mt-4 space-y-3">
+                        <div>
+                            <label for="onlineCustomerName" class="text-sm font-semibold text-slate-700">Nombre</label>
+                            <input id="onlineCustomerName" type="text" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Nombre para la orden">
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label for="onlineCustomerEmail" class="text-sm font-semibold text-slate-700">Email (para recibo)</label>
+                                <input id="onlineCustomerEmail" type="email" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="correo@ejemplo.com">
+                            </div>
+                            <div>
+                                <label for="onlineCustomerPhone" class="text-sm font-semibold text-slate-700">Teléfono</label>
+                                <input id="onlineCustomerPhone" type="tel" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="(787) 000-0000">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label for="onlinePickupAt" class="text-sm font-semibold text-slate-700">Hora de recogido</label>
+                                <input id="onlinePickupAt" type="datetime-local" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label for="onlineOrderNotes" class="text-sm font-semibold text-slate-700">Notas</label>
+                                <input id="onlineOrderNotes" type="text" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Ej. sin cebolla, llamar al llegar">
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($orderChannel === 'online' && isset($onlineOrdering) && !($onlineOrdering['enabled'] ?? true))
+                    <div id="onlineOrderingClosedNote" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        {{ $onlineOrdering['message'] ?? 'Por el momento no estamos tomando órdenes en línea.' }}
+                    </div>
+                @endif
 
                 <div class="mt-5 flex flex-col gap-3">
                     <button id="sendOrderButton" class="rounded-full bg-amber-400 py-3 text-slate-900 font-semibold">
-                        Enviar orden al mesero
+                        {{ $orderChannel === 'online' ? 'Pagar y enviar' : 'Enviar orden al mesero' }}
                     </button>
                     <button id="clearCartButton" class="rounded-full border border-slate-300 py-2 text-slate-600">
                         Vaciar pedido
@@ -745,7 +910,9 @@
 
 <script>
     const orderMode = @json(!empty($orderMode));
+    const orderChannel = @json($orderChannel ?? 'view');
     const orderToken = @json($qrToken ?? null);
+    const onlineOrdering = @json($onlineOrdering ?? ['enabled' => true, 'message' => '']);
 
     let menuPopupInstance;
     let cartModalInstance;
@@ -754,6 +921,14 @@
     let currentQty = 1;
     document.addEventListener('DOMContentLoaded', function () {
         console.log('✅ Menú cargado con Tailwind y Flowbite');
+        if (orderChannel === 'online' && onlineOrdering && onlineOrdering.enabled === false) {
+            const sendOrderButton = document.getElementById('sendOrderButton');
+            if (sendOrderButton) {
+                sendOrderButton.disabled = true;
+                sendOrderButton.classList.add('opacity-60', 'cursor-not-allowed');
+                sendOrderButton.textContent = 'Ordenes en línea cerradas';
+            }
+        }
 
         // Botón toggle menú lateral
         const toggleMenuBtn = document.getElementById('toggleMenu');
@@ -761,6 +936,10 @@
         const menuOverlay = document.getElementById('menuOverlay');
         const closeMenuBtn = document.getElementById('closeMenu');
         const navLinks = document.querySelectorAll('.category-nav-link');
+        const scopeTabs = document.querySelectorAll('[data-scope-tab]');
+        const scopeTabsWrapper = document.getElementById('scopeTabs');
+        const categorySections = document.querySelectorAll('.category-section');
+        const categoryChipRow = document.getElementById('categoryChipRow');
 
         const desktopToggleBtn = document.getElementById('toggleDesktopMenu');
         const desktopSidebarPanel = document.getElementById('desktopSidebarPanel');
@@ -779,6 +958,43 @@
                 });
             });
         });
+
+        const setActiveScope = (scope, options = {}) => {
+            if (!scope) return;
+            const shouldScroll = options.scroll !== false;
+            scopeTabs.forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.scopeTab === scope);
+            });
+            navLinks.forEach(link => {
+                const linkScope = link.dataset.scope || 'menu';
+                const isMatch = linkScope === scope;
+                link.classList.toggle('hidden', !isMatch);
+                if (!isMatch) {
+                    link.classList.remove('active');
+                }
+            });
+            categorySections.forEach(section => {
+                const sectionScope = section.dataset.scope || 'menu';
+                section.classList.toggle('hidden', sectionScope !== scope);
+            });
+            if (categoryChipRow) {
+                categoryChipRow.scrollTo({ left: 0, behavior: 'smooth' });
+            }
+            if (shouldScroll) {
+                const firstVisible = document.querySelector(`.category-section[data-scope="${scope}"]`);
+                if (firstVisible) {
+                    firstVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        };
+
+        if (scopeTabs.length > 0) {
+            const defaultScope = scopeTabsWrapper?.dataset?.defaultScope || scopeTabs[0]?.dataset?.scopeTab;
+            setActiveScope(defaultScope, { scroll: false });
+            scopeTabs.forEach(tab => {
+                tab.addEventListener('click', () => setActiveScope(tab.dataset.scopeTab));
+            });
+        }
 
         const setDesktopSidebarState = (collapsed) => {
             desktopSidebarCollapsed = collapsed;
@@ -887,19 +1103,23 @@
             if (!groups[groupName]) {
                 groups[groupName] = {
                     kind: extra.kind || 'modifier',
-                    required: !!extra.group_required,
+                    required: !!extra.group_required || !!extra.min_select,
                     maxSelect: extra.max_select || null,
+                    minSelect: extra.min_select || null,
                     options: [],
                 };
             }
             if (!groups[groupName].kind && extra.kind) {
                 groups[groupName].kind = extra.kind;
             }
-            if (extra.group_required) {
+            if (extra.group_required || extra.min_select) {
                 groups[groupName].required = true;
             }
             if (extra.max_select) {
                 groups[groupName].maxSelect = extra.max_select;
+            }
+            if (extra.min_select) {
+                groups[groupName].minSelect = extra.min_select;
             }
             groups[groupName].options.push(extra);
             return groups;
@@ -908,7 +1128,7 @@
 
     function hasRequiredExtras(extras = []) {
         const groups = groupExtras(extras);
-        return Object.values(groups).some(group => group.required);
+        return Object.values(groups).some(group => group.required || (group.minSelect && group.minSelect > 0));
     }
 
     function getItemCard(type, id) {
@@ -917,6 +1137,15 @@
     }
 
     function addUpsellToCart(upsell) {
+        let taxes = [];
+        const target = getItemCard(upsell.type, upsell.id);
+        if (target?.dataset?.taxes) {
+            try {
+                taxes = JSON.parse(target.dataset.taxes);
+            } catch (error) {
+                taxes = [];
+            }
+        }
         cartItems.push({
             type: upsell.type,
             id: Number(upsell.id),
@@ -925,6 +1154,7 @@
             quantity: 1,
             notes: null,
             extras: [],
+            taxes,
         });
 
         updateCartCount();
@@ -1289,6 +1519,7 @@
                 name,
                 price: Number(String(price).replace(/[^0-9.-]+/g, '')),
                 extras,
+                taxes: el.dataset.taxes ? JSON.parse(el.dataset.taxes) : [],
             };
             setQuantity(1);
             const notesInput = document.getElementById('itemNotes');
@@ -1343,6 +1574,7 @@
             if (!validateRequiredGroups(activeItem.extras || [])) return;
             const notes = document.getElementById('itemNotes')?.value?.trim() || null;
             const extras = getSelectedExtras();
+            const taxes = activeItem.taxes || [];
 
             cartItems.push({
                 type: activeItem.type,
@@ -1352,6 +1584,7 @@
                 quantity: currentQty,
                 notes,
                 extras,
+                taxes,
             });
 
             updateCartCount();
@@ -1445,6 +1678,7 @@
             empty.className = 'text-sm text-slate-500';
             empty.textContent = 'Tu pedido está vacío.';
             container.appendChild(empty);
+            renderCartTotals();
             return;
         }
 
@@ -1457,7 +1691,41 @@
 
             const name = document.createElement('div');
             name.className = 'text-sm font-semibold text-slate-900';
-            name.textContent = `${item.quantity}x ${item.name}`;
+            name.textContent = `${item.name}`;
+
+            const controls = document.createElement('div');
+            controls.className = 'flex items-center gap-2';
+
+            const qtyWrapper = document.createElement('div');
+            qtyWrapper.className = 'flex items-center gap-2 rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-700';
+
+            const qtyMinus = document.createElement('button');
+            qtyMinus.type = 'button';
+            qtyMinus.textContent = '-';
+            qtyMinus.className = 'h-6 w-6 rounded-full border border-slate-300 text-slate-600';
+            qtyMinus.addEventListener('click', () => {
+                item.quantity = Math.max(1, (item.quantity || 1) - 1);
+                renderCart();
+                updateCartCount();
+            });
+
+            const qtyValue = document.createElement('span');
+            qtyValue.className = 'min-w-[1.5rem] text-center font-semibold text-slate-800';
+            qtyValue.textContent = String(item.quantity || 1);
+
+            const qtyPlus = document.createElement('button');
+            qtyPlus.type = 'button';
+            qtyPlus.textContent = '+';
+            qtyPlus.className = 'h-6 w-6 rounded-full border border-slate-300 text-slate-600';
+            qtyPlus.addEventListener('click', () => {
+                item.quantity = Math.min(99, (item.quantity || 1) + 1);
+                renderCart();
+                updateCartCount();
+            });
+
+            qtyWrapper.appendChild(qtyMinus);
+            qtyWrapper.appendChild(qtyValue);
+            qtyWrapper.appendChild(qtyPlus);
 
             const removeButton = document.createElement('button');
             removeButton.className = 'text-xs text-rose-500';
@@ -1468,8 +1736,11 @@
                 updateCartCount();
             });
 
+            controls.appendChild(qtyWrapper);
+            controls.appendChild(removeButton);
+
             header.appendChild(name);
-            header.appendChild(removeButton);
+            header.appendChild(controls);
             card.appendChild(header);
 
             if (item.extras && item.extras.length) {
@@ -1497,12 +1768,53 @@
                 card.appendChild(notes);
             }
 
+            const priceRow = document.createElement('div');
+            priceRow.className = 'mt-2 flex items-center justify-between text-xs text-slate-600';
+            const unitPrice = calcItemUnitTotal(item);
+            priceRow.innerHTML = `<span>$${unitPrice.toFixed(2)} x ${item.quantity || 1}</span><span class="font-semibold text-slate-800">$${(unitPrice * (item.quantity || 1)).toFixed(2)}</span>`;
+            card.appendChild(priceRow);
+
             container.appendChild(card);
         });
+
+        renderCartTotals();
+    }
+
+    function calcItemUnitTotal(item) {
+        const basePrice = Number(item.price || 0);
+        const extrasTotal = (item.extras || []).reduce((sum, extra) => {
+            const extraPrice = Number(extra.price || 0);
+            const extraQty = Number(extra.quantity || 1);
+            return sum + (extraPrice * extraQty);
+        }, 0);
+        return basePrice + extrasTotal;
+    }
+
+    function calcItemTaxTotal(item) {
+        const unitTotal = calcItemUnitTotal(item);
+        const rateSum = (item.taxes || []).reduce((sum, tax) => sum + Number(tax.rate || 0), 0);
+        const ratePercent = rateSum / 100;
+        return unitTotal * ratePercent * (item.quantity || 1);
+    }
+
+    function renderCartTotals() {
+        const subtotalEl = document.getElementById('cartSubtotal');
+        const taxEl = document.getElementById('cartTaxTotal');
+        const totalEl = document.getElementById('cartTotal');
+        if (!subtotalEl || !taxEl || !totalEl) return;
+
+        const subtotal = cartItems.reduce((sum, item) => {
+            return sum + (calcItemUnitTotal(item) * (item.quantity || 1));
+        }, 0);
+        const taxTotal = cartItems.reduce((sum, item) => sum + calcItemTaxTotal(item), 0);
+        const total = subtotal + taxTotal;
+
+        subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+        taxEl.textContent = `$${taxTotal.toFixed(2)}`;
+        totalEl.textContent = `$${total.toFixed(2)}`;
     }
 
     async function sendOrder() {
-        if (!orderToken) return;
         if (!cartItems.length) return;
 
         const sendOrderButton = document.getElementById('sendOrderButton');
@@ -1521,9 +1833,69 @@
         };
 
         try {
+            if (orderChannel === 'online' && onlineOrdering && onlineOrdering.enabled === false) {
+                alert(onlineOrdering.message || 'Por el momento no estamos tomando órdenes en línea.');
+                return;
+            }
             if (sendOrderButton) {
                 sendOrderButton.disabled = true;
                 sendOrderButton.textContent = 'Enviando...';
+            }
+
+            if (orderChannel === 'online') {
+                const customerName = document.getElementById('onlineCustomerName')?.value?.trim();
+                const customerEmail = document.getElementById('onlineCustomerEmail')?.value?.trim();
+                const customerPhone = document.getElementById('onlineCustomerPhone')?.value?.trim();
+                const pickupAt = document.getElementById('onlinePickupAt')?.value;
+                const orderNotes = document.getElementById('onlineOrderNotes')?.value?.trim();
+
+                if (!customerName) {
+                    alert('Indica el nombre para la orden.');
+                    return;
+                }
+                if (!pickupAt) {
+                    alert('Selecciona la hora de recogido.');
+                    return;
+                }
+
+                const response = await fetch('/ordenar/checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken || '',
+                    },
+                    body: JSON.stringify({
+                        ...payload,
+                        customer_name: customerName,
+                        customer_email: customerEmail || null,
+                        customer_phone: customerPhone || null,
+                        pickup_at: pickupAt,
+                        notes: orderNotes || null,
+                    }),
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    alert(data.message || 'No se pudo crear el checkout.');
+                    return;
+                }
+
+                if (data.checkout_page) {
+                    window.location.href = data.checkout_page;
+                    return;
+                }
+                if (data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                    return;
+                }
+
+                alert('Checkout creado.');
+                return;
+            }
+
+            if (!orderToken) {
+                alert('No se encontró la mesa.');
+                return;
             }
 
             const response = await fetch(`/mesa/${orderToken}/orders`, {
@@ -1551,7 +1923,9 @@
         } finally {
             if (sendOrderButton) {
                 sendOrderButton.disabled = false;
-                sendOrderButton.textContent = 'Enviar orden al mesero';
+                sendOrderButton.textContent = orderChannel === 'online'
+                    ? 'Pagar y enviar'
+                    : 'Enviar orden al mesero';
             }
         }
     }

@@ -38,7 +38,7 @@
                     <label class="block text-sm font-medium text-slate-700 mb-1">Título del grupo</label>
                     <input type="text" name="group_name" value="{{ old('group_name', $extra->group_name) }}" class="w-full rounded-2xl border border-slate-200 px-4 py-2.5">
                 </div>
-                <div class="grid sm:grid-cols-3 gap-3">
+                <div class="grid sm:grid-cols-4 gap-3">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Precio</label>
                         <input type="number" name="price" step="0.01" min="0" value="{{ old('price', $extra->price) }}" required class="w-full rounded-2xl border border-slate-200 px-4 py-2.5">
@@ -49,6 +49,10 @@
                             <option value="modifier" @selected(old('kind', $extra->kind) === 'modifier')>Modificador</option>
                             <option value="extra" @selected(old('kind', $extra->kind) === 'extra')>Adicional</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Min selecciones</label>
+                        <input type="number" name="min_select" min="1" max="99" value="{{ old('min_select', $extra->min_select) }}" class="w-full rounded-2xl border border-slate-200 px-4 py-2.5">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Max selecciones</label>

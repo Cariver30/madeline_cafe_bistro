@@ -25,7 +25,7 @@
     <div class="min-h-screen flex">
         <aside class="hidden lg:flex flex-col w-72 bg-white border-r border-slate-200 sticky top-0 shadow-sm">
             <div class="px-8 py-10 border-b border-slate-200">
-                <p class="text-xs uppercase tracking-widest text-amber-500 mb-1">{{ config('app.name', 'Café Negro') }}</p>
+                <p class="text-xs uppercase tracking-widest text-amber-500 mb-1">{{ config('app.name', 'Restaurant') }}</p>
                 <h1 class="text-2xl font-semibold text-slate-900">Panel maestro</h1>
             </div>
             <nav class="flex-1 px-6 py-8 space-y-2">

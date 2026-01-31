@@ -53,4 +53,14 @@ return [
         'auth_token' => env('TAP_TO_PAY_AUTH_TOKEN'),
     ],
 
+    'clover' => [
+        'app_id' => env('CLOVER_APP_ID'),
+        'app_access_token' => env('CLOVER_APP_ACCESS_TOKEN'),
+        'metered_event_id' => env('CLOVER_METERED_EVENT_ID'),
+        'loyalty_metered_event_id' => env('CLOVER_LOYALTY_METERED_EVENT_ID'),
+        'order_type_id' => env('CLOVER_ORDER_TYPE_ID'),
+        'pickup_order_type_id' => env('CLOVER_PICKUP_ORDER_TYPE_ID'),
+        'live_metrics' => filter_var(env('CLOVER_LIVE_METRICS', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];

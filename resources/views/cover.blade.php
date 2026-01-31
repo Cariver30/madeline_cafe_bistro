@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     @php
-        $seoTitle = 'Takbron · Taquería y cantina mexicana en la montaña de Puerto Rico';
-        $seoDescription = 'Takbron es taquería y cantina mexicana en la montaña de Puerto Rico, con sabores exquisitos, gran variedad y tragos exóticos. Vive una variedad de margaritas única.';
+        $seoTitle = 'Madeline Cafe Bistro · Cocina creativa, brunch, vinos y espumosos';
+        $seoDescription = 'Madeline Cafe Bistro es un espacio de cocina creativa con brunch, vinos y espumosos, sabores únicos y experiencias para compartir.';
         $seoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
             : asset('storage/default-logo.png');
@@ -16,7 +16,7 @@
     <meta property="og:description" content="{{ $seoDescription }}" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="{{ $seoImage }}" />
-    <meta property="og:site_name" content="Kfeina" />
+    <meta property="og:site_name" content="Madeline Cafe Bistro" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $seoTitle }}" />
     <meta name="twitter:description" content="{{ $seoDescription }}" />
@@ -132,7 +132,13 @@
 <body class="relative min-h-screen bg-black/50 flex flex-col items-center cover-theme">
 
     <header class="w-full py-6 flex justify-center z-30">
-        <img src="{{ asset('storage/' . $settings->logo) }}" alt="Logo del Restaurante" class="w-52 max-w-xs mx-auto drop-shadow-lg">
+        @if($settings?->logo)
+            <img src="{{ asset('storage/' . $settings->logo) }}" alt="Logo del Restaurante" class="w-52 max-w-xs mx-auto drop-shadow-lg">
+        @else
+            <div class="rounded-full border border-white/30 bg-black/40 px-6 py-4 text-xl font-semibold uppercase tracking-[0.2em] text-white shadow-lg">
+                {{ config('app.name', 'Restaurant') }}
+            </div>
+        @endif
     </header>
 
     <!-- Contenedor central -->
@@ -147,10 +153,11 @@
             <section class="rounded-3xl p-8 backdrop-blur space-y-8 border border-white/10" style="background-color: {{ $coverCardBackground }};">
                 <div class="flex flex-col lg:flex-row gap-8">
                     @php
-                        $heroKicker = trim($settings->cover_hero_kicker ?? '') ?: 'Café · desayuno · brunch';
-                        $heroTitle = trim($settings->cover_hero_title ?? '') ?: 'Bienvenido a Café Negro. Aquí el visitante decide rápido a qué experiencia ir.';
-                        $heroParagraph = trim($settings->cover_hero_paragraph ?? '') ?: 'Todos los colores, tipografías y textos provienen del panel de configuraciones. Ajusta allá y verás los cambios inmediatamente.';
-                        $locationText = trim($settings->cover_location_text ?? '') ?: 'Café Negro · Miramar';
+                        $appName = config('app.name', 'Restaurant');
+                        $heroKicker = trim($settings->cover_hero_kicker ?? '') ?: 'Sabores · momentos · experiencias';
+                        $heroTitle = trim($settings->cover_hero_title ?? '') ?: "Bienvenido a {$appName}. Aqui el visitante decide rapido a que experiencia ir.";
+                        $heroParagraph = trim($settings->cover_hero_paragraph ?? '') ?: 'Todos los colores, tipografias y textos provienen del panel de configuraciones. Ajusta alla y veras los cambios inmediatamente.';
+                        $locationText = trim($settings->cover_location_text ?? '') ?: $appName;
                     @endphp
                     <div class="flex-1 space-y-4">
                         <p class="text-amber-300 uppercase tracking-[0.45em] text-xs">{{ $heroKicker }}</p>
@@ -273,6 +280,7 @@
                     };
                     $ctaCards = collect([
                         ['key' => 'menu', 'title' => $ctaLabel($settings->button_label_menu ?? null, 'Menú'), 'subtitle' => 'Carta principal', 'copy' => 'Brunch, platos signature y acompañantes.', 'action' => url('/menu'), 'image' => $settings->cta_image_menu ? asset('storage/' . $settings->cta_image_menu) : null, 'visible' => $settings->show_cta_menu ?? true, 'type' => 'link'],
+                        ['key' => 'online', 'title' => $ctaLabel($settings->button_label_online ?? null, 'Ordenar en línea'), 'subtitle' => 'Pickup & takeout', 'copy' => 'Ordena para recoger con confirmación inmediata.', 'action' => route('online.order.show'), 'image' => $settings->cta_image_online ? asset('storage/' . $settings->cta_image_online) : null, 'visible' => $settings->show_cta_online ?? true, 'type' => 'link'],
                         ['key' => 'cafe', 'title' => $ctaLabel($settings->button_label_wines ?? null, 'Bebidas'), 'subtitle' => 'Barra de especialidad', 'copy' => 'Filtrados, bebidas frías y vuelos guiados.', 'action' => url('/coffee'), 'image' => $settings->cta_image_cafe ? asset('storage/' . $settings->cta_image_cafe) : null, 'visible' => $settings->show_cta_cafe ?? true, 'type' => 'link'],
                         ['key' => 'cocktails', 'title' => $ctaLabel($settings->button_label_cocktails ?? null, 'Cócteles'), 'subtitle' => 'Mixología', 'copy' => 'Cócteles tropicales, mocktails y clásicos.', 'action' => url('/cocktails'), 'image' => $settings->cta_image_cocktails ? asset('storage/' . $settings->cta_image_cocktails) : null, 'visible' => $settings->show_cta_cocktails ?? true, 'type' => 'link'],
                         ['key' => 'cantina', 'title' => $ctaLabel($settings->button_label_cantina ?? null, 'Cantina'), 'subtitle' => 'Barra de la casa', 'copy' => 'Tequilas, cervezas, vinos y especiales.', 'action' => url('/cantina'), 'image' => $settings->cta_image_cantina ? asset('storage/' . $settings->cta_image_cantina) : null, 'visible' => $settings->show_cta_cantina ?? true, 'type' => 'link'],

@@ -119,7 +119,12 @@
             @if(!empty($taxes))
                 @foreach($taxes as $tax)
                     <tr>
-                        <td style="font-weight: 700;">{{ $tax['name'] ?? 'Impuesto' }}</td>
+                        <td style="font-weight: 700;">
+                            {{ $tax['name'] ?? 'Impuesto' }}
+                            @if(isset($tax['rate']))
+                                <span style="color:#64748b; font-weight: 600;">({{ number_format((float) $tax['rate'], 2) }}%)</span>
+                            @endif
+                        </td>
                         <td style="text-align: right; font-weight: 700;">${{ number_format($tax['amount'] ?? 0, 2) }}</td>
                     </tr>
                 @endforeach

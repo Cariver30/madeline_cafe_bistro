@@ -275,6 +275,9 @@ export type TableOrder = {
   id: number;
   order_id?: number;
   status: 'pending' | 'confirmed' | 'cancelled' | string;
+  clover_order_id?: string | null;
+  clover_status?: string | null;
+  clover_total_paid?: number | null;
   created_at: string | null;
   confirmed_at: string | null;
   cancelled_at: string | null;

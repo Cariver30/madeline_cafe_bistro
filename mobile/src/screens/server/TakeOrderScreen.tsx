@@ -1,6 +1,8 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,7 +14,11 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useAuth} from '../../context/AuthContext';
 import {useServerSessions} from '../../context/ServerSessionsContext';
 import {ServerStackParamList} from '../../navigation/serverTypes';
-import {createServerOrder, getServerMenuCategories} from '../../services/api';
+import {
+  confirmOrder as confirmOrderApi,
+  createServerOrder,
+  getServerMenuCategories,
+} from '../../services/api';
 import {PosItemCard} from '../../components/pos/PosItemCard';
 import {
   CategoryPayload,
@@ -32,6 +38,7 @@ type CartItem = {
   quantity: number;
   type: ServerOrderItemPayload['type'];
   extras: number[];
+  notes?: string;
 };
 
 const VIEW_LABELS: Record<ManagerView, string> = {
@@ -64,6 +71,13 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
   const {getSessionById, loadSessions} = useServerSessions();
   const session = getSessionById(sessionId);
   const [activeView, setActiveView] = useState<ManagerView>('menu');
+  const [activeCategoryByView, setActiveCategoryByView] = useState<
+    Record<ManagerView, number | null>
+  >({
+    menu: null,
+    cocktails: null,
+    wines: null,
+  });
   const [categoriesByView, setCategoriesByView] = useState<
     Record<ManagerView, CategoryPayload[]>
   >({
@@ -86,6 +100,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [expandedItemKey, setExpandedItemKey] = useState<string | null>(null);
+  const [reviewVisible, setReviewVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const loadedViews = useRef<Record<ManagerView, boolean>>({
     menu: false,
@@ -121,6 +136,17 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
         const data = await getServerMenuCategories(token, view);
         if (!isMounted.current) return;
         setCategoriesByView(prev => ({...prev, [view]: data}));
+        setActiveCategoryByView(prev => {
+          const nonEmpty = data.filter(
+            category => (category.dishes?.length ?? 0) > 0,
+          );
+          const current = prev[view];
+          const exists = current
+            ? nonEmpty.some(category => category.id === current)
+            : false;
+          const next = exists ? current : nonEmpty[0]?.id ?? null;
+          return {...prev, [view]: next};
+        });
         loadedViews.current[view] = true;
         setErrorsByView(prev => ({...prev, [view]: null}));
       } catch (error) {
@@ -147,19 +173,28 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     loadedViews.current = {menu: false, cocktails: false, wines: false};
     setCategoriesByView({menu: [], cocktails: [], wines: []});
     setErrorsByView({menu: null, cocktails: null, wines: null});
+    setActiveCategoryByView({menu: null, cocktails: null, wines: null});
 
     (['menu', 'cocktails', 'wines'] as ManagerView[]).forEach(view => {
       void loadView(view, true);
     });
   }, [token, loadView]);
 
+  const categoriesForView = (categoriesByView[activeView] ?? []).filter(
+    category => (category.dishes?.length ?? 0) > 0,
+  );
+
   const filteredCategories = useMemo(() => {
-    const categories = categoriesByView[activeView];
+    const categories = categoriesForView;
+    const activeCategoryId = activeCategoryByView[activeView];
+    const scopedCategories = activeCategoryId
+      ? categories.filter(category => category.id === activeCategoryId)
+      : categories;
     if (!searchTerm.trim()) {
-      return categories;
+      return scopedCategories;
     }
     const term = searchTerm.toLowerCase();
-    return categories
+    return scopedCategories
       .map(category => ({
         ...category,
         dishes: (category.dishes ?? []).filter(item =>
@@ -167,7 +202,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
         ),
       }))
       .filter(category => (category.dishes ?? []).length > 0);
-  }, [categoriesByView, activeView, searchTerm]);
+  }, [categoriesForView, activeCategoryByView, activeView, searchTerm]);
 
   const toggleExpandItem = (key: string) => {
     setExpandedItemKey(prev => (prev === key ? null : key));
@@ -189,6 +224,10 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
       .map(([groupName]) => groupName);
 
     if (missingRequired.length) {
+      Alert.alert(
+        'Faltan opciones',
+        `Selecciona las opciones requeridas: ${missingRequired.join(', ')}`,
+      );
       setExpandedItemKey(item.key);
       setErrorsByView(prev => ({
         ...prev,
@@ -208,6 +247,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
           ...item,
           quantity: nextQty,
           extras: existing?.extras ?? item.extras ?? [],
+          notes: existing?.notes ?? item.notes ?? undefined,
         },
       };
     });
@@ -312,9 +352,26 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
       quantity: cart[key]?.quantity ?? 0,
       type: upsell.type,
       extras: cart[key]?.extras ?? [],
+      notes: cart[key]?.notes,
     };
 
     addItem(cartItem, extrasByGroup);
+  };
+
+  const updateNotes = (key: string, notes: string) => {
+    setCart(prev => {
+      const existing = prev[key];
+      if (!existing) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [key]: {
+          ...existing,
+          notes,
+        },
+      };
+    });
   };
 
   const toggleExtra = (
@@ -381,9 +438,9 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     });
   };
 
-  const handleSubmit = async () => {
+  const validateRequiredExtras = useCallback(() => {
     if (!token || totals.count === 0) {
-      return;
+      return false;
     }
     const missingByItem: string[] = [];
     Object.values(cart).forEach(item => {
@@ -397,13 +454,16 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
       }
       const groups = groupExtras(sourceItem.extras ?? []);
       const missingRequired = Object.entries(groups)
-        .filter(([_, group]) => group.required || (group.minSelect ?? 0) > 0)
-        .filter(([_, group]) => {
+        .filter(([, group]) => group.required || (group.minSelect ?? 0) > 0)
+        .filter(([, group]) => {
           const optionIds = group.options.map(option => option.id);
           const selectedCount = item.extras.filter(id =>
             optionIds.includes(id),
           ).length;
-          const requiredMin = Math.max(group.required ? 1 : 0, group.minSelect ?? 0);
+          const requiredMin = Math.max(
+            group.required ? 1 : 0,
+            group.minSelect ?? 0,
+          );
           return selectedCount < requiredMin;
         })
         .map(([groupName]) => groupName);
@@ -415,10 +475,29 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     });
 
     if (missingByItem.length) {
+      Alert.alert(
+        'Faltan opciones',
+        `Selecciona las opciones requeridas:\n${missingByItem.join(' · ')}`,
+      );
       setErrorsByView(prev => ({
         ...prev,
         [activeView]: `Faltan opciones requeridas: ${missingByItem.join(' · ')}`,
       }));
+      return false;
+    }
+
+    return true;
+  }, [activeView, cart, categoriesByView, token, totals.count]);
+
+  const openReview = () => {
+    if (!validateRequiredExtras()) {
+      return;
+    }
+    setReviewVisible(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!validateRequiredExtras()) {
       return;
     }
 
@@ -429,16 +508,19 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
         type: item.type,
         id: item.id,
         quantity: item.quantity,
-        extras: item.extras?.length
-          ? item.extras.map(id => ({id}))
-          : undefined,
+        notes: item.notes?.trim() ? item.notes.trim() : undefined,
+        extras: item.extras?.length ? item.extras.map(id => ({id})) : undefined,
       }));
-      await createServerOrder(token, sessionId, items);
+      const created = await createServerOrder(token, sessionId, items);
+      // Confirm immediately so Clover receives the order and routes printers.
+      await confirmOrderApi(token, created.batch_id);
       await loadSessions(false);
+      setReviewVisible(false);
       navigation.goBack();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'No se pudo enviar.';
+      Alert.alert('Error al enviar', message);
       setErrorsByView(prev => ({
         ...prev,
         [activeView]: message,
@@ -447,6 +529,11 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
       setSubmitting(false);
     }
   };
+
+  const reviewItems = useMemo(
+    () => Object.values(cart).filter(item => item.quantity > 0),
+    [cart],
+  );
 
   return (
     <View style={styles.container}>
@@ -477,6 +564,51 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
         ))}
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoryTabs}
+        contentContainerStyle={styles.categoryTabsContent}>
+        <TouchableOpacity
+          style={[
+            styles.categoryTab,
+            activeCategoryByView[activeView] === null && styles.categoryTabActive,
+          ]}
+          onPress={() =>
+            setActiveCategoryByView(prev => ({...prev, [activeView]: null}))
+          }>
+          <Text
+            style={[
+              styles.categoryTabText,
+              activeCategoryByView[activeView] === null && styles.categoryTabTextActive,
+            ]}>
+            Todas
+          </Text>
+        </TouchableOpacity>
+        {categoriesForView.map(category => {
+          const isActive = activeCategoryByView[activeView] === category.id;
+          return (
+            <TouchableOpacity
+              key={`${activeView}-cat-${category.id}`}
+              style={[styles.categoryTab, isActive && styles.categoryTabActive]}
+              onPress={() =>
+                setActiveCategoryByView(prev => ({
+                  ...prev,
+                  [activeView]: category.id,
+                }))
+              }>
+              <Text
+                style={[
+                  styles.categoryTabText,
+                  isActive && styles.categoryTabTextActive,
+                ]}>
+                {category.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       <TextInput
         style={styles.input}
         placeholder="Buscar producto"
@@ -504,6 +636,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
                 quantity: cart[key]?.quantity ?? 0,
                 type: VIEW_TO_TYPE[activeView],
                 extras: cart[key]?.extras ?? [],
+                notes: cart[key]?.notes,
               };
               const extrasByGroup = groupExtras(item.extras ?? []);
               const hasExtras = Object.keys(extrasByGroup).length > 0;
@@ -609,6 +742,19 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
                       )}
                     </View>
                   ) : null}
+                  {expanded ? (
+                    <View style={styles.notesSection}>
+                      <Text style={styles.notesLabel}>Notas para cocina</Text>
+                      <TextInput
+                        style={styles.notesInput}
+                        placeholder="Escribe una nota (ej. sin cebolla)"
+                        placeholderTextColor="#94a3b8"
+                        value={cartItem.notes ?? ''}
+                        onChangeText={text => updateNotes(cartItem.key, text)}
+                        multiline
+                      />
+                    </View>
+                  ) : null}
                   {expanded && hasUpsells ? (
                     <View style={styles.upsellSection}>
                       <Text style={styles.upsellTitle}>Combínalo con</Text>
@@ -662,7 +808,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
             (totals.count === 0 || submitting) && styles.submitDisabled,
           ]}
           disabled={totals.count === 0 || submitting}
-          onPress={handleSubmit}>
+          onPress={openReview}>
           {submitting ? (
             <ActivityIndicator color="#0f172a" />
           ) : (
@@ -670,6 +816,93 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
           )}
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={reviewVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReviewVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Confirmar orden</Text>
+            <Text style={styles.modalSubtitle}>
+              Revisa los detalles antes de enviar.
+            </Text>
+            <ScrollView style={styles.modalScroll}>
+              {reviewItems.map(item => {
+                const sourceItem = findItemByType(item.type, item.id);
+                const extras = (sourceItem?.extras ?? []).filter(extra =>
+                  item.extras.includes(extra.id),
+                );
+                const groupedExtras = extras.reduce(
+                  (groups: Record<string, string[]>, extra) => {
+                    const groupName = extra.group_name || 'Opciones';
+                    if (!groups[groupName]) {
+                      groups[groupName] = [];
+                    }
+                    groups[groupName].push(extra.name);
+                    return groups;
+                  },
+                  {},
+                );
+                return (
+                  <View key={`review-${item.key}`} style={styles.modalItem}>
+                    <View style={styles.modalItemRow}>
+                      <Text style={styles.modalItemName}>
+                        {item.quantity}x {item.name}
+                      </Text>
+                      <Text style={styles.modalItemPrice}>
+                        ${Number(item.price).toFixed(2)}
+                      </Text>
+                    </View>
+                    {Object.keys(groupedExtras).length ? (
+                      <View style={styles.modalExtras}>
+                        {Object.entries(groupedExtras).map(
+                          ([groupName, names]) => (
+                            <Text
+                              key={`${item.key}-${groupName}`}
+                              style={styles.modalExtrasText}>
+                              {groupName}: {names.join(', ')}
+                            </Text>
+                          ),
+                        )}
+                      </View>
+                    ) : null}
+                    {item.notes ? (
+                      <Text style={styles.modalNotes}>
+                        Nota: {item.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setReviewVisible(false)}
+                disabled={submitting}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalConfirm,
+                  submitting && styles.submitDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={submitting}>
+                {submitting ? (
+                  <ActivityIndicator color="#0f172a" />
+                ) : (
+                  <Text style={styles.modalConfirmText}>
+                    Confirmar y enviar
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -711,6 +944,33 @@ const styles = StyleSheet.create({
     padding: 6,
     borderWidth: 1,
     borderColor: '#1f2937',
+  },
+  categoryTabs: {
+    marginTop: 2,
+  },
+  categoryTabsContent: {
+    paddingRight: 8,
+  },
+  categoryTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.35)',
+    backgroundColor: '#0b1324',
+    marginRight: 8,
+  },
+  categoryTabActive: {
+    backgroundColor: '#fbbf24',
+    borderColor: '#fbbf24',
+  },
+  categoryTabText: {
+    color: '#cbd5f5',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  categoryTabTextActive: {
+    color: '#0f172a',
   },
   tab: {
     flex: 1,
@@ -858,6 +1118,26 @@ const styles = StyleSheet.create({
   optionTextActive: {
     color: '#0f172a',
   },
+  notesSection: {
+    gap: 6,
+    paddingTop: 6,
+  },
+  notesLabel: {
+    color: '#e2e8f0',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  notesInput: {
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#f8fafc',
+    backgroundColor: '#0b1220',
+    fontSize: 12,
+  },
   upsellSection: {
     gap: 8,
     paddingTop: 6,
@@ -932,6 +1212,96 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   submitText: {
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#0f172a',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '85%',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  modalTitle: {
+    color: '#f8fafc',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalSubtitle: {
+    color: '#94a3b8',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  modalScroll: {
+    marginTop: 16,
+  },
+  modalItem: {
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: '#0b1220',
+  },
+  modalItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalItemName: {
+    color: '#f8fafc',
+    fontWeight: '700',
+    flex: 1,
+  },
+  modalItemPrice: {
+    color: '#fbbf24',
+    fontWeight: '700',
+  },
+  modalExtras: {
+    marginTop: 6,
+    gap: 2,
+  },
+  modalExtrasText: {
+    color: '#cbd5f5',
+    fontSize: 12,
+  },
+  modalNotes: {
+    color: '#94a3b8',
+    fontSize: 12,
+    marginTop: 6,
+  },
+  modalFooter: {
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#e2e8f0',
+    fontWeight: '600',
+  },
+  modalConfirm: {
+    flex: 1,
+    backgroundColor: '#fbbf24',
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalConfirmText: {
     color: '#0f172a',
     fontWeight: '700',
   },

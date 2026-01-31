@@ -157,6 +157,14 @@ const OrderDetailScreen = ({route}: Props) => {
         <View style={styles.statusChip}>
           <Text style={styles.statusText}>{order.status}</Text>
         </View>
+        {order.clover_status ? (
+          <Text style={styles.meta}>
+            Clover: {String(order.clover_status).toUpperCase()}
+          </Text>
+        ) : null}
+        {order.clover_order_id ? (
+          <Text style={styles.meta}>Clover ID: {order.clover_order_id}</Text>
+        ) : null}
       </View>
 
       <View style={styles.card}>

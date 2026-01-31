@@ -504,6 +504,7 @@ const ServerPaymentScreen = ({navigation, route}: Props) => {
     }
   };
 
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -538,19 +539,21 @@ const ServerPaymentScreen = ({navigation, route}: Props) => {
                   {receiptLines.length} items · ${summarySubtotal.toFixed(2)}
                 </Text>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.receiptButton,
-                  sendingReceipt && styles.receiptButtonDisabled,
-                ]}
-                onPress={handleSendReceipt}
-                disabled={sendingReceipt}>
-                {sendingReceipt ? (
-                  <ActivityIndicator color="#0f172a" />
-                ) : (
-                  <Text style={styles.receiptButtonText}>Enviar cuenta</Text>
-                )}
-              </TouchableOpacity>
+              <View style={styles.receiptActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.receiptButton,
+                    sendingReceipt && styles.receiptButtonDisabled,
+                  ]}
+                  onPress={handleSendReceipt}
+                  disabled={sendingReceipt}>
+                  {sendingReceipt ? (
+                    <ActivityIndicator color="#0f172a" />
+                  ) : (
+                    <Text style={styles.receiptButtonText}>Enviar cuenta</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
             {receiptNotice ? (
               <Text style={styles.receiptNotice}>{receiptNotice}</Text>
@@ -1160,6 +1163,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
+  },
+  receiptActions: {
+    gap: 6,
+    alignItems: 'flex-end',
   },
   receiptTitle: {
     color: '#f8fafc',

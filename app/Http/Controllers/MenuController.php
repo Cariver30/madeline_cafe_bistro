@@ -19,6 +19,7 @@ class MenuController extends Controller
                     'wines:id,name,price',
                     'cocktails:id,name,price',
                     'recommendedDishes:id,name,price',
+                    'taxes:id,name,rate,active',
                     'extras' => function ($extraQuery) {
                         $extraQuery->select('extras.id', 'name', 'price', 'description', 'active');
                     },

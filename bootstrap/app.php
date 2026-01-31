@@ -23,6 +23,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
             'mobile.api' => \App\Http\Middleware\MobileTokenAuth::class,
         ]);
+
+        $middleware->web(append: [
+            \App\Http\Middleware\LogSlowRequests::class,
+        ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\LogSlowRequests::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Puedes agregar excepciones globales aquí si es necesario.

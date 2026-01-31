@@ -7,23 +7,29 @@ use App\Models\Order;
 use App\Models\OrderBatch;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\Setting;
 use App\Models\TableSession;
 use App\Models\User;
 use App\Mail\PosReceiptMail;
+use App\Support\CloverBillingClient;
+use App\Support\CloverClient;
 use App\Support\Loyalty\LoyaltyRewardService;
 use App\Support\Orders\PosReceiptBuilder;
 use App\Support\Orders\TableOrderService;
 use App\Support\Payments\ProcessorPayload;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class ServerTableSessionController extends Controller
 {
+    private array $cloverStateCache = [];
     public function availableServers()
     {
         $servers = User::where('role', 'server')
@@ -102,8 +108,42 @@ class ServerTableSessionController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        if ($request->boolean('clover_live') && config('services.clover.live_metrics', false)) {
+            $this->syncCloverClosedBatches($sessions->pluck('orders')->flatten()->pluck('batches')->flatten());
+        }
+
+        $now = now();
+        foreach ($sessions as $session) {
+            $hasActiveBatch = $session->orders
+                ->flatMap(fn (Order $order) => $order->batches)
+                ->contains(function (OrderBatch $batch) {
+                    if (! in_array($batch->status, ['pending', 'confirmed'], true)) {
+                        return false;
+                    }
+                    if ($batch->cancelled_at || $batch->metered_closed_at) {
+                        return false;
+                    }
+                    if ($batch->source === 'server' && ! $batch->clover_order_id) {
+                        return false;
+                    }
+                    return true;
+                });
+
+            $isExpired = $session->expires_at && $session->expires_at->lte($now);
+
+            if (! $hasActiveBatch && $isExpired && $session->status !== 'closed') {
+                $session->update([
+                    'status' => 'closed',
+                    'closed_at' => $session->closed_at ?? $now,
+                ]);
+            }
+        }
+
         return response()->json([
-            'sessions' => $sessions->map(fn (TableSession $session) => $this->formatSession($session, true)),
+            'sessions' => $sessions
+                ->filter(fn (TableSession $session) => $session->status === 'active')
+                ->map(fn (TableSession $session) => $this->formatSession($session, true))
+                ->values(),
         ]);
     }
 
@@ -117,6 +157,10 @@ class ServerTableSessionController extends Controller
         $this->expireSessions($isManager ? null : $server->id);
 
         $tableSession->load(['server', 'orders.batches.items.extras', 'orders.batches.items.prepLabels.area', 'openOrder.payments']);
+
+        if ($request->boolean('clover_live') && config('services.clover.live_metrics', false)) {
+            $this->syncCloverClosedBatches($tableSession->orders->pluck('batches')->flatten());
+        }
 
         return response()->json([
             'session' => $this->formatSession($tableSession, true),
@@ -160,6 +204,10 @@ class ServerTableSessionController extends Controller
             ], Response::HTTP_GONE);
         }
 
+        $request->merge([
+            'items' => $this->normalizeOrderItems($request->input('items', [])),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'items' => ['required', 'array', 'min:1'],
             'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine'],
@@ -180,10 +228,29 @@ class ServerTableSessionController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $payload = $validator->validated();
+        Log::info('server_order_payload', [
+            'user_id' => $server?->id,
+            'session_id' => $tableSession->id,
+            'items_count' => count($payload['items'] ?? []),
+            'items' => array_map(static function (array $item): array {
+                return [
+                    'type' => $item['type'] ?? null,
+                    'id' => $item['id'] ?? null,
+                    'quantity' => $item['quantity'] ?? null,
+                    'notes' => $item['notes'] ?? null,
+                    'extras' => array_map(static fn ($extra) => [
+                        'id' => $extra['id'] ?? null,
+                        'quantity' => $extra['quantity'] ?? null,
+                    ], $item['extras'] ?? []),
+                ];
+            }, $payload['items'] ?? []),
+        ]);
+
         try {
             $batch = app(TableOrderService::class)->createBatch(
                 $tableSession,
-                $validator->validated()['items'],
+                $payload['items'],
                 'server',
             );
         } catch (\RuntimeException $e) {
@@ -810,6 +877,73 @@ class ServerTableSessionController extends Controller
         $query->update(['status' => 'expired']);
     }
 
+    private function syncCloverClosedBatches($batches): void
+    {
+        if (! request()->boolean('clover_live')) {
+            return;
+        }
+
+        if (! config('services.clover.live_metrics', false)) {
+            return;
+        }
+
+        $batches = collect($batches)
+            ->filter(fn (OrderBatch $batch) => $batch->clover_order_id && ! $batch->metered_closed_at)
+            ->values();
+
+        if ($batches->isEmpty()) {
+            return;
+        }
+
+        $settings = Setting::first();
+        $client = CloverClient::fromSettings($settings);
+        if (! $client) {
+            return;
+        }
+
+        $billingClient = CloverBillingClient::fromSettings($settings);
+        $eventId = config('services.clover.metered_event_id');
+        $merchantId = $settings?->clover_merchant_id;
+
+        foreach ($batches as $batch) {
+            try {
+                $cloverOrder = $client->getOrder($batch->clover_order_id, '');
+            } catch (Throwable $exception) {
+                if ($this->isCloverNotFound($exception)) {
+                    $batch->update([
+                        'status' => 'cancelled',
+                        'cancelled_at' => $batch->cancelled_at ?? now(),
+                        'clover_order_id' => null,
+                        'clover_print_event_id' => null,
+                    ]);
+                    continue;
+                }
+                report($exception);
+                continue;
+            }
+
+            $state = data_get($cloverOrder, 'state');
+            $totalPaid = (int) data_get($cloverOrder, 'totalPaid', 0);
+            $isClosed = ($state && $state !== 'open') || $totalPaid > 0;
+
+            if (! $isClosed) {
+                continue;
+            }
+
+            $batch->update([
+                'metered_closed_at' => now(),
+            ]);
+
+            if ($billingClient && $eventId && $merchantId) {
+                try {
+                    $billingClient->reportEvent($eventId, $merchantId, 1);
+                } catch (Throwable $exception) {
+                    report($exception);
+                }
+            }
+        }
+    }
+
     private function formatSession(TableSession $session, bool $withOrders = false): array
     {
         $payload = [
@@ -846,32 +980,52 @@ class ServerTableSessionController extends Controller
                     'is_paid' => $summary['is_paid'],
                 ];
             }
-            $payload['orders'] = $this->formatBatches($session->orders);
+            $cloverStates = $this->resolveCloverStates($session->orders);
+            $payload['orders'] = $this->formatBatches($session->orders, $cloverStates);
         }
 
         return $payload;
     }
 
-    private function formatBatches($orders): array
+    private function formatBatches($orders, array $cloverStates = []): array
     {
         return $orders
-            ->flatMap(fn (Order $order) => $order->batches->map(fn ($batch) => $this->formatBatch($batch)))
+            ->flatMap(fn (Order $order) => $order->batches)
+            ->filter(function (OrderBatch $batch) {
+                if (! in_array($batch->status, ['pending', 'confirmed'], true)) {
+                    return false;
+                }
+                if ($batch->cancelled_at || $batch->metered_closed_at) {
+                    return false;
+                }
+                if ($batch->source === 'server' && ! $batch->clover_order_id) {
+                    return false;
+                }
+                return true;
+            })
+            ->map(fn (OrderBatch $batch) => $this->formatBatch($batch, $cloverStates))
             ->sortByDesc(fn ($batch) => $batch['created_at'] ?? '')
             ->values()
             ->all();
     }
 
-    private function formatBatch($batch): array
+    private function formatBatch($batch, array $cloverStates = []): array
     {
         $items = $batch->items->filter(fn ($item) => !$item->voided_at);
+        $cloverInfo = $batch->clover_order_id ? ($cloverStates[$batch->clover_order_id] ?? null) : null;
 
         return [
             'id' => $batch->id,
             'order_id' => $batch->order_id,
+            'source' => $batch->source,
             'status' => $batch->status,
+            'clover_order_id' => $batch->clover_order_id,
+            'clover_status' => $cloverInfo['state'] ?? null,
+            'clover_total_paid' => $cloverInfo['total_paid'] ?? null,
             'created_at' => optional($batch->created_at)->toIso8601String(),
             'confirmed_at' => optional($batch->confirmed_at)->toIso8601String(),
             'cancelled_at' => optional($batch->cancelled_at)->toIso8601String(),
+            'metered_closed_at' => optional($batch->metered_closed_at)->toIso8601String(),
             'items' => $items->map(function ($item) {
                 return [
                     'id' => $item->id,
@@ -906,6 +1060,73 @@ class ServerTableSessionController extends Controller
                 ];
             }),
         ];
+    }
+
+    private function resolveCloverStates($orders): array
+    {
+        $liveMetrics = config('services.clover.live_metrics', false) && request()->boolean('clover_live');
+        if (! $liveMetrics) {
+            return [];
+        }
+
+        $batches = collect($orders)
+            ->flatMap(fn (Order $order) => $order->batches)
+            ->filter(fn (OrderBatch $batch) => (bool) $batch->clover_order_id)
+            ->values();
+
+        if ($batches->isEmpty()) {
+            return [];
+        }
+
+        $batchesByCloverId = $batches->groupBy('clover_order_id');
+        $settings = Setting::first();
+        $client = CloverClient::fromSettings($settings);
+        if (! $client) {
+            return [];
+        }
+
+        $states = [];
+        foreach ($batchesByCloverId as $cloverOrderId => $batchGroup) {
+            if (isset($this->cloverStateCache[$cloverOrderId])) {
+                $states[$cloverOrderId] = $this->cloverStateCache[$cloverOrderId];
+                continue;
+            }
+
+            try {
+                $cloverOrder = $client->getOrder($cloverOrderId, '');
+            } catch (Throwable $exception) {
+                if ($this->isCloverNotFound($exception)) {
+                    foreach ($batchGroup as $batch) {
+                        $batch->update([
+                            'clover_order_id' => null,
+                            'clover_print_event_id' => null,
+                        ]);
+                    }
+                    continue;
+                }
+                report($exception);
+                continue;
+            }
+
+            $payload = [
+                'state' => data_get($cloverOrder, 'state'),
+                'total_paid' => (int) data_get($cloverOrder, 'totalPaid', 0),
+            ];
+
+            $this->cloverStateCache[$cloverOrderId] = $payload;
+            $states[$cloverOrderId] = $payload;
+        }
+
+        return $states;
+    }
+
+    private function isCloverNotFound(Throwable $exception): bool
+    {
+        $message = $exception->getMessage();
+
+        return str_contains($message, '(404)')
+            || str_contains($message, 'Order not found')
+            || str_contains($message, 'Not Found');
     }
 
     private function createManualPayment(Order $order, ?\App\Models\User $user, string $method, float $subtotal, float $taxTotal, ?float $tip, array $meta = [], string $provider = 'manual'): Payment
@@ -983,6 +1204,52 @@ class ServerTableSessionController extends Controller
             'balance' => $balance,
             'is_paid' => $paidTotal >= round($total, 2),
         ];
+    }
+
+    private function normalizeOrderItems(array $items): array
+    {
+        return array_map(function (array $item): array {
+            $note = $item['notes'] ?? $item['note'] ?? null;
+            if (is_string($note)) {
+                $note = trim($note);
+            } else {
+                $note = null;
+            }
+            $item['notes'] = $note ?: null;
+            $extras = $item['extras'] ?? [];
+            if (!is_array($extras)) {
+                $item['extras'] = [];
+                return $item;
+            }
+
+            $normalized = [];
+            foreach ($extras as $extra) {
+                if (is_array($extra)) {
+                    if (isset($extra['id'])) {
+                        $normalized[] = [
+                            'id' => (int) $extra['id'],
+                            'quantity' => $extra['quantity'] ?? null,
+                        ];
+                        continue;
+                    }
+                    if (isset($extra['extra_id'])) {
+                        $normalized[] = [
+                            'id' => (int) $extra['extra_id'],
+                            'quantity' => $extra['quantity'] ?? null,
+                        ];
+                    }
+                    continue;
+                }
+
+                if (is_numeric($extra)) {
+                    $normalized[] = ['id' => (int) $extra];
+                }
+            }
+
+            $item['extras'] = $normalized;
+
+            return $item;
+        }, $items);
     }
 
     private function syncOrderPayments(Order $order): array

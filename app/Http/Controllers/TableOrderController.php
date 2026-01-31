@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\CocktailCategory;
+use App\Models\OrderBatch;
 use App\Models\TableSession;
 use App\Models\WineCategory;
 use App\Models\Setting;
@@ -51,7 +52,7 @@ class TableOrderController extends Controller
                     'cocktails:id,name,price',
                     'recommendedDishes:id,name,price',
                     'extras' => function ($extraQuery) {
-                        $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'kind', 'price', 'description', 'active');
+                        $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'min_select', 'kind', 'price', 'description', 'active');
                     },
                 ])
                 ->orderBy('position');
@@ -80,7 +81,7 @@ class TableOrderController extends Controller
                     'subcategory:id,name,cocktail_category_id',
                     'dishes:id,name,price',
                     'extras' => function ($extraQuery) {
-                        $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'kind', 'price', 'description', 'active');
+                        $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'min_select', 'kind', 'price', 'description', 'active');
                     },
                 ])
                 ->orderBy('position');
@@ -108,7 +109,7 @@ class TableOrderController extends Controller
                     'subcategory:id,name,wine_category_id',
                     'dishes:id,name,price',
                     'extras' => function ($extraQuery) {
-                        $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'kind', 'price', 'description', 'active');
+                        $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'min_select', 'kind', 'price', 'description', 'active');
                     },
                 ])
                 ->orderBy('position');
@@ -182,6 +183,24 @@ class TableOrderController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
+        if ($session->open_order_id) {
+            $pendingBatch = OrderBatch::where('order_id', $session->open_order_id)
+                ->where('status', 'pending')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($pendingBatch) {
+                return response()->json([
+                    'message' => 'Tu orden anterior aún no ha sido confirmada por el mesero. Espera su aprobación para enviar otra.',
+                    'pending_batch_id' => $pendingBatch->id,
+                ], Response::HTTP_CONFLICT);
+            }
+        }
+
+        $request->merge([
+            'items' => $this->normalizeOrderItems($request->input('items', [])),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'items' => ['required', 'array', 'min:1'],
             'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine'],
@@ -229,9 +248,48 @@ class TableOrderController extends Controller
         }
 
         return response()->json([
-            'message' => 'Orden enviada al mesero.',
+            'message' => 'Orden enviada al mesero. Pendiente de confirmación.',
             'order_id' => $batch->order_id,
             'batch_id' => $batch->id,
         ], Response::HTTP_CREATED);
+    }
+
+    private function normalizeOrderItems(array $items): array
+    {
+        return array_map(function (array $item): array {
+            $extras = $item['extras'] ?? [];
+            if (!is_array($extras)) {
+                $item['extras'] = [];
+                return $item;
+            }
+
+            $normalized = [];
+            foreach ($extras as $extra) {
+                if (is_array($extra)) {
+                    if (isset($extra['id'])) {
+                        $normalized[] = [
+                            'id' => (int) $extra['id'],
+                            'quantity' => $extra['quantity'] ?? null,
+                        ];
+                        continue;
+                    }
+                    if (isset($extra['extra_id'])) {
+                        $normalized[] = [
+                            'id' => (int) $extra['extra_id'],
+                            'quantity' => $extra['quantity'] ?? null,
+                        ];
+                    }
+                    continue;
+                }
+
+                if (is_numeric($extra)) {
+                    $normalized[] = ['id' => (int) $extra];
+                }
+            }
+
+            $item['extras'] = $normalized;
+
+            return $item;
+        }, $items);
     }
 }

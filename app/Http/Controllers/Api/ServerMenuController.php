@@ -23,9 +23,13 @@ class ServerMenuController extends Controller
                     'recommendedDishes:id,name,price',
                     'wines:id,name,price',
                     'cocktails:id,name,price',
-                    'extras:id,name,group_name,group_required,max_select,kind,price,description,active',
+                    'extras:id,name,group_name,group_required,max_select,min_select,kind,price,description,active',
                 ]);
         }])->orderBy('order')->get();
+
+        $categories = $categories
+            ->filter(fn (Category $category) => $category->dishes->isNotEmpty())
+            ->values();
 
         return response()->json([
             'categories' => $categories->map(fn (Category $category) => $this->serializeMenuCategory($category)),
@@ -41,9 +45,13 @@ class ServerMenuController extends Controller
                 ->with([
                     'subcategory:id,name,cocktail_category_id',
                     'dishes:id,name,price',
-                    'extras:id,name,group_name,group_required,max_select,kind,price,description,active',
+                    'extras:id,name,group_name,group_required,max_select,min_select,kind,price,description,active',
                 ]);
         }])->orderBy('order')->get();
+
+        $categories = $categories
+            ->filter(fn (CocktailCategory $category) => $category->items->isNotEmpty())
+            ->values();
 
         return response()->json([
             'categories' => $categories->map(fn (CocktailCategory $category) => $this->serializeCocktailCategory($category)),
@@ -59,9 +67,13 @@ class ServerMenuController extends Controller
                 ->with([
                     'subcategory:id,name,wine_category_id',
                     'dishes:id,name,price',
-                    'extras:id,name,group_name,group_required,max_select,kind,price,description,active',
+                    'extras:id,name,group_name,group_required,max_select,min_select,kind,price,description,active',
                 ]);
         }])->orderBy('order')->get();
+
+        $categories = $categories
+            ->filter(fn (WineCategory $category) => $category->items->isNotEmpty())
+            ->values();
 
         return response()->json([
             'categories' => $categories->map(fn (WineCategory $category) => $this->serializeWineCategory($category)),
@@ -120,6 +132,7 @@ class ServerMenuController extends Controller
                 'group_name' => $extra->group_name,
                 'group_required' => (bool) $extra->group_required,
                 'max_select' => $extra->max_select,
+                'min_select' => $extra->min_select,
                 'kind' => $extra->kind,
                 'price' => (float) ($extra->price ?? 0),
                 'description' => $extra->description,

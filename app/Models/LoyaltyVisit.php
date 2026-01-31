@@ -19,12 +19,15 @@ class LoyaltyVisit extends Model
         'status',
         'points_awarded',
         'confirmed_at',
+        'metered_at',
+        'metered_event_id',
         'customer_snapshot',
     ];
 
     protected $casts = [
         'customer_snapshot' => 'array',
         'confirmed_at' => 'datetime',
+        'metered_at' => 'datetime',
     ];
 
     protected static function booted()

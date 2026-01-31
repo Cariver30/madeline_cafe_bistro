@@ -15,7 +15,7 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const SESSION_KEY = '@cafe_negro_mobile_session';
+const SESSION_KEY = '@madeline_bistro_mobile_session';
 
 type StoredSession = {
   token: string;

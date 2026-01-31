@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class PosTicketController extends Controller
 {
@@ -122,6 +123,10 @@ class PosTicketController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $request->merge([
+            'items' => $this->normalizeOrderItems($request->input('items', [])),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'items' => ['required', 'array', 'min:1'],
             'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine'],
@@ -173,6 +178,45 @@ class PosTicketController extends Controller
             'order_id' => $batch->order_id,
             'batch_id' => $batch->id,
         ], Response::HTTP_CREATED);
+    }
+
+    private function normalizeOrderItems(array $items): array
+    {
+        return array_map(function (array $item): array {
+            $extras = $item['extras'] ?? [];
+            if (!is_array($extras)) {
+                $item['extras'] = [];
+                return $item;
+            }
+
+            $normalized = [];
+            foreach ($extras as $extra) {
+                if (is_array($extra)) {
+                    if (isset($extra['id'])) {
+                        $normalized[] = [
+                            'id' => (int) $extra['id'],
+                            'quantity' => $extra['quantity'] ?? null,
+                        ];
+                        continue;
+                    }
+                    if (isset($extra['extra_id'])) {
+                        $normalized[] = [
+                            'id' => (int) $extra['extra_id'],
+                            'quantity' => $extra['quantity'] ?? null,
+                        ];
+                    }
+                    continue;
+                }
+
+                if (is_numeric($extra)) {
+                    $normalized[] = ['id' => (int) $extra];
+                }
+            }
+
+            $item['extras'] = $normalized;
+
+            return $item;
+        }, $items);
     }
 
     public function pay(Request $request, TableSession $tableSession)

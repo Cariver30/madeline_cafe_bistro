@@ -10,6 +10,7 @@ class CantinaCategory extends Model
     use HasFactory;
 
     protected $fillable = [
+        'clover_id',
         'name',
         'order',
         'show_on_cover',

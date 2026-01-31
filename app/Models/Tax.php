@@ -13,6 +13,7 @@ class Tax extends Model
         'name',
         'rate',
         'active',
+        'clover_id',
     ];
 
     protected $casts = [

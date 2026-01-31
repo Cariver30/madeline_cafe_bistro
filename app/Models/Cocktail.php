@@ -11,6 +11,7 @@ class Cocktail extends Model
     use HasFactory;
 
     protected $fillable = [
+        'clover_id',
         'name',
         'description',
         'price',

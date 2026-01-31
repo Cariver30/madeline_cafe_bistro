@@ -6,6 +6,7 @@
         'menu' => 'Menú',
         'coffee' => 'Café & Brunch',
         'cocktails' => 'Cócteles',
+        'cantina' => 'Cantina',
     ];
     $redirectTarget = $redirectTo ?? route('admin.new-panel', ['section' => 'extras']);
 @endphp
@@ -22,7 +23,7 @@
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Título del grupo</label>
                     <input type="text" name="group_name" required class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-slate-900 focus:border-amber-400 focus:ring-2 focus:ring-amber-100" placeholder="Tipo de pan, Tipo de leche, Termino de la carne">
                 </div>
-                <div class="grid sm:grid-cols-3 gap-3">
+                <div class="grid sm:grid-cols-4 gap-3">
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Tipo</label>
                         <select name="kind" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-slate-900 focus:border-amber-400 focus:ring-2 focus:ring-amber-100">
@@ -37,6 +38,10 @@
                                 <option value="{{ $scope }}">{{ $scopeLabels[$scope] ?? ucfirst($scope) }}</option>
                             @endforeach
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Min selecciones</label>
+                        <input type="number" name="min_select" min="1" max="99" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-slate-900 focus:border-amber-400 focus:ring-2 focus:ring-amber-100" placeholder="1">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Max selecciones</label>
@@ -86,7 +91,7 @@
                 <li>• Puedes asignarlos a platos, cócteles y bebidas desde los formularios.</li>
                 <li>• Si un extra está inactivo, se mantiene en los ítems existentes hasta que lo reemplaces.</li>
                 <li>• En la app y el menú público se mostrará como “Opciones disponibles”.</li>
-                <li>• Marca “Requerido” y define un máximo para controlar la selección.</li>
+                <li>• Marca “Requerido” y define mínimo/máximo para controlar la selección.</li>
             </ul>
         </article>
     </div>
@@ -109,6 +114,7 @@
                                 <th class="pb-2">Grupo</th>
                                 <th class="pb-2">Tipo</th>
                                 <th class="pb-2">Req.</th>
+                                <th class="pb-2">Min</th>
                                 <th class="pb-2">Max</th>
                                 <th class="pb-2">Precio</th>
                                 <th class="pb-2 hidden md:table-cell">Descripción</th>
@@ -123,6 +129,7 @@
                                     <td class="py-2 text-slate-600">{{ $extra->group_name ?? 'Sin grupo' }}</td>
                                     <td class="py-2 text-slate-600">{{ $extra->kind === 'modifier' ? 'Modificador' : 'Adicional' }}</td>
                                     <td class="py-2 text-slate-600">{{ $extra->group_required ? 'Si' : 'No' }}</td>
+                                    <td class="py-2 text-slate-600">{{ $extra->min_select ?: '—' }}</td>
                                     <td class="py-2 text-slate-600">{{ $extra->max_select ?: '—' }}</td>
                                     <td class="py-2 text-slate-700">${{ number_format($extra->price, 2) }}</td>
                                     <td class="py-2 hidden md:table-cell text-slate-500">{{ $extra->description ?: '—' }}</td>

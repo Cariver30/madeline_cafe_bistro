@@ -41,7 +41,7 @@ const LoginScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.heading}>Panel móvil Kfeina</Text>
+        <Text style={styles.heading}>Panel móvil Madeline Cafe Bistro</Text>
         <Text style={styles.subheading}>
           Ingresa tus credenciales del panel administrativo.
         </Text>
