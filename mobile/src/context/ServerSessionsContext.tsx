@@ -195,6 +195,10 @@ export const ServerSessionsProvider = ({
       },
     );
 
+    channel.listen('.ServerSessionsUpdated', () => {
+      loadSessions(false);
+    });
+
     return () => {
       echo.leaveChannel(channelName);
     };

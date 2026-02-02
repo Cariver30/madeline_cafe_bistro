@@ -1,6 +1,7 @@
-import React, {useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,9 +10,11 @@ import {
   View,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useFocusEffect} from '@react-navigation/native';
 import {useAuth} from '../../context/AuthContext';
 import {useServerSessions} from '../../context/ServerSessionsContext';
-import {createTableSession} from '../../services/api';
+import {createTableSession, getServerDiningTables} from '../../services/api';
+import {DiningTable} from '../../types';
 import {ServerStackParamList} from '../../navigation/serverTypes';
 
 type Props = NativeStackScreenProps<ServerStackParamList, 'NewTable'>;
@@ -21,6 +24,10 @@ const NewTableScreen = ({navigation}: Props) => {
   const {loadSessions} = useServerSessions();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tablesLoading, setTablesLoading] = useState(false);
+  const [tables, setTables] = useState<DiningTable[]>([]);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [form, setForm] = useState({
     table_label: '',
     party_size: '',
@@ -30,12 +37,36 @@ const NewTableScreen = ({navigation}: Props) => {
     order_mode: 'table' as 'table' | 'traditional',
   });
 
+
+  const loadTables = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    setTablesLoading(true);
+    try {
+      const result = await getServerDiningTables(token, {
+        status: 'available,reserved,occupied',
+      });
+      setTables(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar mesas.');
+    } finally {
+      setTablesLoading(false);
+    }
+  }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTables();
+    }, [loadTables]),
+  );
+
   const handleCreate = async () => {
     if (!token) {
       return;
     }
     if (
-      !form.table_label.trim() ||
+      (!form.table_label.trim() && !selectedTableId) ||
       !form.party_size ||
       !form.guest_name.trim() ||
       !form.guest_email.trim() ||
@@ -48,7 +79,8 @@ const NewTableScreen = ({navigation}: Props) => {
     setError(null);
     try {
       const created = await createTableSession(token, {
-        table_label: form.table_label.trim(),
+        table_label: selectedTableId ? undefined : form.table_label.trim(),
+        dining_table_id: selectedTableId ?? undefined,
         party_size: Number(form.party_size),
         guest_name: form.guest_name.trim(),
         guest_email: form.guest_email.trim(),
@@ -106,11 +138,23 @@ const NewTableScreen = ({navigation}: Props) => {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity
+          style={styles.selector}
+          onPress={() => setShowTablePicker(true)}
+          disabled={tablesLoading}
+          >
+          <Text style={styles.selectorText}>
+            {selectedTableId
+              ? `Mesa seleccionada: ${tables.find(t => t.id === selectedTableId)?.label ?? ''}`
+              : 'Seleccionar mesa (opcional)'}
+          </Text>
+        </TouchableOpacity>
         <TextInput
-          style={styles.input}
+          style={[styles.input, selectedTableId && styles.inputDisabled]}
           placeholder="Mesa"
           placeholderTextColor="#94a3b8"
           value={form.table_label}
+          editable={!selectedTableId}
           onChangeText={text =>
             setForm(prev => ({...prev, table_label: text}))
           }
@@ -160,6 +204,54 @@ const NewTableScreen = ({navigation}: Props) => {
           )}
         </TouchableOpacity>
       </View>
+
+      <Modal visible={showTablePicker} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Selecciona mesa</Text>
+            <ScrollView style={styles.modalList}>
+              <TouchableOpacity
+                style={[styles.modalItem, !selectedTableId && styles.modalItemSelected]}
+                onPress={() => {
+                  setSelectedTableId(null);
+                  setForm(prev => ({...prev, table_label: ''}));
+                  setShowTablePicker(false);
+                }}>
+                <Text style={styles.modalItemText}>Sin mesa (manual)</Text>
+              </TouchableOpacity>
+              {tables
+                .filter(table =>
+                  ['available', 'reserved'].includes(table.status) ||
+                  (table.status === 'occupied' && !table.active_session),
+                )
+                .map(table => (
+                <TouchableOpacity
+                  key={table.id}
+                  style={[
+                    styles.modalItem,
+                    selectedTableId === table.id && styles.modalItemSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedTableId(table.id);
+                    setForm(prev => ({...prev, table_label: table.label}));
+                    setShowTablePicker(false);
+                  }}>
+                  <Text style={styles.modalItemText}>
+                    {table.label} • {table.capacity} personas •{' '}
+                    {table.status === 'occupied' ? 'ocupada (sin mesero)' : table.status}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => setShowTablePicker(false)}
+              >
+              <Text style={styles.secondaryButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -216,6 +308,17 @@ const styles = StyleSheet.create({
   modeOptionTextActive: {
     color: '#0f172a',
   },
+  selector: {
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#0b1220',
+  },
+  selectorText: {
+    color: '#f8fafc',
+    fontWeight: '600',
+  },
   input: {
     backgroundColor: '#1e293b',
     borderRadius: 18,
@@ -232,6 +335,57 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  inputDisabled: {
+    opacity: 0.5,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalList: {
+    maxHeight: 300,
+  },
+  modalItem: {
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    marginBottom: 8,
+  },
+  modalItemSelected: {
+    borderColor: '#fbbf24',
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+  },
+  modalItemText: {
+    color: '#f8fafc',
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#f8fafc',
+    fontWeight: '600',
   },
   buttonText: {
     color: '#0f172a',

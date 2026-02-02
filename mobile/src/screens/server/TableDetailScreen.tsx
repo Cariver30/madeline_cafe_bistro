@@ -64,6 +64,7 @@ const TableDetailScreen = ({navigation, route}: Props) => {
       : minutes !== null
       ? `Expira en ${minutes} min`
       : 'Expiración no disponible';
+  const timeclock = session.timeclock;
   const orderModeLabel =
     (session.order_mode ?? 'table') === 'traditional'
       ? 'Tradicional'
@@ -192,10 +193,40 @@ const TableDetailScreen = ({navigation, route}: Props) => {
       <View style={styles.card}>
         <Text style={styles.heading}>Mesa {session.table_label}</Text>
         <Text style={styles.meta}>
-          {session.guest_name} · {session.party_size} pax
+          {session.guest_name} · {session.party_size} personas
         </Text>
         <Text style={styles.meta}>Modo: {orderModeLabel}</Text>
         <Text style={styles.meta}>{statusText}</Text>
+        {timeclock ? (
+          <View style={styles.timeclockCard}>
+            <Text style={styles.timeclockTitle}>Tiempo en mesa</Text>
+            <Text style={styles.timeclockText}>
+              Transcurrido: {timeclock.elapsed_minutes ?? 0} min
+            </Text>
+            <Text style={styles.timeclockText}>
+              Estimado: {timeclock.estimated_turn_minutes ?? 0} min · Restan{' '}
+              {timeclock.remaining_minutes ?? 0} min
+            </Text>
+            <View style={styles.timeclockRow}>
+              <Text style={styles.timeclockLabel}>Sentado</Text>
+              <Text style={styles.timeclockValue}>
+                {formatTime(session.seated_at) ?? '--'}
+              </Text>
+            </View>
+            <View style={styles.timeclockRow}>
+              <Text style={styles.timeclockLabel}>Primera orden</Text>
+              <Text style={styles.timeclockValue}>
+                {formatTime(session.first_order_at) ?? '--'}
+              </Text>
+            </View>
+            <View style={styles.timeclockRow}>
+              <Text style={styles.timeclockLabel}>Pago</Text>
+              <Text style={styles.timeclockValue}>
+                {formatTime(session.paid_at) ?? '--'}
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         {qrImageUrl ? (
           <Image source={{uri: qrImageUrl}} style={styles.qrImage} />
@@ -482,6 +513,38 @@ const styles = StyleSheet.create({
   meta: {
     color: '#94a3b8',
     fontSize: 13,
+  },
+  timeclockCard: {
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    gap: 4,
+  },
+  timeclockTitle: {
+    color: '#fbbf24',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  timeclockText: {
+    color: '#e2e8f0',
+    fontSize: 12,
+  },
+  timeclockRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  timeclockLabel: {
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  timeclockValue: {
+    color: '#e2e8f0',
+    fontSize: 12,
+    fontWeight: '600',
   },
   qrImage: {
     width: '100%',

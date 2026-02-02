@@ -21,7 +21,9 @@ export const useTablesViewModel = () => {
           session.orders?.filter(order => order.status === 'pending').length ??
           0;
 
-        const minutesLeft = timeLeft(session.expires_at);
+        const expiresLeft = timeLeft(session.expires_at);
+        const minutesLeft =
+          session.timeclock?.remaining_minutes ?? expiresLeft;
 
         const priority: TablePriority =
           pendingCount > 0

@@ -19,16 +19,14 @@ import {
   getTipSettings,
   sendPosReceipt,
 } from '../../services/api';
-import {startTapToPaySale} from '../../services/tapToPay';
 
-type PaymentMethod = 'cash' | 'card' | 'ath' | 'split' | 'tap_to_pay';
+type PaymentMethod = 'cash' | 'card' | 'ath' | 'split';
 
 const methods: {id: PaymentMethod; label: string}[] = [
   {id: 'cash', label: 'Cash'},
   {id: 'card', label: 'Tarjeta'},
   {id: 'ath', label: 'ATH Movil'},
   {id: 'split', label: 'Combinado'},
-  {id: 'tap_to_pay', label: 'Tap to Pay'},
 ];
 
 const PosPaymentScreen = ({navigation, route}: NativeStackScreenProps<PosStackParamList, 'PosPayment'>) => {
@@ -358,61 +356,6 @@ const PosPaymentScreen = ({navigation, route}: NativeStackScreenProps<PosStackPa
     }
   }, [paymentMode, splitMode, splitAmount, balanceDue]);
 
-  const handleTapToPay = async () => {
-    if (!token) {
-      setTerminalError('Debes iniciar sesion para cobrar.');
-      return;
-    }
-    if (!ticket?.ticket_id) {
-      setTerminalError('No hay una orden abierta para cobrar.');
-      return;
-    }
-    if (totalDue <= 0) {
-      setTerminalError('No hay monto pendiente para cobrar.');
-      return;
-    }
-    setTerminalBusy(true);
-    setTerminalError(null);
-    setTerminalStatus('Preparando Tap to Pay...');
-
-    try {
-      setTerminalStatus('Esperando tarjeta...');
-      let processorPayload: Record<string, unknown>;
-      try {
-        const result = await startTapToPaySale({
-          token,
-          amount: totalDue,
-          reference: String(ticket.ticket_id),
-        });
-        processorPayload = buildProcessorPayload(result, totalDue);
-      } catch (err) {
-        if (!__DEV__) {
-          throw err;
-        }
-        setTerminalStatus('Modo demo Tap to Pay.');
-        processorPayload = buildProcessorPayload(null, totalDue);
-      }
-
-      setTerminalStatus('Pago completado.');
-      await confirmPosExternalPayment(token, ticketId, {
-        method: 'tap_to_pay',
-        provider: 'dejavoo',
-        payload: processorPayload,
-        tip: tipValue,
-        amount: totalDue,
-      });
-      await loadTickets(false);
-      navigation.popToTop();
-    } catch (err) {
-      setTerminalError(
-        err instanceof Error ? err.message : 'No se pudo procesar el pago.',
-      );
-      setTerminalStatus('No se pudo completar el cobro.');
-    } finally {
-      setTerminalBusy(false);
-    }
-  };
-
   const handlePay = async () => {
     if (tipInvalid) {
       return;
@@ -457,10 +400,6 @@ const PosPaymentScreen = ({navigation, route}: NativeStackScreenProps<PosStackPa
       if (updated?.payment_summary?.is_paid) {
         navigation.popToTop();
       }
-      return;
-    }
-    if (selected === 'tap_to_pay') {
-      await handleTapToPay();
       return;
     }
     if (selected === 'cash' && (cashInvalid || cashValue === undefined || cashShort)) {
@@ -610,10 +549,8 @@ const PosPaymentScreen = ({navigation, route}: NativeStackScreenProps<PosStackPa
                 style={[styles.methodButton, selected === method.id && styles.methodActive]}
                 onPress={() => {
                   setSelected(method.id);
-                  if (method.id !== 'tap_to_pay') {
-                    setTerminalError(null);
-                    setTerminalStatus(null);
-                  }
+                  setTerminalError(null);
+                  setTerminalStatus(null);
                 }}>
                 <Text style={[styles.methodText, selected === method.id && styles.methodTextActive]}>
                   {method.label}
@@ -785,14 +722,6 @@ const PosPaymentScreen = ({navigation, route}: NativeStackScreenProps<PosStackPa
             {splitError ? <Text style={styles.error}>{splitError}</Text> : null}
           </>
         )}
-        {paymentMode === 'single' && selected === 'tap_to_pay' ? (
-          <View style={styles.terminalStatusBox}>
-            <Text style={styles.terminalStatusLabel}>Estado del lector</Text>
-            <Text style={styles.terminalStatusText}>
-              {terminalStatus ?? 'Listo para cobrar.'}
-            </Text>
-          </View>
-        ) : null}
         {paymentMode === 'single' ? (
           <>
             <View style={styles.tipRow}>

@@ -37,7 +37,7 @@ export const TableCard = ({
       </View>
 
       <Text style={styles.meta}>
-        {table.guest_name} · {table.party_size} pax
+        {table.guest_name} · {table.party_size} personas
       </Text>
 
       <Text style={styles.meta}>
@@ -45,6 +45,8 @@ export const TableCard = ({
           ? 'Órdenes pendientes'
           : table.priority === 'warning'
           ? `Expira en ${table.minutesLeft} min`
+          : table.timeclock?.remaining_minutes != null
+          ? `Restan ${table.timeclock.remaining_minutes} min`
           : 'Activa'}
       </Text>
 

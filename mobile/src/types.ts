@@ -2,7 +2,7 @@ export type User = {
   id: number;
   name: string;
   email: string;
-  role: 'manager' | 'server' | 'pos' | 'kitchen' | string;
+  role: 'manager' | 'server' | 'pos' | 'kitchen' | 'host' | string;
   active?: boolean;
 };
 
@@ -284,12 +284,97 @@ export type TableOrder = {
   items: TableOrderItem[];
 };
 
+export type DiningTable = {
+  id: number;
+  label: string;
+  capacity: number;
+  section: string | null;
+  status: 'available' | 'reserved' | 'occupied' | 'dirty' | 'out_of_service' | string;
+  position: number;
+  notes: string | null;
+  active_assignment?: {
+    id: number;
+    waiting_list_entry_id: number;
+    assigned_at: string | null;
+    entry?: {
+      id: number;
+      guest_name: string;
+      party_size: number;
+      status: string;
+    } | null;
+  } | null;
+  active_session?: {
+    id: number;
+    server_id: number | null;
+    server_name?: string | null;
+    guest_name: string;
+    party_size: number;
+    seated_at: string | null;
+    first_order_at: string | null;
+    closed_at: string | null;
+    elapsed_minutes: number | null;
+    estimated_turn_minutes: number | null;
+    remaining_minutes: number | null;
+  } | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type WaitingListEntry = {
+  id: number;
+  guest_name: string;
+  guest_phone: string;
+  guest_email: string | null;
+  party_size: number;
+  notes: string | null;
+  status: 'waiting' | 'notified' | 'seated' | 'cancelled' | 'no_show' | string;
+  quoted_minutes: number | null;
+  quoted_at: string | null;
+  notified_at: string | null;
+  seated_at: string | null;
+  cancelled_at: string | null;
+  no_show_at: string | null;
+  tables?: {
+    id: number | null;
+    label: string | null;
+    capacity: number | null;
+    status: string | null;
+    assigned_at: string | null;
+  }[];
+  timeclock?: {
+    estimated_wait_minutes: number | null;
+    elapsed_wait_minutes: number | null;
+    remaining_wait_minutes: number | null;
+    waited_minutes: number | null;
+  } | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type WaitingListSettings = {
+  id: number;
+  default_wait_minutes: number;
+  notify_after_minutes: number;
+  sms_enabled: boolean;
+  email_enabled: boolean;
+  notify_message_template: string | null;
+};
+
 export type TableSession = {
   id: number;
   open_order_id?: number | null;
   server_id?: number;
   server_name?: string | null;
   table_label: string;
+  dining_table_id?: number | null;
+  waiting_list_entry_id?: number | null;
+  dining_table?: {
+    id: number;
+    label: string;
+    capacity: number;
+    section: string | null;
+    status: string;
+  } | null;
   party_size: number;
   guest_name: string;
   guest_email: string;
@@ -298,10 +383,19 @@ export type TableSession = {
   order_mode?: 'traditional' | 'table' | string | null;
   status: 'active' | 'closed' | 'expired' | string;
   service_channel?: string | null;
+  seated_at?: string | null;
+  first_order_at?: string | null;
+  paid_at?: string | null;
   expires_at: string | null;
   closed_at: string | null;
   qr_url: string | null;
   created_at: string | null;
+  timeclock?: {
+    elapsed_minutes: number | null;
+    estimated_turn_minutes: number | null;
+    remaining_minutes: number | null;
+    elapsed_since_first_order_minutes: number | null;
+  };
   payment_summary?: {
     subtotal: number;
     tax_total: number;
@@ -401,7 +495,8 @@ export type PosTicketPayload = {
 };
 
 export type TableSessionPayload = {
-  table_label: string;
+  table_label?: string;
+  dining_table_id?: number | null;
   party_size: number;
   guest_name: string;
   guest_email: string;

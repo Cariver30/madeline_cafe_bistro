@@ -4,6 +4,7 @@ import {
   CategoryFormInput,
   CategoryPayload,
   DishFormInput,
+  DiningTable,
   ExtraOption,
   LoginResponse,
   ManagerSummary,
@@ -15,6 +16,8 @@ import {
   PrepLabel,
   KitchenOrder,
   TipSettings,
+  WaitingListEntry,
+  WaitingListSettings,
   TapToPayConfig,
   ServerUser,
   ServerDashboardSummary,
@@ -27,12 +30,19 @@ import {
 } from '../types';
 
 const DEV_API_BASE_URL = 'http://127.0.0.1:8002/api/mobile';
-const PROD_API_BASE_URL = 'https://kfeinacoffeeshoppr.com/api/mobile';
-export const API_BASE_URL = __DEV__ ? DEV_API_BASE_URL : PROD_API_BASE_URL;
+const PROD_API_BASE_URL = 'https://madeleinecafebistro.com/api/mobile';
+// For dev builds use local API; production builds will still use PROD_API_BASE_URL.
+const FORCE_PROD_API = false;
+export const API_BASE_URL = FORCE_PROD_API
+  ? PROD_API_BASE_URL
+  : __DEV__
+    ? DEV_API_BASE_URL
+    : PROD_API_BASE_URL;
 
 
 const SERVER_API = `${API_BASE_URL}/servers`;
 const MANAGER_API = `${API_BASE_URL}/managers`;
+const HOST_API = `${API_BASE_URL}/hosts`;
 const POS_API = `${API_BASE_URL}/pos`;
 const KITCHEN_API = `${API_BASE_URL}/kitchen`;
 
@@ -138,12 +148,33 @@ export async function getServerDashboardSummary(
   }
 }
 
+
+export async function getServerDiningTables(
+  token: string,
+  params?: {status?: string; section?: string},
+): Promise<DiningTable[]> {
+  try {
+    const {data} = await client.get<{tables: DiningTable[]}>(
+      `${SERVER_API}/tables`,
+      {
+        ...authHeaders(token),
+        params,
+      },
+    );
+    return data.tables ?? [];
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
 export async function getAvailableServers(
   token: string,
+  scope: 'manager' | 'host' = 'manager',
 ): Promise<ServerUser[]> {
   try {
+    const base = scope === 'host' ? HOST_API : SERVER_API;
     const {data} = await client.get<{servers: ServerUser[]}>(
-      `${SERVER_API}/servers/available`,
+      `${base}/servers/available`,
       authHeaders(token),
     );
     return data.servers ?? [];
@@ -852,6 +883,236 @@ export async function overrideServerOrderItem(
       },
       authHeaders(token),
     );
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+
+export async function getDiningTables(
+  token: string,
+  params?: {status?: string; section?: string},
+  scope: 'manager' | 'host' = 'manager',
+): Promise<DiningTable[]> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.get<{tables: DiningTable[]}>(
+      `${base}/tables`,
+      {
+        ...authHeaders(token),
+        params,
+      },
+    );
+    return data.tables ?? [];
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function createDiningTable(
+  token: string,
+  payload: Partial<DiningTable> & {label: string; capacity: number},
+  scope: 'manager' | 'host' = 'manager',
+): Promise<DiningTable> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.post<{table: DiningTable}>(
+      `${base}/tables`,
+      payload,
+      authHeaders(token),
+    );
+    return data.table;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function updateDiningTable(
+  token: string,
+  tableId: number,
+  payload: Partial<DiningTable>,
+  scope: 'manager' | 'host' = 'manager',
+): Promise<DiningTable> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.put<{table: DiningTable}>(
+      `${base}/tables/${tableId}`,
+      payload,
+      authHeaders(token),
+    );
+    return data.table;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function updateDiningTableStatus(
+  token: string,
+  tableId: number,
+  status: DiningTable['status'],
+  scope: 'manager' | 'host' = 'manager',
+): Promise<DiningTable> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.patch<{table: DiningTable}>(
+      `${base}/tables/${tableId}/status`,
+      {status},
+      authHeaders(token),
+    );
+    return data.table;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function deleteDiningTable(
+  token: string,
+  tableId: number,
+  scope: 'manager' | 'host' = 'manager',
+) {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    await client.delete(`${base}/tables/${tableId}`, authHeaders(token));
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function getWaitingList(
+  token: string,
+  params?: {status?: string},
+  scope: 'manager' | 'host' = 'manager',
+): Promise<WaitingListEntry[]> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.get<{entries: WaitingListEntry[]}>(
+      `${base}/waiting-list`,
+      {
+        ...authHeaders(token),
+        params,
+      },
+    );
+    return data.entries ?? [];
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function createWaitingListEntry(
+  token: string,
+  payload: {
+    guest_name: string;
+    guest_phone: string;
+    guest_email?: string | null;
+    party_size: number;
+    notes?: string | null;
+    quoted_minutes?: number | null;
+  },
+  scope: 'manager' | 'host' = 'manager',
+): Promise<WaitingListEntry> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.post<{entry: WaitingListEntry}>(
+      `${base}/waiting-list`,
+      payload,
+      authHeaders(token),
+    );
+    return data.entry;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function updateWaitingListEntry(
+  token: string,
+  entryId: number,
+  payload: Partial<WaitingListEntry>,
+  scope: 'manager' | 'host' = 'manager',
+): Promise<WaitingListEntry> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.patch<{entry: WaitingListEntry}>(
+      `${base}/waiting-list/${entryId}`,
+      payload,
+      authHeaders(token),
+    );
+    return data.entry;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function notifyWaitingListEntry(
+  token: string,
+  entryId: number,
+  scope: 'manager' | 'host' = 'manager',
+): Promise<WaitingListEntry> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.post<{entry: WaitingListEntry}>(
+      `${base}/waiting-list/${entryId}/notify`,
+      null,
+      authHeaders(token),
+    );
+    return data.entry;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function assignWaitingListTables(
+  token: string,
+  entryId: number,
+  payload: {
+    table_ids: number[];
+    mode?: 'reserve' | 'seat';
+    replace?: boolean;
+    server_id?: number | null;
+  },
+  scope: 'manager' | 'host' = 'manager',
+): Promise<WaitingListEntry> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.post<{entry: WaitingListEntry}>(
+      `${base}/waiting-list/${entryId}/assign`,
+      payload,
+      authHeaders(token),
+    );
+    return data.entry;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function getWaitingListSettings(
+  token: string,
+  scope: 'manager' | 'host' = 'manager',
+): Promise<WaitingListSettings> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.get<{settings: WaitingListSettings}>(
+      `${base}/waiting-list/settings`,
+      authHeaders(token),
+    );
+    return data.settings;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function updateWaitingListSettings(
+  token: string,
+  payload: Partial<WaitingListSettings>,
+  scope: 'manager' | 'host' = 'manager',
+): Promise<WaitingListSettings> {
+  try {
+    const base = scope === 'host' ? HOST_API : MANAGER_API;
+    const {data} = await client.patch<{settings: WaitingListSettings}>(
+      `${base}/waiting-list/settings`,
+      payload,
+      authHeaders(token),
+    );
+    return data.settings;
   } catch (error) {
     throw new Error(extractMessage(error));
   }

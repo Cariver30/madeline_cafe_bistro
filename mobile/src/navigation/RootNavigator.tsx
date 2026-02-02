@@ -10,6 +10,7 @@ import KitchenNavigator from './KitchenNavigator';
 import ManagerDashboardScreen from '../screens/manager/ManagerDashboardScreen';
 import ManagerMenuScreen from '../screens/manager/ManagerMenuScreen';
 import ManagerCampaignsScreen from '../screens/manager/ManagerCampaignsScreen';
+import ManagerHostScreen from '../screens/manager/ManagerHostScreen';
 import {useAuth} from '../context/AuthContext';
 import TabIcon from '../components/TabIcon';
 
@@ -17,6 +18,7 @@ export type RootStackParamList = {
   Login: undefined;
   Server: undefined;
   Manager: undefined;
+  Host: undefined;
   Pos: undefined;
   Kitchen: undefined;
 };
@@ -56,6 +58,18 @@ const ManagerTabs = () => (
         ),
       }}
     />
+
+    <Tab.Screen
+      name="Host"
+      component={ManagerHostScreen}
+      options={{
+        title: 'Host',
+        tabBarIcon: ({color, size}) => (
+          <TabIcon name="orders" color={color} size={size} />
+        ),
+      }}
+    />
+
     <Tab.Screen
       name="Servers"
       component={ServerNavigator}
@@ -120,6 +134,8 @@ const RootStack = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
       ) : user.role === 'manager' ? (
         <Stack.Screen name="Manager" component={ManagerTabs} />
+      ) : user.role === 'host' ? (
+        <Stack.Screen name="Host" component={ManagerHostScreen} />
       ) : user.role === 'pos' ? (
         <Stack.Screen name="Pos" component={PosNavigator} />
       ) : user.role === 'kitchen' ? (

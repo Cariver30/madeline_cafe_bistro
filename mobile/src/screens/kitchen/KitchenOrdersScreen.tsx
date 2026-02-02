@@ -287,7 +287,7 @@ const KitchenOrdersScreen = ({
                     </Text>
                     <Text style={styles.orderMeta}>
                       {item.guest_name ?? 'Cliente'} ·{' '}
-                      {item.party_size ?? 0} pax
+                      {item.party_size ?? 0} personas
                     </Text>
                     <Text style={styles.orderMeta}>
                       {item.server_name ? `Mesero ${item.server_name}` : '—'}

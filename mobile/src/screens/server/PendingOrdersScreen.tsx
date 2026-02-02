@@ -179,7 +179,7 @@ const PendingOrdersScreen = () => {
                   </View>
                 </View>
                 <Text style={styles.cardMeta}>
-                  {item.session.guest_name} · {item.session.party_size} pax
+                  {item.session.guest_name} · {item.session.party_size} personas
                 </Text>
                 <Text style={styles.cardMeta}>
                   {item.order.order_id
