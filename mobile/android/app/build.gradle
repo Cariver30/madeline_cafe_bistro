@@ -6,6 +6,8 @@ apply plugin: "com.facebook.react"
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
+def nodeBinary = System.getenv("NODE_BINARY") ?: "node"
+
 react {
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
@@ -25,7 +27,7 @@ react {
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
-    // nodeExecutableAndArgs = ["node"]
+    nodeExecutableAndArgs = [nodeBinary]
     //
     //   The command to run when bundling. By default is 'bundle'
     // bundleCommand = "ram-bundle"
@@ -107,12 +109,6 @@ android {
     }
 }
 
-repositories {
-    flatDir {
-        dirs "libs"
-    }
-}
-
 configurations.all {
     exclude group: "org.json", module: "json"
 }
@@ -120,10 +116,6 @@ configurations.all {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-
-    // Dejavoo SoftPOS (UAT)
-    implementation("com.denovo:topliteapp:1.7.5.5")
-    implementation files("libs/SoftPos-v1.3.66.54-Debug_Test.aar")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

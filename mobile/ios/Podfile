@@ -16,7 +16,6 @@ end
 
 target 'MadelineBistro' do
   pod 'RNWorklets', :path => '../node_modules/react-native-worklets'
-  pod 'react-native-worklets-core', :path => '../node_modules/react-native-worklets-core'
   config = use_native_modules!
 
   use_react_native!(

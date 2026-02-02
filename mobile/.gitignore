@@ -73,3 +73,34 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Android build artifacts
+**/build/
+**/.gradle/
+**/.gradle-home/
+**/.cxx/
+**/.idea/
+**/*.iml
+
+# iOS/CocoaPods
+**/ios/Pods/
+**/ios/build/
+**/ios/DerivedData/
+
+# Expo/React Native/Mobile App cache
+.expo/
+.expo-shared/
+*.expo
+*.log
+
+# VSCode Settings (optional, if shared repo)
+.vscode/
+
+# Watchman and Metro
+.watchmanconfig
+.metro-cache/
+
+# Misc cache/temp
+*.tmp
+*.log
+*.lock
