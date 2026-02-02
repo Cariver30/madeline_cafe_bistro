@@ -95,7 +95,10 @@ class TableOrderService
             'status' => 'pending',
         ]);
 
-        $session->update(['open_order_id' => $order->id]);
+        $session->update([
+            'open_order_id' => $order->id,
+            'first_order_at' => $session->first_order_at ?? now(),
+        ]);
 
         return $order;
     }

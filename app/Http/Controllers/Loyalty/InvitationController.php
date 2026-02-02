@@ -74,6 +74,7 @@ class InvitationController extends Controller
     {
         return match ($role) {
             'pos' => 'POS',
+            'host' => 'Host',
             'manager' => 'gerente',
             'admin' => 'administrador',
             default => 'mesero',
@@ -84,6 +85,7 @@ class InvitationController extends Controller
     {
         return match ($role) {
             'pos' => 'tomar órdenes y cobrar desde el sistema POS',
+            'host' => 'gestionar la lista de espera y la asignación de mesas',
             'manager' => 'administrar el panel y el equipo',
             'admin' => 'control total del sistema',
             default => 'gestionar mesas y fidelización',

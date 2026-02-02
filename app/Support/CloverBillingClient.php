@@ -10,7 +10,8 @@ class CloverBillingClient
 {
     public function __construct(
         private string $appId,
-        private string $appAccessToken
+        private string $appAccessToken,
+        private string $environment = 'production'
     ) {
     }
 
@@ -22,7 +23,9 @@ class CloverBillingClient
             return null;
         }
 
-        return new self($appId, $token);
+        $environment = config('services.clover.environment') ?? env('CLOVER_ENV', 'production');
+
+        return new self($appId, $token, $environment);
     }
 
     public static function fromSettings(?Setting $settings): ?self
@@ -33,12 +36,14 @@ class CloverBillingClient
             return null;
         }
 
-        return new self($appId, $token);
+        $environment = $settings?->clover_env ?? 'production';
+
+        return new self($appId, $token, $environment);
     }
 
     public function reportEvent(string $eventId, string $merchantId, int $value = 1): array
     {
-        $url = "https://api.clover.com/v3/apps/{$this->appId}/merchants/{$merchantId}/metereds/{$eventId}?value={$value}";
+        $url = $this->baseUrl() . "/v3/apps/{$this->appId}/merchants/{$merchantId}/metereds/{$eventId}?value={$value}";
 
         $response = Http::timeout(10)
             ->withToken($this->appAccessToken)
@@ -52,5 +57,12 @@ class CloverBillingClient
         }
 
         return $response->json();
+    }
+
+    private function baseUrl(): string
+    {
+        return $this->environment === 'sandbox'
+            ? 'https://apisandbox.dev.clover.com'
+            : 'https://api.clover.com';
     }
 }

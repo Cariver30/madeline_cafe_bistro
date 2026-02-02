@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\PrinterAdminController;
 use App\Http\Controllers\Admin\PrepAreaAdminController;
 use App\Http\Controllers\Admin\PrepLabelAdminController;
 use App\Http\Controllers\Admin\TaxAdminController;
+use App\Http\Controllers\Admin\DiningTableAdminController;
 use App\Http\Controllers\Admin\SpecialController;
 use App\Http\Controllers\Loyalty\InvitationController;
 use App\Http\Controllers\Loyalty\RedemptionController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\Loyalty\VisitConfirmationController;
 use App\Http\Controllers\CloudPrntController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\OnlineOrderController;
+use App\Http\Controllers\WaitingListPublicController;
 
 use App\Http\Controllers\HomeController;
 
@@ -56,6 +58,8 @@ Route::get('/cantina', [CantinaController::class, 'index'])->name('cantina.index
 Route::get('/especiales', [SpecialPublicController::class, 'index'])->name('specials.index');
 Route::get('/mesa/{token}', [TableOrderController::class, 'show'])->name('table.order.show');
 Route::post('/mesa/{token}/orders', [TableOrderController::class, 'store'])->name('table.order.store');
+Route::get('/lista-de-espera', [WaitingListPublicController::class, 'show'])->name('waiting-list.show');
+Route::post('/lista-de-espera', [WaitingListPublicController::class, 'store'])->name('waiting-list.store');
 Route::get('/receipts/pos/{order}', [ReceiptController::class, 'pos'])
     ->middleware('signed')
     ->name('receipts.pos.download');
@@ -139,6 +143,13 @@ Route::middleware(['auth', 'role:admin,manager'])->group(function () {
     Route::post('/admin/cocktails/reorder', [CocktailController::class, 'reorder'])->name('cocktails.reorder');
     Route::post('/admin/wines/reorder', [WineController::class, 'reorder'])->name('wines.reorder');
     Route::post('/admin/cantina/reorder', [CantinaItemController::class, 'reorder'])->name('cantina.reorder');
+
+    Route::prefix('admin/tables')->name('admin.tables.')->group(function () {
+        Route::post('/', [DiningTableAdminController::class, 'store'])->name('store');
+        Route::patch('/{diningTable}', [DiningTableAdminController::class, 'update'])->name('update');
+        Route::patch('/{diningTable}/status', [DiningTableAdminController::class, 'updateStatus'])->name('status');
+        Route::delete('/{diningTable}', [DiningTableAdminController::class, 'destroy'])->name('destroy');
+    });
 
     Route::prefix('admin/printers')->name('admin.printers.')->group(function () {
         Route::post('/', [PrinterAdminController::class, 'storePrinter'])->name('store');

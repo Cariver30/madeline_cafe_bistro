@@ -30,7 +30,7 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
             <div>
                 <h4 class="text-lg font-semibold text-slate-900 mb-1">Personal con acceso</h4>
-                <p class="text-muted small">Crea usuarios con rol de mesero o POS y envíales la invitación para activar su cuenta.</p>
+                <p class="text-muted small">Crea usuarios con rol de mesero, host o POS y envíales la invitación para activar su cuenta.</p>
             </div>
         </div>
         <form method="POST" action="{{ route('admin.loyalty.servers.store') }}" class="row g-3 align-items-end mb-4">
@@ -47,6 +47,7 @@
                 <label class="form-label text-muted small">Rol</label>
                 <select name="role" class="form-select" required>
                     <option value="server">Mesero</option>
+                    <option value="host">Host</option>
                     <option value="pos">POS</option>
                 </select>
             </div>
@@ -71,7 +72,15 @@
                         <tr>
                             <td>{{ $staff->name }}</td>
                             <td>{{ $staff->email }}</td>
-                            <td>{{ $staff->role === 'pos' ? 'POS' : 'Mesero' }}</td>
+                            <td>
+                                @if($staff->role === 'pos')
+                                    POS
+                                @elseif($staff->role === 'host')
+                                    Host
+                                @else
+                                    Mesero
+                                @endif
+                            </td>
                             <td>{{ optional($staff->invitation_sent_at)->diffForHumans() ?? 'N/A' }}</td>
                             <td class="text-center">
                                 @php

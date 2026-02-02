@@ -63,4 +63,10 @@ return [
         'live_metrics' => filter_var(env('CLOVER_LIVE_METRICS', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    'twilio' => [
+        'sid' => env('TWILIO_ACCOUNT_SID'),
+        'token' => env('TWILIO_AUTH_TOKEN'),
+        'from' => env('TWILIO_FROM'),
+    ],
+
 ];

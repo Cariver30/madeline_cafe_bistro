@@ -95,7 +95,7 @@ class LoyaltyAdminController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role' => ['nullable', 'string', 'in:server,pos'],
+            'role' => ['nullable', 'string', 'in:server,pos,host'],
         ]);
 
         $role = $data['role'] ?? 'server';
@@ -111,10 +111,16 @@ class LoyaltyAdminController extends Controller
             'active' => true,
         ]);
 
-        $roleLabel = $role === 'pos' ? 'POS' : 'mesero';
-        $roleDescription = $role === 'pos'
-            ? 'tomar ordenes y cobrar desde el sistema POS'
-            : 'gestionar mesas y el programa de fidelidad';
+        $roleLabel = match ($role) {
+            'pos' => 'POS',
+            'host' => 'Host',
+            default => 'mesero',
+        };
+        $roleDescription = match ($role) {
+            'pos' => 'tomar ordenes y cobrar desde el sistema POS',
+            'host' => 'gestionar la lista de espera y la asignación de mesas',
+            default => 'gestionar mesas y el programa de fidelidad',
+        };
 
         Mail::to($user->email)->send(new ServerInvitationMail($user, $token, $roleLabel, $roleDescription));
 
@@ -123,7 +129,7 @@ class LoyaltyAdminController extends Controller
 
     public function resendInvitation(User $user)
     {
-        abort_unless($user->hasRole(['server', 'pos']), 403);
+        abort_unless($user->hasRole(['server', 'pos', 'host']), 403);
 
         $token = Str::uuid()->toString();
 
@@ -133,10 +139,16 @@ class LoyaltyAdminController extends Controller
             'invitation_accepted_at' => null,
         ])->save();
 
-        $roleLabel = $user->role === 'pos' ? 'POS' : 'mesero';
-        $roleDescription = $user->role === 'pos'
-            ? 'tomar ordenes y cobrar desde el sistema POS'
-            : 'gestionar mesas y el programa de fidelidad';
+        $roleLabel = match ($user->role) {
+            'pos' => 'POS',
+            'host' => 'Host',
+            default => 'mesero',
+        };
+        $roleDescription = match ($user->role) {
+            'pos' => 'tomar ordenes y cobrar desde el sistema POS',
+            'host' => 'gestionar la lista de espera y la asignación de mesas',
+            default => 'gestionar mesas y el programa de fidelidad',
+        };
 
         Mail::to($user->email)->send(new ServerInvitationMail($user, $token, $roleLabel, $roleDescription));
 
@@ -145,7 +157,7 @@ class LoyaltyAdminController extends Controller
 
     public function toggleServer(User $user)
     {
-        abort_unless($user->hasRole(['server', 'pos']), 403);
+        abort_unless($user->hasRole(['server', 'pos', 'host']), 403);
 
         $user->update(['active' => ! $user->active]);
 
@@ -154,7 +166,7 @@ class LoyaltyAdminController extends Controller
 
     public function destroyServer(User $user)
     {
-        abort_unless($user->hasRole(['server', 'pos']), 403);
+        abort_unless($user->hasRole(['server', 'pos', 'host']), 403);
 
         $user->delete();
 

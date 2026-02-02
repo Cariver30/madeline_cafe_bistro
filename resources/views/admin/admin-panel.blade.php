@@ -42,6 +42,13 @@
             </div>
 
             <div class="tab-group">
+                <p class="tab-group-title">Host</p>
+                <div class="tab-group-buttons">
+                    <button class="tab-button" data-section="host">Lista de espera</button>
+                </div>
+            </div>
+
+            <div class="tab-group">
                 <p class="tab-group-title">Vistas al cliente</p>
                 <div class="tab-group-buttons">
                     @if($settings->show_tab_menu)
@@ -247,7 +254,206 @@
             </div>
 
             @if($currentUser && $currentUser->hasRole(['admin', 'manager']))
-                <div id="general" class="section-panel">
+    
+            <div id="host" class="section-panel">
+                <div class="inner-panel space-y-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="inner-title mb-1">Host · Lista de espera</h3>
+                            <p class="inner-text m-0">Controla la lista de espera y disponibilidad de mesas.</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">
+                            Nuevo
+                        </span>
+                    </div>
+
+                    @php
+                        $hostReady = \Illuminate\Support\Facades\Schema::hasTable('waiting_list_entries')
+                            && \Illuminate\Support\Facades\Schema::hasTable('dining_tables');
+                        $waitingStats = collect();
+                        $tableStats = collect();
+                        if ($hostReady) {
+                            $waitingStats = \App\Models\WaitingListEntry::query()
+                                ->selectRaw('status, COUNT(*) as total')
+                                ->groupBy('status')
+                                ->pluck('total', 'status');
+                            $tableStats = \App\Models\DiningTable::query()
+                                ->selectRaw('status, COUNT(*) as total')
+                                ->groupBy('status')
+                                ->pluck('total', 'status');
+                        }
+                    @endphp
+
+                    @if(!$hostReady)
+                        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                            <p class="font-semibold">Falta activar las tablas y el waiting list.</p>
+                            <p class="text-sm m-0">Ejecuta las migraciones y recarga el panel.</p>
+                        </div>
+                    @else
+                        @php
+                            $tableStatusOptions = [
+                                'available' => 'Disponible',
+                                'reserved' => 'Reservada',
+                                'occupied' => 'Ocupada',
+                                'dirty' => 'Dirty',
+                                'out_of_service' => 'Fuera de servicio',
+                            ];
+                        @endphp
+
+                        @if(session('success'))
+                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-900 text-sm">
+                                {{ session('success') }}
+                            </div>
+                        @endif
+
+                        @if(session('error'))
+                            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-900 text-sm">
+                                {{ session('error') }}
+                            </div>
+                        @endif
+
+                        @if($errors->any())
+                            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-900 text-sm">
+                                <p class="font-semibold">Revisa los datos de la mesa.</p>
+                                <ul class="list-disc ml-5">
+                                    @foreach($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <div class="grid md:grid-cols-4 gap-4">
+                            @foreach(['waiting' => 'En espera', 'notified' => 'Notificados', 'seated' => 'Sentados', 'cancelled' => 'Cancelados'] as $status => $label)
+                                <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                    <p class="text-xs uppercase tracking-widest text-slate-500">{{ $label }}</p>
+                                    <p class="text-2xl font-semibold text-slate-900">{{ $waitingStats[$status] ?? 0 }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="grid md:grid-cols-5 gap-4">
+                            @foreach(['available' => 'Disponibles', 'reserved' => 'Reservadas', 'occupied' => 'Ocupadas', 'dirty' => 'Dirty', 'out_of_service' => 'Fuera de servicio'] as $status => $label)
+                                <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                    <p class="text-xs uppercase tracking-widest text-slate-500">{{ $label }}</p>
+                                    <p class="text-2xl font-semibold text-slate-900">{{ $tableStats[$status] ?? 0 }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="grid lg:grid-cols-2 gap-4">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-slate-900">Crear mesa</h4>
+                                    <p class="text-xs text-slate-500">Define el inventario de mesas del restaurante.</p>
+                                </div>
+                                <form method="POST" action="{{ route('admin.tables.store') }}" class="grid gap-3">
+                                    @csrf
+                                    <div class="grid md:grid-cols-5 gap-3">
+                                        <div>
+                                            <label class="text-xs text-slate-500">Nombre</label>
+                                            <input type="text" name="label" class="form-control" placeholder="Mesa 1" value="{{ old('label') }}" required>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-500">Capacidad</label>
+                                            <input type="number" name="capacity" class="form-control" min="1" max="99" value="{{ old('capacity', 2) }}" required>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-500">Sección</label>
+                                            <input type="text" name="section" class="form-control" placeholder="Terraza" value="{{ old('section') }}">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-500">Orden</label>
+                                            <input type="number" name="position" class="form-control" min="0" value="{{ old('position', 0) }}">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-500">Estado</label>
+                                            <select name="status" class="form-control">
+                                                @foreach($tableStatusOptions as $value => $label)
+                                                    <option value="{{ $value }}" @selected(old('status', 'available') === $value)>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-slate-500">Notas</label>
+                                        <input type="text" name="notes" class="form-control" placeholder="Mesa accesible, cerca de barra..." value="{{ old('notes') }}">
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <button type="submit" class="btn btn-dark">Crear mesa</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-slate-900">Mesas actuales</h4>
+                                    <p class="text-xs text-slate-500">Edición rápida desde web (también disponible en la app).</p>
+                                </div>
+                                @if($diningTables->isEmpty())
+                                    <p class="text-sm text-slate-500">Aún no hay mesas configuradas.</p>
+                                @else
+                                    <div class="space-y-3">
+                                        @foreach($diningTables as $table)
+                                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                <form method="POST" action="{{ route('admin.tables.update', $table) }}" class="grid gap-3">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <div class="grid md:grid-cols-5 gap-3">
+                                                        <div>
+                                                            <label class="text-xs text-slate-500">Nombre</label>
+                                                            <input type="text" name="label" class="form-control" value="{{ $table->label }}" required>
+                                                        </div>
+                                                        <div>
+                                                            <label class="text-xs text-slate-500">Capacidad</label>
+                                                            <input type="number" name="capacity" class="form-control" min="1" max="99" value="{{ $table->capacity }}" required>
+                                                        </div>
+                                                        <div>
+                                                            <label class="text-xs text-slate-500">Sección</label>
+                                                            <input type="text" name="section" class="form-control" value="{{ $table->section }}">
+                                                        </div>
+                                                        <div>
+                                                            <label class="text-xs text-slate-500">Orden</label>
+                                                            <input type="number" name="position" class="form-control" min="0" value="{{ $table->position }}">
+                                                        </div>
+                                                        <div>
+                                                            <label class="text-xs text-slate-500">Estado</label>
+                                                            <select name="status" class="form-control">
+                                                                @foreach($tableStatusOptions as $value => $label)
+                                                                    <option value="{{ $value }}" @selected($table->status === $value)>{{ $label }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="grid md:grid-cols-6 gap-3 items-end">
+                                                        <div class="md:col-span-4">
+                                                            <label class="text-xs text-slate-500">Notas</label>
+                                                            <input type="text" name="notes" class="form-control" value="{{ $table->notes }}">
+                                                        </div>
+                                                        <div class="md:col-span-2 flex justify-end gap-2">
+                                                            <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                                                        </div>
+                                                    </div>
+                                                </form>
+                                                <form method="POST" action="{{ route('admin.tables.destroy', $table) }}" class="flex justify-end">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-outline-secondary btn-sm" onclick="return confirm('¿Eliminar mesa {{ $table->label }}?');">Eliminar</button>
+                                                </form>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                            <p class="text-sm text-slate-600">La lista en vivo se administra desde la app (pestaña Host) y aquí puedes mantener las mesas actualizadas.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <div id="general" class="section-panel">
                     <div class="inner-panel">
                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
                             <div>
@@ -622,6 +828,44 @@
         background: linear-gradient(90deg, #fbbf24, #f97316);
         color: #111827;
         font-weight: 600;
+    }
+    .btn-success {
+        background: #16a34a;
+        color: #ffffff;
+        font-weight: 600;
+    }
+    .btn-success:hover {
+        background: #15803d;
+        color: #ffffff;
+    }
+    .btn-dark {
+        background: #0f172a;
+        color: #ffffff;
+        font-weight: 600;
+    }
+    .btn-dark:hover {
+        background: #1f2937;
+        color: #ffffff;
+    }
+    .btn-outline-secondary {
+        border: 1px solid #64748b;
+        color: #334155;
+        background: #ffffff;
+        font-weight: 600;
+    }
+    .btn-outline-secondary:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+    .btn-outline-primary {
+        border: 1px solid #2563eb;
+        color: #2563eb;
+        background: #ffffff;
+        font-weight: 600;
+    }
+    .btn-outline-primary:hover {
+        background: #2563eb;
+        color: #ffffff;
     }
     .btn-outline-light {
         border: 1px solid #cbd5f5;
