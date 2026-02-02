@@ -12,6 +12,8 @@ class TableSession extends Model
 
     protected $fillable = [
         'server_id',
+        'dining_table_id',
+        'waiting_list_entry_id',
         'open_order_id',
         'service_channel',
         'table_label',
@@ -23,6 +25,9 @@ class TableSession extends Model
         'order_mode',
         'qr_token',
         'status',
+        'seated_at',
+        'first_order_at',
+        'paid_at',
         'expires_at',
         'closed_at',
     ];
@@ -30,6 +35,9 @@ class TableSession extends Model
     protected $casts = [
         'expires_at' => 'datetime',
         'closed_at' => 'datetime',
+        'seated_at' => 'datetime',
+        'first_order_at' => 'datetime',
+        'paid_at' => 'datetime',
     ];
 
     protected static function booted()
@@ -49,6 +57,16 @@ class TableSession extends Model
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function diningTable()
+    {
+        return $this->belongsTo(DiningTable::class);
+    }
+
+    public function waitingListEntry()
+    {
+        return $this->belongsTo(WaitingListEntry::class);
     }
 
     public function openOrder()

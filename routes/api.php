@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Api\CampaignController;
 use App\Http\Controllers\Api\CocktailManagementController;
+use App\Http\Controllers\Api\DiningTableController;
+use App\Http\Controllers\Api\WaitingListController;
+use App\Http\Controllers\Api\TwilioWebhookController;
 use App\Http\Controllers\Api\ExtraManagementController;
 use App\Http\Controllers\Api\ManagerDashboardController;
 use App\Http\Controllers\Api\MenuManagementController;
@@ -29,6 +32,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 
+Route::post('/twilio/waiting-list', [TwilioWebhookController::class, 'waitingList']);
+
 Route::prefix('mobile')->group(function () {
     Route::post('/login', [MobileAuthController::class, 'login']);
 
@@ -51,6 +56,8 @@ Route::prefix('mobile')->group(function () {
         Route::get('/menu/categories', [ServerMenuController::class, 'menuCategories']);
         Route::get('/cocktails/categories', [ServerMenuController::class, 'cocktailCategories']);
         Route::get('/wines/categories', [ServerMenuController::class, 'wineCategories']);
+        Route::get('/tables', [DiningTableController::class, 'index']);
+        Route::patch('/tables/{diningTable}/status', [DiningTableController::class, 'updateStatus']);
         Route::get('/servers/available', [ServerTableSessionController::class, 'availableServers']);
         Route::post('/terminal/connection-token', [StripeTerminalController::class, 'connectionToken']);
         Route::post('/terminal/payment-intents', [StripeTerminalController::class, 'createPaymentIntent']);
@@ -93,16 +100,44 @@ Route::prefix('mobile')->group(function () {
         Route::get('/menu/categories', [ServerMenuController::class, 'menuCategories']);
         Route::get('/cocktails/categories', [ServerMenuController::class, 'cocktailCategories']);
         Route::get('/wines/categories', [ServerMenuController::class, 'wineCategories']);
+        Route::get('/tables', [DiningTableController::class, 'index']);
+        Route::patch('/tables/{diningTable}/status', [DiningTableController::class, 'updateStatus']);
         Route::patch('/batches/{order}/confirm', [ServerOrderController::class, 'confirm']);
         Route::patch('/batches/{order}/cancel', [ServerOrderController::class, 'cancel']);
         Route::patch('/batches/{order}/items/{item}/void', [OrderItemController::class, 'void']);
         Route::patch('/batches/{order}/items/{item}/override', [OrderItemController::class, 'override']);
     });
 
+    Route::prefix('hosts')->middleware('mobile.api:host,manager')->group(function () {
+        Route::get('/tables', [DiningTableController::class, 'index']);
+        Route::patch('/tables/{diningTable}/status', [DiningTableController::class, 'updateStatus']);
+        Route::get('/waiting-list', [WaitingListController::class, 'index']);
+        Route::post('/waiting-list', [WaitingListController::class, 'store']);
+        Route::patch('/waiting-list/{waitingListEntry}', [WaitingListController::class, 'update']);
+        Route::post('/waiting-list/{waitingListEntry}/notify', [WaitingListController::class, 'notify']);
+        Route::post('/waiting-list/{waitingListEntry}/assign', [WaitingListController::class, 'assignTables']);
+        Route::get('/waiting-list/settings', [WaitingListController::class, 'settings']);
+        Route::patch('/waiting-list/settings', [WaitingListController::class, 'updateSettings']);
+        Route::get('/servers/available', [ServerTableSessionController::class, 'availableServers']);
+    });
+
     Route::prefix('managers')->middleware('mobile.api:manager')->group(function () {
         Route::get('/dashboard', [ManagerDashboardController::class, 'summary']);
         Route::get('/operations', [ManagerDashboardController::class, 'operations']);
         Route::get('/servers', [ManagerDashboardController::class, 'servers']);
+        Route::get('/tables', [DiningTableController::class, 'index']);
+        Route::post('/tables', [DiningTableController::class, 'store']);
+        Route::put('/tables/{diningTable}', [DiningTableController::class, 'update']);
+        Route::patch('/tables/{diningTable}/status', [DiningTableController::class, 'updateStatus']);
+        Route::delete('/tables/{diningTable}', [DiningTableController::class, 'destroy']);
+
+        Route::get('/waiting-list', [WaitingListController::class, 'index']);
+        Route::post('/waiting-list', [WaitingListController::class, 'store']);
+        Route::patch('/waiting-list/{waitingListEntry}', [WaitingListController::class, 'update']);
+        Route::post('/waiting-list/{waitingListEntry}/notify', [WaitingListController::class, 'notify']);
+        Route::post('/waiting-list/{waitingListEntry}/assign', [WaitingListController::class, 'assignTables']);
+        Route::get('/waiting-list/settings', [WaitingListController::class, 'settings']);
+        Route::patch('/waiting-list/settings', [WaitingListController::class, 'updateSettings']);
         Route::patch('/servers/{user}/toggle', [ManagerDashboardController::class, 'toggleServer']);
         Route::get('/payments', [PaymentManagementController::class, 'index']);
         Route::post('/payments/{payment}/refund', [PaymentManagementController::class, 'refund']);

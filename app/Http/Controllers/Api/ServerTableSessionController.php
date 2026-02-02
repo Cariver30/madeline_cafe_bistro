@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Events\HostDashboardUpdated;
+use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderBatch;
 use App\Models\OrderItem;
@@ -16,8 +18,10 @@ use App\Support\CloverClient;
 use App\Support\Loyalty\LoyaltyRewardService;
 use App\Support\Orders\PosReceiptBuilder;
 use App\Support\Orders\TableOrderService;
+use App\Support\TableTurnTimeEstimator;
 use App\Support\Payments\ProcessorPayload;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -53,7 +57,8 @@ class ServerTableSessionController extends Controller
         $server = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'table_label' => ['required', 'string', 'max:255'],
+            'dining_table_id' => ['nullable', 'integer', Rule::exists('dining_tables', 'id')],
+            'table_label' => ['required_without:dining_table_id', 'string', 'max:255'],
             'party_size' => ['required', 'integer', 'min:1', 'max:99'],
             'guest_name' => ['required', 'string', 'max:255'],
             'guest_email' => ['required', 'email', 'max:255'],
@@ -77,16 +82,58 @@ class ServerTableSessionController extends Controller
 
         $validated = $validator->validated();
 
+        $table = null;
+        if (! empty($validated['dining_table_id'])) {
+            $table = DiningTable::query()
+                ->with('activeAssignment.waitingListEntry')
+                ->find($validated['dining_table_id']);
+
+            if ($table) {
+                $hasActiveSession = TableSession::where('dining_table_id', $table->id)
+                    ->where('status', 'active')
+                    ->exists();
+
+                if ($hasActiveSession) {
+                    return response()->json([
+                        'message' => 'La mesa ya tiene una sesión activa.',
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                if (! in_array($table->status, ['available', 'reserved', 'occupied'], true)) {
+                    return response()->json([
+                        'message' => 'La mesa no está disponible.',
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+            }
+        }
+
+        $waitingEntry = $table?->activeAssignment?->waitingListEntry;
+
         $session = TableSession::create([
             'server_id' => $server->id,
-            'table_label' => $validated['table_label'],
+            'dining_table_id' => $table?->id,
+            'waiting_list_entry_id' => $waitingEntry?->id,
+            'table_label' => $table?->label ?? $validated['table_label'],
             'party_size' => $validated['party_size'],
             'guest_name' => $validated['guest_name'],
             'guest_email' => strtolower(trim($validated['guest_email'])),
             'guest_phone' => $validated['guest_phone'],
             'order_mode' => $validated['order_mode'] ?? 'table',
             'expires_at' => now()->addHour(),
+            'seated_at' => now(),
         ]);
+
+        if ($table) {
+            $table->update(['status' => 'occupied']);
+            event(new HostDashboardUpdated('tables', $table->id));
+        }
+
+        if ($waitingEntry && $waitingEntry->status !== 'seated') {
+            $waitingEntry->update([
+                'status' => 'seated',
+                'seated_at' => $waitingEntry->seated_at ?? now(),
+            ]);
+        }
 
         return response()->json([
             'message' => 'Mesa creada correctamente.',
@@ -108,9 +155,7 @@ class ServerTableSessionController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        if ($request->boolean('clover_live') && config('services.clover.live_metrics', false)) {
-            $this->syncCloverClosedBatches($sessions->pluck('orders')->flatten()->pluck('batches')->flatten());
-        }
+        $this->queueCloverSync($request, $sessions->pluck('orders')->flatten()->pluck('batches')->flatten());
 
         $now = now();
         foreach ($sessions as $session) {
@@ -136,6 +181,10 @@ class ServerTableSessionController extends Controller
                     'status' => 'closed',
                     'closed_at' => $session->closed_at ?? $now,
                 ]);
+                if ($session->diningTable) {
+                    $session->diningTable->update(['status' => 'dirty']);
+                    event(new HostDashboardUpdated('tables', $session->diningTable->id));
+                }
             }
         }
 
@@ -158,9 +207,7 @@ class ServerTableSessionController extends Controller
 
         $tableSession->load(['server', 'orders.batches.items.extras', 'orders.batches.items.prepLabels.area', 'openOrder.payments']);
 
-        if ($request->boolean('clover_live') && config('services.clover.live_metrics', false)) {
-            $this->syncCloverClosedBatches($tableSession->orders->pluck('batches')->flatten());
-        }
+        $this->queueCloverSync($request, $tableSession->orders->pluck('batches')->flatten());
 
         return response()->json([
             'session' => $this->formatSession($tableSession, true),
@@ -330,6 +377,7 @@ class ServerTableSessionController extends Controller
             $tableSession->update([
                 'status' => 'closed',
                 'closed_at' => now(),
+                'paid_at' => $tableSession->paid_at ?? now(),
             ]);
         }
 
@@ -352,6 +400,12 @@ class ServerTableSessionController extends Controller
             if ($visit) {
                 $tableSession->update(['loyalty_visit_id' => $visit->id]);
             }
+        }
+
+        if ($tableSession->diningTable) {
+            $tableSession->diningTable->update(['status' => 'dirty']);
+            event(new HostDashboardUpdated('tables', $tableSession->diningTable->id));
+            $this->clearWaitingListEntryForTable($tableSession->diningTable);
         }
 
         return response()->json([
@@ -454,6 +508,10 @@ class ServerTableSessionController extends Controller
             }
         }
 
+        if ($tableSession->diningTable) {
+            $tableSession->diningTable->update(['status' => 'dirty']);
+        }
+
         return response()->json([
             'message' => $summary['is_paid'] ? 'Mesa cobrada.' : 'Pago registrado.',
             'session' => $this->formatSession($tableSession->fresh(['openOrder.payments'])),
@@ -553,6 +611,10 @@ class ServerTableSessionController extends Controller
             if ($visit) {
                 $tableSession->update(['loyalty_visit_id' => $visit->id]);
             }
+        }
+
+        if ($tableSession->diningTable) {
+            $tableSession->diningTable->update(['status' => 'dirty']);
         }
 
         return response()->json([
@@ -800,7 +862,8 @@ class ServerTableSessionController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'table_label' => ['required', 'string', 'max:255'],
+            'dining_table_id' => ['nullable', 'integer', Rule::exists('dining_tables', 'id')],
+            'table_label' => ['required_without:dining_table_id', 'string', 'max:255'],
             'server_id' => ['required', 'integer', Rule::exists('users', 'id')],
             'manager_email' => [$requiresOverride ? 'required' : 'nullable', 'email', 'max:255'],
             'manager_password' => [$requiresOverride ? 'required' : 'nullable', 'string'],
@@ -852,10 +915,30 @@ class ServerTableSessionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
+        $targetTable = null;
+        if (! empty($data['dining_table_id'])) {
+            $targetTable = DiningTable::find($data['dining_table_id']);
+            if ($targetTable && ! in_array($targetTable->status, ['available', 'reserved'], true)) {
+                return response()->json([
+                    'message' => 'La mesa seleccionada no está disponible.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        $previousTable = $tableSession->diningTable;
+
         $tableSession->update([
-            'table_label' => trim($data['table_label']),
+            'dining_table_id' => $targetTable?->id,
+            'table_label' => $targetTable?->label ?? trim($data['table_label']),
             'server_id' => $data['server_id'],
         ]);
+
+        if ($previousTable && $previousTable->id !== $targetTable?->id) {
+            $previousTable->update(['status' => 'dirty']);
+        }
+        if ($targetTable) {
+            $targetTable->update(['status' => 'occupied']);
+        }
 
         return response()->json([
             'message' => 'Mesa transferida.',
@@ -875,6 +958,44 @@ class ServerTableSessionController extends Controller
         }
 
         $query->update(['status' => 'expired']);
+    }
+
+    private function queueCloverSync(Request $request, $batches): void
+    {
+        if (! $request->boolean('clover_live')) {
+            return;
+        }
+
+        if (! config('services.clover.live_metrics', false)) {
+            return;
+        }
+
+        $batchIds = collect($batches)
+            ->filter(fn (OrderBatch $batch) => $batch->id && $batch->clover_order_id && ! $batch->metered_closed_at)
+            ->pluck('id')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($batchIds === []) {
+            return;
+        }
+
+        $lockKey = 'clover_sync_lock';
+        $lockTtl = (int) env('CLOVER_SYNC_LOCK_SECONDS', 8);
+
+        if (! Cache::add($lockKey, true, now()->addSeconds($lockTtl))) {
+            return;
+        }
+
+        app()->terminating(function () use ($batchIds, $lockKey) {
+            try {
+                $batches = OrderBatch::whereIn('id', $batchIds)->get();
+                $this->syncCloverClosedBatches($batches);
+            } finally {
+                Cache::forget($lockKey);
+            }
+        });
     }
 
     private function syncCloverClosedBatches($batches): void
@@ -916,6 +1037,7 @@ class ServerTableSessionController extends Controller
                         'clover_order_id' => null,
                         'clover_print_event_id' => null,
                     ]);
+                    $this->closeSessionIfCompleted($batch);
                     continue;
                 }
                 report($exception);
@@ -934,6 +1056,8 @@ class ServerTableSessionController extends Controller
                 'metered_closed_at' => now(),
             ]);
 
+            $this->closeSessionIfCompleted($batch);
+
             if ($billingClient && $eventId && $merchantId) {
                 try {
                     $billingClient->reportEvent($eventId, $merchantId, 1);
@@ -944,14 +1068,106 @@ class ServerTableSessionController extends Controller
         }
     }
 
+
+    private function closeSessionIfCompleted(OrderBatch $batch): void
+    {
+        $batch->loadMissing(['order.tableSession.orders.batches']);
+        $session = $batch->order?->tableSession;
+
+        if (! $session || $session->status === 'closed') {
+            return;
+        }
+
+        $hasActiveBatch = $session->orders
+            ->flatMap(fn (Order $order) => $order->batches)
+            ->contains(function (OrderBatch $batch) {
+                if (! in_array($batch->status, ['pending', 'confirmed'], true)) {
+                    return false;
+                }
+                if ($batch->cancelled_at || $batch->metered_closed_at) {
+                    return false;
+                }
+                if ($batch->source === 'server' && ! $batch->clover_order_id) {
+                    return false;
+                }
+                return true;
+            });
+
+        if (! $hasActiveBatch) {
+            $session->update([
+                'status' => 'closed',
+                'closed_at' => $session->closed_at ?? now(),
+                'paid_at' => $session->paid_at ?? now(),
+            ]);
+            if ($session->diningTable) {
+                $session->diningTable->update(['status' => 'dirty']);
+                event(new HostDashboardUpdated('tables', $session->diningTable->id));
+                $this->clearWaitingListEntryForTable($session->diningTable);
+            }
+        }
+    }
+
+    private function clearWaitingListEntryForTable(?DiningTable $table): void
+    {
+        if (! $table) {
+            return;
+        }
+
+        $assignment = $table->activeAssignment()
+            ->with(['waitingListEntry.assignments.diningTable'])
+            ->first();
+
+        if (! $assignment || ! $assignment->waitingListEntry) {
+            return;
+        }
+
+        $entry = $assignment->waitingListEntry;
+        if ($entry->status !== 'seated') {
+            return;
+        }
+
+        $assignments = $entry->assignments()->whereNull('released_at')->get();
+        foreach ($assignments as $entryAssignment) {
+            $entryAssignment->update(['released_at' => now()]);
+            if ($entryAssignment->diningTable && $entryAssignment->diningTable->status === 'reserved') {
+                $entryAssignment->diningTable->update(['status' => 'available']);
+                event(new HostDashboardUpdated('tables', $entryAssignment->diningTable->id));
+            }
+        }
+
+        $entryId = $entry->id;
+        $entry->delete();
+        event(new HostDashboardUpdated('waiting_list', $entryId));
+    }
+
     private function formatSession(TableSession $session, bool $withOrders = false): array
     {
+        $seatedAt = $session->seated_at ?? $session->created_at;
+        $clockEnd = $session->closed_at ?? now();
+        $elapsedMinutes = $seatedAt ? $clockEnd->diffInMinutes($seatedAt) : null;
+        $estimatedTurn = TableTurnTimeEstimator::estimateTurnMinutes($session->party_size);
+        $remainingMinutes = $elapsedMinutes !== null
+            ? max($estimatedTurn - $elapsedMinutes, 0)
+            : null;
+        $elapsedSinceFirstOrder = $session->first_order_at
+            ? $clockEnd->diffInMinutes($session->first_order_at)
+            : null;
+
         $payload = [
             'id' => $session->id,
             'open_order_id' => $session->open_order_id,
             'server_id' => $session->server_id,
             'server_name' => $session->server?->name,
             'table_label' => $session->table_label,
+            'dining_table_id' => $session->dining_table_id,
+            'waiting_list_entry_id' => $session->waiting_list_entry_id,
+            'dining_table' => $session->diningTable ? [
+                'id' => $session->diningTable->id,
+                'label' => $session->diningTable->label,
+                'capacity' => $session->diningTable->capacity,
+                'section' => $session->diningTable->section,
+                'status' => $session->diningTable->status,
+            ] : null,
             'party_size' => $session->party_size,
             'guest_name' => $session->guest_name,
             'guest_email' => $session->guest_email,
@@ -960,8 +1176,17 @@ class ServerTableSessionController extends Controller
             'order_mode' => $session->order_mode ?? 'table',
             'service_channel' => $session->service_channel ?? 'table',
             'status' => $session->status,
+            'seated_at' => optional($session->seated_at)->toIso8601String(),
+            'first_order_at' => optional($session->first_order_at)->toIso8601String(),
+            'paid_at' => optional($session->paid_at)->toIso8601String(),
             'expires_at' => optional($session->expires_at)->toIso8601String(),
             'closed_at' => optional($session->closed_at)->toIso8601String(),
+            'timeclock' => [
+                'elapsed_minutes' => $elapsedMinutes,
+                'estimated_turn_minutes' => $estimatedTurn,
+                'remaining_minutes' => $remainingMinutes,
+                'elapsed_since_first_order_minutes' => $elapsedSinceFirstOrder,
+            ],
             'qr_url' => route('table.order.show', $session->qr_token),
             'created_at' => optional($session->created_at)->toIso8601String(),
         ];

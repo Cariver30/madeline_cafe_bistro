@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MobileAuthController extends Controller
 {
-    protected array $allowedRoles = ['server', 'manager', 'pos', 'kitchen'];
+    protected array $allowedRoles = ['server', 'manager', 'pos', 'kitchen', 'host'];
 
     public function login(Request $request)
     {

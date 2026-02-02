@@ -17,3 +17,7 @@ Broadcast::channel('server.{serverId}', function ($user, $serverId) {
 Broadcast::channel('manager.orders', function ($user) {
     return $user->hasRole(['manager']);
 });
+
+Broadcast::channel('host.waiting-list', function ($user) {
+    return $user->hasRole(['host', 'manager']);
+});
