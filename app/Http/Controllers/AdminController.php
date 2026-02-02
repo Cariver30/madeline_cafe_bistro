@@ -14,6 +14,7 @@ use App\Models\CantinaItem;
 use App\Models\Setting;
 use App\Models\Popup; // Añadir el modelo Popup
 use App\Models\WineType;
+use App\Models\DiningTable;
 use App\Models\Region;
 use App\Models\Grape;
 use App\Models\FoodPairing;
@@ -136,7 +137,7 @@ $foodPairings = FoodPairing::all();
         $taxes = Tax::orderBy('name')->get();
         $featuredGroups = FeaturedGroupBuilder::build(true);
         $loyaltyRewards = LoyaltyReward::orderBy('points_required')->get();
-        $staffUsers = User::whereIn('role', ['server', 'pos'])
+        $staffUsers = User::whereIn('role', ['server', 'pos', 'host'])
             ->orderBy('role')
             ->orderBy('name')
             ->get();
@@ -363,6 +364,11 @@ $foodPairings = FoodPairing::all();
         }
 
 
+
+        $diningTables = \Illuminate\Support\Facades\Schema::hasTable('dining_tables')
+            ? DiningTable::orderBy('position')->orderBy('label')->get()
+            : collect();
+
         return view('admin.admin-panel', compact(
             'categories',
             'dishes',
@@ -394,7 +400,8 @@ $foodPairings = FoodPairing::all();
             'opsTotals',
             'opsServers',
             'opsSalesByChannel',
-            'opsTopItems'
+            'opsTopItems',
+            'diningTables'
         ));
     }
 
