@@ -36,7 +36,7 @@ Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 Route::post('/twilio/waiting-list', [TwilioWebhookController::class, 'waitingList']);
 
 Route::prefix('mobile')->group(function () {
-    Route::post('/broadcasting/auth', BroadcastController::class)->middleware('mobile.api');
+    Route::post('/broadcasting/auth', [BroadcastController::class, 'authenticate'])->middleware('mobile.api');
     Route::post('/login', [MobileAuthController::class, 'login']);
 
     Route::middleware('mobile.api')->group(function () {
