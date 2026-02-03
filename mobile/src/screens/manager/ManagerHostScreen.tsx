@@ -72,6 +72,7 @@ const ManagerHostScreen = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showTableModal, setShowTableModal] = useState(false);
+  const [clockTick, setClockTick] = useState(Date.now());
 
   const [newEntry, setNewEntry] = useState({
     guest_name: '',
@@ -167,6 +168,13 @@ const ManagerHostScreen = () => {
     };
   }, [token, loadData]);
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      setClockTick(Date.now());
+    }, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const availableTables = useMemo(
     () => tables.filter(table => table.status === 'available'),
     [tables],
@@ -184,6 +192,25 @@ const ManagerHostScreen = () => {
   const visibleEntries = useMemo(
     () => entries.filter(entry => !['cancelled', 'no_show'].includes(entry.status)),
     [entries],
+  );
+
+  const computeWaitClock = useCallback(
+    (entry: WaitingListEntry) => {
+      const estimated =
+        entry.quoted_minutes ?? settings?.default_wait_minutes ?? 15;
+      const createdAt = entry.created_at ? Date.parse(entry.created_at) : null;
+      const elapsed = createdAt
+        ? Math.max(0, Math.floor((clockTick - createdAt) / 60000))
+        : null;
+      const remaining =
+        elapsed !== null ? Math.max(estimated - elapsed, 0) : null;
+      const overdue = remaining === 0 && elapsed !== null && elapsed >= estimated;
+      const warning =
+        remaining !== null && remaining > 0 && remaining <= 3;
+
+      return {estimated, elapsed, remaining, overdue, warning};
+    },
+    [settings, clockTick],
   );
 
   const handleCreateEntry = async () => {
@@ -338,7 +365,9 @@ const ManagerHostScreen = () => {
         <Text style={styles.emptyText}>No hay personas en espera.</Text>
       ) : null}
 
-      {visibleEntries.map(entry => (
+      {visibleEntries.map(entry => {
+        const waitClock = computeWaitClock(entry);
+        return (
         <View key={entry.id} style={styles.card}>
           <View style={styles.cardHeader}>
             <View>
@@ -356,21 +385,18 @@ const ManagerHostScreen = () => {
             </View>
           </View>
           <Text style={styles.cardMeta}>
-            Espera estimada:{' '}
-            {formatMinutes(
-              entry.timeclock?.estimated_wait_minutes ??
-                entry.quoted_minutes ??
-                settings?.default_wait_minutes ??
-                15,
-            )}{' '}
-            min
+            Espera estimada: {formatMinutes(waitClock.estimated)} min
           </Text>
-          {entry.timeclock?.elapsed_wait_minutes !== null &&
-          entry.timeclock?.elapsed_wait_minutes !== undefined ? (
+          {waitClock.elapsed !== null ? (
             <Text style={styles.cardMeta}>
-              En espera: {formatMinutes(entry.timeclock.elapsed_wait_minutes)} min
-              {' · '}Restan {formatMinutes(entry.timeclock.remaining_wait_minutes)} min
+              En espera: {formatMinutes(waitClock.elapsed)} min
+              {' · '}Restan {formatMinutes(waitClock.remaining)} min
             </Text>
+          ) : null}
+          {waitClock.overdue ? (
+            <Text style={styles.overdueText}>⏱️ Tiempo vencido</Text>
+          ) : waitClock.warning ? (
+            <Text style={styles.warningText}>⏱️ Por vencer</Text>
           ) : null}
           {entry.status === 'seated' && entry.timeclock?.waited_minutes !== null ? (
             <Text style={styles.cardMeta}>
@@ -405,6 +431,34 @@ const ManagerHostScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
+              onPress={() =>
+                updateWaitingListEntry(
+                  token,
+                  entry.id,
+                  {quoted_minutes: waitClock.estimated + 5},
+                  scope,
+                ).then(() => loadData(false)).catch(err => {
+                  setError(err instanceof Error ? err.message : 'No se pudo extender.');
+                })
+              }>
+              <Text style={styles.actionButtonText}>+5 min</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() =>
+                updateWaitingListEntry(
+                  token,
+                  entry.id,
+                  {quoted_minutes: waitClock.estimated + 10},
+                  scope,
+                ).then(() => loadData(false)).catch(err => {
+                  setError(err instanceof Error ? err.message : 'No se pudo extender.');
+                })
+              }>
+              <Text style={styles.actionButtonText}>+10 min</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => {
                 setAssignTarget(entry);
                 setAssignMode('seat');
@@ -422,7 +476,7 @@ const ManagerHostScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
-      ))}
+      )})}
     </View>
   );
 
@@ -1002,6 +1056,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actionButtonOutlineText: {color: '#f8fafc', fontWeight: '600', fontSize: 12},
+  warningText: {
+    color: '#f59e0b',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  overdueText: {
+    color: '#f87171',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
+  },
   loading: {paddingTop: 40},
   emptyText: {color: '#94a3b8', textAlign: 'center', marginTop: 20},
   error: {color: '#f97316', marginBottom: 12},

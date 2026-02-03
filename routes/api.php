@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\CampaignController;
 use App\Http\Controllers\Api\CocktailManagementController;
 use App\Http\Controllers\Api\DiningTableController;
 use App\Http\Controllers\Api\WaitingListController;
+use Illuminate\Broadcasting\BroadcastController;
 use App\Http\Controllers\Api\TwilioWebhookController;
 use App\Http\Controllers\Api\ExtraManagementController;
 use App\Http\Controllers\Api\ManagerDashboardController;
@@ -35,6 +36,7 @@ Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 Route::post('/twilio/waiting-list', [TwilioWebhookController::class, 'waitingList']);
 
 Route::prefix('mobile')->group(function () {
+    Route::post('/broadcasting/auth', BroadcastController::class)->middleware('mobile.api');
     Route::post('/login', [MobileAuthController::class, 'login']);
 
     Route::middleware('mobile.api')->group(function () {

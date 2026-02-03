@@ -119,6 +119,7 @@ class ServerTableSessionController extends Controller
             'guest_email' => strtolower(trim($validated['guest_email'])),
             'guest_phone' => $validated['guest_phone'],
             'order_mode' => $validated['order_mode'] ?? 'table',
+            'status' => 'active',
             'expires_at' => now()->addHour(),
             'seated_at' => now(),
         ]);

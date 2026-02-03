@@ -80,6 +80,7 @@ class WaitingListController extends Controller
             'guest_email' => ['nullable', 'email', 'max:255'],
             'party_size' => ['sometimes', 'integer', 'min:1', 'max:99'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'quoted_minutes' => ['nullable', 'integer', 'min:1', 'max:300'],
             'status' => ['nullable', Rule::in(['waiting', 'notified', 'seated', 'cancelled', 'no_show'])],
         ]);
 
@@ -94,6 +95,11 @@ class WaitingListController extends Controller
             $statusValue = $data['status'];
             $this->applyStatus($waitingListEntry, $data['status']);
             unset($data['status']);
+        }
+
+        if (Arr::has($data, 'quoted_minutes')) {
+            $data['quoted_minutes'] = $data['quoted_minutes'] ?: null;
+            $data['quoted_at'] = $data['quoted_minutes'] ? now() : null;
         }
 
         if ($data) {
@@ -271,6 +277,7 @@ class WaitingListController extends Controller
                 'guest_email' => strtolower(trim((string) $waitingListEntry->guest_email)),
                 'guest_phone' => $waitingListEntry->guest_phone,
                 'order_mode' => 'table',
+                'status' => 'active',
                 'expires_at' => now()->addHour(),
                 'seated_at' => now(),
             ]);

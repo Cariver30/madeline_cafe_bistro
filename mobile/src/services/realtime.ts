@@ -8,10 +8,7 @@ const PUSHER_CLUSTER = 'us2';
 let echoInstance: Echo | null = null;
 let echoToken: string | null = null;
 
-const buildAuthEndpoint = () => {
-  const root = API_BASE_URL.replace(/\/api\/mobile$/, '');
-  return `${root}/broadcasting/auth`;
-};
+const buildAuthEndpoint = () => `${API_BASE_URL}/broadcasting/auth`;
 
 export const getEcho = (token: string) => {
   if (echoInstance && echoToken === token) {
