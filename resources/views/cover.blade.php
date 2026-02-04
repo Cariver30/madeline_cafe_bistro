@@ -93,6 +93,12 @@
         .cover-text-soft {
             color: var(--cover-body-soft);
         }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
         .vip-button {
             position: relative;
             width: 12rem;
@@ -249,7 +255,7 @@
                                         @endif
                                         <div>
                                             <p class="text-lg font-semibold">{{ $item['title'] }}</p>
-                                            <p class="text-sm" style="color: {{ $featuredMutedText }};">{{ $item['subtitle'] }}</p>
+                                            <p class="text-sm line-clamp-2" style="color: {{ $featuredMutedText }};">{{ $item['subtitle'] }}</p>
                                         </div>
                                     </div>
                                     @if(!empty($item['price']))
@@ -546,7 +552,7 @@
                                 }
                                 <div>
                                     <p class="text-lg font-semibold">${item.title ?? ''}</p>
-                                    <p class="text-sm" style="color:${featuredMutedColor};">${item.subtitle ?? ''}</p>
+                                    <p class="text-sm line-clamp-2" style="color:${featuredMutedColor};">${item.subtitle ?? ''}</p>
                                 </div>
                             </div>
                             ${item.price ? `<span class="font-semibold" style="color:${featuredAccentColor};">$${item.price}</span>` : ''}

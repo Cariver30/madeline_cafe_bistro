@@ -24,7 +24,7 @@
             ->values()
             ->all();
         $defaultScope = in_array('menu', $scopeList, true) ? 'menu' : ($scopeList[0] ?? 'menu');
-        $showScopeTabs = count($scopeList) > 1 && $orderChannel !== 'view';
+        $showScopeTabs = count($scopeList) > 1;
     @endphp
     <title>{{ $seoTitle }}</title>
     <meta name="description" content="{{ $seoDescription }}" />

@@ -393,13 +393,37 @@ class CloverSyncService
     {
         $payload = $this->sanitizeItemPayload($scope, $payload);
 
-        return match ($scope) {
-            'menu' => Dish::updateOrCreate(['clover_id' => $payload['clover_id']], $payload),
-            'cocktails' => Cocktail::updateOrCreate(['clover_id' => $payload['clover_id']], $payload),
-            'wines' => Wine::updateOrCreate(['clover_id' => $payload['clover_id']], $payload),
-            'cantina' => CantinaItem::updateOrCreate(['clover_id' => $payload['clover_id']], $payload),
-            default => null,
-        };
+        $modelClass = $this->resolveItemModelClass($scope);
+        if (! $modelClass) {
+            return null;
+        }
+
+        $existing = $modelClass::where('clover_id', $payload['clover_id'])->first();
+        if ($existing) {
+            $update = $payload;
+
+            // Preserve admin visibility override when Clover says it's visible.
+            if (array_key_exists('visible', $update) && Schema::hasColumn($existing->getTable(), 'visible')) {
+                $update['visible'] = $update['visible'] ? (bool) $existing->visible : false;
+            }
+
+            // Preserve manual descriptions (sync should not overwrite them).
+            if (array_key_exists('description', $update)) {
+                $current = $existing->description;
+                if ($current !== null && $current !== '') {
+                    $update['description'] = $current;
+                }
+            }
+
+            $existing->fill($update);
+            if ($existing->isDirty()) {
+                $existing->save();
+            }
+
+            return $existing;
+        }
+
+        return $modelClass::create($payload);
     }
 
     private function sanitizeItemPayload(string $scope, array $payload): array
