@@ -1,4 +1,5 @@
 import axios from 'axios';
+import {NativeModules, Platform} from 'react-native';
 import {
   Campaign,
   CategoryFormInput,
@@ -9,6 +10,7 @@ import {
   LoginResponse,
   ManagerSummary,
   ManagerOpsSummary,
+  ManagerMenuView,
   ManagerView,
   PosTicket,
   PosTicketPayload,
@@ -27,18 +29,33 @@ import {
   TableSession,
   TableSessionPayload,
   VisitPayload,
+  ViewSettingsResponse,
 } from '../types';
 
-const DEV_API_BASE_URL = 'http://127.0.0.1:8002/api/mobile';
 const PROD_API_BASE_URL = 'https://madeleinecafebistro.com/api/mobile';
 // For dev builds use local API; production builds will still use PROD_API_BASE_URL.
 const FORCE_PROD_API = false;
+
+const resolveDevHost = () => {
+  const scriptURL = NativeModules.SourceCode?.scriptURL as string | undefined;
+  if (scriptURL) {
+    const match = scriptURL.match(/https?:\/\/([^:/]+)(?::\d+)?/);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+  return Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+};
+
+const DEV_API_BASE_URL = `http://${resolveDevHost()}:8002/api/mobile`;
+
 export const API_BASE_URL = FORCE_PROD_API
   ? PROD_API_BASE_URL
   : __DEV__
     ? DEV_API_BASE_URL
     : PROD_API_BASE_URL;
 
+export const WEB_BASE_URL = API_BASE_URL.replace(/\/api\/mobile$/, '');
 
 const SERVER_API = `${API_BASE_URL}/servers`;
 const MANAGER_API = `${API_BASE_URL}/managers`;
@@ -114,6 +131,20 @@ export async function getTipSettings(token: string): Promise<TipSettings> {
   try {
     const {data} = await client.get<TipSettings>(
       `${API_BASE_URL}/settings/tips`,
+      authHeaders(token),
+    );
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function getMobileViewSettings(
+  token: string,
+): Promise<ViewSettingsResponse> {
+  try {
+    const {data} = await client.get<ViewSettingsResponse>(
+      `${API_BASE_URL}/settings/views`,
       authHeaders(token),
     );
     return data;
@@ -216,7 +247,13 @@ export async function getServerMenuCategories(
 ): Promise<CategoryPayload[]> {
   try {
     const endpoint =
-      view === 'menu' ? 'menu' : view === 'cocktails' ? 'cocktails' : 'wines';
+      view === 'menu'
+        ? 'menu'
+        : view === 'cocktails'
+          ? 'cocktails'
+          : view === 'wines'
+            ? 'wines'
+            : 'cantina';
     const {data} = await client.get<{categories: CategoryPayload[]}>(
       `${SERVER_API}/${endpoint}/categories`,
       authHeaders(token),
@@ -720,7 +757,13 @@ export async function getPosMenuCategories(
 ): Promise<CategoryPayload[]> {
   try {
     const endpoint =
-      view === 'menu' ? 'menu' : view === 'cocktails' ? 'cocktails' : 'wines';
+      view === 'menu'
+        ? 'menu'
+        : view === 'cocktails'
+          ? 'cocktails'
+          : view === 'wines'
+            ? 'wines'
+            : 'cantina';
     const {data} = await client.get<{categories: CategoryPayload[]}>(
       `${POS_API}/${endpoint}/categories`,
       authHeaders(token),
@@ -768,6 +811,23 @@ export async function closeTableSession(
       {tip},
       authHeaders(token),
     );
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
+export async function updateTableSessionOrderMode(
+  token: string,
+  sessionId: number,
+  orderMode: 'traditional' | 'table',
+): Promise<TableSession> {
+  try {
+    const {data} = await client.patch<{session: TableSession}>(
+      `${SERVER_API}/table-sessions/${sessionId}/order-mode`,
+      {order_mode: orderMode},
+      authHeaders(token),
+    );
+    return data.session;
   } catch (error) {
     throw new Error(extractMessage(error));
   }
@@ -1181,18 +1241,19 @@ type ManagedEndpoints = {
   itemPath: string;
 };
 
-const VIEW_ENDPOINTS: Record<ManagerView, ManagedEndpoints> = {
+const VIEW_ENDPOINTS: Record<ManagerMenuView, ManagedEndpoints> = {
   menu: {basePath: 'menu', itemPath: 'dishes'},
   cocktails: {basePath: 'cocktails', itemPath: 'items'},
   wines: {basePath: 'wines', itemPath: 'items'},
+  cantina: {basePath: 'cantina', itemPath: 'items'},
 };
 
-const viewUrl = (view: ManagerView, suffix: string) =>
+const viewUrl = (view: ManagerMenuView, suffix: string) =>
   `${MANAGER_API}/${VIEW_ENDPOINTS[view].basePath}${suffix}`;
 
 export async function getManagedCategories(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
 ): Promise<CategoryPayload[]> {
   try {
     const {data} = await client.get<{categories: CategoryPayload[]}>(
@@ -1207,7 +1268,7 @@ export async function getManagedCategories(
 
 export async function createCategory(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   payload: CategoryFormInput,
 ): Promise<CategoryPayload> {
   try {
@@ -1224,7 +1285,7 @@ export async function createCategory(
 
 export async function updateCategory(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   categoryId: number,
   payload: CategoryFormInput,
 ): Promise<CategoryPayload> {
@@ -1242,7 +1303,7 @@ export async function updateCategory(
 
 export async function deleteCategory(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   categoryId: number,
 ): Promise<void> {
   try {
@@ -1254,7 +1315,7 @@ export async function deleteCategory(
 
 export async function reorderCategories(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   order: number[],
 ): Promise<void> {
   try {
@@ -1404,7 +1465,7 @@ const multipartHeaders = (token: string) => ({
 
 export async function createManagedItem(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   payload: DishFormInput,
   image?: ImagePayload,
 ) {
@@ -1418,7 +1479,7 @@ export async function createManagedItem(
 
 export async function updateManagedItem(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   itemId: number,
   payload: DishFormInput,
   image?: ImagePayload,
@@ -1434,7 +1495,7 @@ export async function updateManagedItem(
 
 export async function deleteManagedItem(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   itemId: number,
 ) {
   try {
@@ -1449,7 +1510,7 @@ export async function deleteManagedItem(
 
 export async function toggleManagedItem(
   token: string,
-  view: ManagerView,
+  view: ManagerMenuView,
   itemId: number,
 ) {
   try {

@@ -189,7 +189,17 @@ export type CategoryPayload = {
   cover_subtitle?: string | null;
 };
 
-export type ManagerView = 'menu' | 'cocktails' | 'wines';
+export type ManagerView = 'menu' | 'cocktails' | 'wines' | 'cantina';
+export type ManagerMenuView = ManagerView;
+
+export type ViewSetting = {
+  label: string;
+  enabled: boolean;
+};
+
+export type ViewSettingsResponse = {
+  views: Record<ManagerMenuView, ViewSetting>;
+};
 
 export type Campaign = {
   id: number;
@@ -388,6 +398,7 @@ export type TableSession = {
   paid_at?: string | null;
   expires_at: string | null;
   closed_at: string | null;
+  qr_token?: string | null;
   qr_url: string | null;
   created_at: string | null;
   timeclock?: {
@@ -505,7 +516,7 @@ export type TableSessionPayload = {
 };
 
 export type ServerOrderItemPayload = {
-  type: 'dish' | 'cocktail' | 'wine';
+  type: 'dish' | 'cocktail' | 'wine' | 'cantina';
   id: number;
   quantity: number;
   notes?: string;

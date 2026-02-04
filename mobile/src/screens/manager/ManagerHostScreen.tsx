@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -29,6 +29,10 @@ import {
 } from '../../services/api';
 import {getEcho} from '../../services/realtime';
 import {DiningTable, ServerUser, WaitingListEntry, WaitingListSettings} from '../../types';
+import {
+  playHostChime,
+  preloadNotificationSounds,
+} from '../../utils/notificationSounds';
 
 const STATUS_COLORS: Record<string, string> = {
   waiting: '#fbbf24',
@@ -67,6 +71,8 @@ const ManagerHostScreen = () => {
   const [tables, setTables] = useState<DiningTable[]>([]);
   const [settings, setSettings] = useState<WaitingListSettings | null>(null);
   const [servers, setServers] = useState<ServerUser[]>([]);
+  const entrySnapshot = useRef<Set<number>>(new Set());
+  const hasEntrySnapshot = useRef(false);
 
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -117,7 +123,23 @@ const ManagerHostScreen = () => {
           setTables(tablesResult.value);
         }
         if (entriesResult.status === 'fulfilled') {
-          setEntries(entriesResult.value);
+          const nextEntries = entriesResult.value;
+          setEntries(nextEntries);
+          const nextIds = new Set(nextEntries.map(entry => entry.id));
+          if (!hasEntrySnapshot.current) {
+            hasEntrySnapshot.current = true;
+            entrySnapshot.current = nextIds;
+          } else {
+            const newEntries = nextEntries.filter(
+              entry =>
+                !entrySnapshot.current.has(entry.id) &&
+                !['cancelled', 'no_show', 'seated'].includes(entry.status),
+            );
+            if (newEntries.length) {
+              playHostChime();
+            }
+            entrySnapshot.current = nextIds;
+          }
         }
         if (settingsResult.status === 'fulfilled') {
           setSettings(settingsResult.value);
@@ -151,6 +173,10 @@ const ManagerHostScreen = () => {
       loadData();
     }, [loadData]),
   );
+
+  useEffect(() => {
+    preloadNotificationSounds();
+  }, []);
 
   useEffect(() => {
     if (!token) {

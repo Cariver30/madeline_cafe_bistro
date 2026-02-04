@@ -279,22 +279,62 @@
                         return $trimmed === '' ? null : $trimmed;
                     };
                     $ctaCards = collect([
-                        ['key' => 'menu', 'title' => $ctaLabel($settings->button_label_menu ?? null, 'Menú'), 'subtitle' => 'Carta principal', 'copy' => 'Brunch, platos signature y acompañantes.', 'action' => url('/menu'), 'image' => $settings->cta_image_menu ? asset('storage/' . $settings->cta_image_menu) : null, 'visible' => $settings->show_cta_menu ?? true, 'type' => 'link'],
-                        ['key' => 'online', 'title' => $ctaLabel($settings->button_label_online ?? null, 'Ordenar en línea'), 'subtitle' => 'Pickup & takeout', 'copy' => 'Ordena para recoger con confirmación inmediata.', 'action' => route('online.order.show'), 'image' => $settings->cta_image_online ? asset('storage/' . $settings->cta_image_online) : null, 'visible' => $settings->show_cta_online ?? true, 'type' => 'link'],
-                        ['key' => 'cafe', 'title' => $ctaLabel($settings->button_label_wines ?? null, 'Bebidas'), 'subtitle' => 'Barra de especialidad', 'copy' => 'Filtrados, bebidas frías y vuelos guiados.', 'action' => url('/coffee'), 'image' => $settings->cta_image_cafe ? asset('storage/' . $settings->cta_image_cafe) : null, 'visible' => $settings->show_cta_cafe ?? true, 'type' => 'link'],
-                        ['key' => 'cocktails', 'title' => $ctaLabel($settings->button_label_cocktails ?? null, 'Cócteles'), 'subtitle' => 'Mixología', 'copy' => 'Cócteles tropicales, mocktails y clásicos.', 'action' => url('/cocktails'), 'image' => $settings->cta_image_cocktails ? asset('storage/' . $settings->cta_image_cocktails) : null, 'visible' => $settings->show_cta_cocktails ?? true, 'type' => 'link'],
-                        ['key' => 'cantina', 'title' => $ctaLabel($settings->button_label_cantina ?? null, 'Cantina'), 'subtitle' => 'Barra de la casa', 'copy' => 'Tequilas, cervezas, vinos y especiales.', 'action' => url('/cantina'), 'image' => $settings->cta_image_cantina ? asset('storage/' . $settings->cta_image_cantina) : null, 'visible' => $settings->show_cta_cantina ?? true, 'type' => 'link'],
-                        ['key' => 'specials', 'title' => $ctaLabel(null, 'Especiales'), 'subtitle' => 'Happy hour', 'copy' => 'Almuerzos, ofertas y promos por tiempo limitado.', 'action' => url('/especiales'), 'image' => $settings->cta_image_specials ? asset('storage/' . $settings->cta_image_specials) : null, 'visible' => $settings->show_cta_specials ?? true, 'type' => 'link'],
-                        ['key' => 'events', 'title' => $ctaLabel($settings->button_label_events ?? null, 'Eventos especiales'), 'subtitle' => 'Calendario', 'copy' => 'Pop-ups, catas privadas y residencias.', 'action' => route('experiences.index'), 'image' => $settings->cta_image_events ? asset('storage/' . $settings->cta_image_events) : null, 'visible' => $settings->show_cta_events ?? true, 'type' => 'link'],
-                        ['key' => 'reservations', 'title' => $ctaLabel($settings->button_label_reservations ?? null, 'Reservas'), 'subtitle' => 'Agenda', 'copy' => 'Reserva tu mesa o un flight privado.', 'action' => route('reservations.app'), 'image' => $settings->cta_image_reservations ? asset('storage/' . $settings->cta_image_reservations) : null, 'visible' => $settings->show_cta_reservations ?? true, 'type' => 'link'],
-                        ['key' => 'vip', 'title' => $ctaLabel($settings->button_label_vip ?? null, 'Lista VIP'), 'subtitle' => 'Alertas privadas', 'copy' => 'Recibe lanzamientos de micro lotes, cenas a puerta cerrada y flights sorpresas.', 'action' => '#', 'image' => null, 'visible' => $settings->show_cta_vip ?? true, 'type' => 'vip'],
+                        ['key' => 'menu', 'title' => $ctaLabel($settings->button_label_menu ?? null, 'Menú'), 'action' => url('/menu'), 'image' => $settings->cta_image_menu ? asset('storage/' . $settings->cta_image_menu) : null, 'visible' => $settings->show_cta_menu ?? true, 'type' => 'link'],
+                        ['key' => 'online', 'title' => $ctaLabel($settings->button_label_online ?? null, 'Ordenar en línea'), 'action' => route('online.order.show'), 'image' => $settings->cta_image_online ? asset('storage/' . $settings->cta_image_online) : null, 'visible' => $settings->show_cta_online ?? true, 'type' => 'link'],
+                        ['key' => 'cafe', 'title' => $ctaLabel($settings->button_label_wines ?? null, 'Bebidas'), 'action' => url('/coffee'), 'image' => $settings->cta_image_cafe ? asset('storage/' . $settings->cta_image_cafe) : null, 'visible' => $settings->show_cta_cafe ?? true, 'type' => 'link'],
+                        ['key' => 'cocktails', 'title' => $ctaLabel($settings->button_label_cocktails ?? null, 'Cócteles'), 'action' => url('/cocktails'), 'image' => $settings->cta_image_cocktails ? asset('storage/' . $settings->cta_image_cocktails) : null, 'visible' => $settings->show_cta_cocktails ?? true, 'type' => 'link'],
+                        ['key' => 'cantina', 'title' => $ctaLabel($settings->button_label_cantina ?? null, 'Cantina'), 'action' => url('/cantina'), 'image' => $settings->cta_image_cantina ? asset('storage/' . $settings->cta_image_cantina) : null, 'visible' => $settings->show_cta_cantina ?? true, 'type' => 'link'],
+                        ['key' => 'specials', 'title' => $ctaLabel($settings->button_label_specials ?? null, 'Especiales'), 'action' => route('specials.index'), 'image' => $settings->cta_image_specials ? asset('storage/' . $settings->cta_image_specials) : null, 'visible' => $settings->show_cta_specials ?? true, 'type' => 'link'],
+                        ['key' => 'events', 'title' => $ctaLabel($settings->button_label_events ?? null, 'Eventos especiales'), 'action' => route('experiences.index'), 'image' => $settings->cta_image_events ? asset('storage/' . $settings->cta_image_events) : null, 'visible' => $settings->show_cta_events ?? true, 'type' => 'link'],
+                        ['key' => 'reservations', 'title' => $ctaLabel($settings->button_label_reservations ?? null, 'Reservas'), 'action' => route('reservations.app'), 'image' => $settings->cta_image_reservations ? asset('storage/' . $settings->cta_image_reservations) : null, 'visible' => $settings->show_cta_reservations ?? true, 'type' => 'link'],
+                        ['key' => 'vip', 'title' => $ctaLabel($settings->button_label_vip ?? null, 'Lista VIP'), 'action' => '#', 'image' => null, 'visible' => $settings->show_cta_vip ?? true, 'type' => 'vip'],
                     ])->filter(fn($card) => ($card['visible'] ?? true) && filled($card['title']))->map(function ($card) use ($settings, $coverCardBackground) {
                         $bg = $settings->{'cover_cta_'.$card['key'].'_bg_color'} ?? null;
                         $text = $settings->{'cover_cta_'.$card['key'].'_text_color'} ?? null;
                         $card['bg_color'] = $bg ?: $coverCardBackground;
                         $card['text_color'] = $text ?: 'var(--cover-body-color)';
                         return $card;
-                    })->values();
+                    });
+
+                    $targetActions = [
+                        'menu' => ['type' => 'link', 'action' => url('/menu')],
+                        'online' => ['type' => 'link', 'action' => route('online.order.show')],
+                        'cafe' => ['type' => 'link', 'action' => url('/coffee')],
+                        'cocktails' => ['type' => 'link', 'action' => url('/cocktails')],
+                        'cantina' => ['type' => 'link', 'action' => url('/cantina')],
+                        'specials' => ['type' => 'link', 'action' => route('specials.index')],
+                        'events' => ['type' => 'link', 'action' => route('experiences.index')],
+                        'reservations' => ['type' => 'link', 'action' => route('reservations.app')],
+                        'vip' => ['type' => 'vip', 'action' => '#'],
+                    ];
+
+                    $storedTargets = $settings->cover_cta_targets ?? [];
+                    if (is_string($storedTargets)) {
+                        $decodedTargets = json_decode($storedTargets, true);
+                        $storedTargets = is_array($decodedTargets) ? $decodedTargets : [];
+                    }
+
+                    $defaultOrder = ['menu', 'online', 'cafe', 'cocktails', 'cantina', 'specials', 'events', 'reservations', 'vip'];
+                    $storedOrder = $settings->cover_cta_order ?? [];
+                    if (is_string($storedOrder)) {
+                        $decoded = json_decode($storedOrder, true);
+                        $storedOrder = is_array($decoded) ? $decoded : [];
+                    }
+                    $storedOrder = array_values(array_unique(array_filter($storedOrder, fn($key) => in_array($key, $defaultOrder, true))));
+                    $orderedKeys = array_values(array_merge($storedOrder, array_diff($defaultOrder, $storedOrder)));
+
+                    $ctaCards = $ctaCards
+                        ->map(function ($card) use ($storedTargets, $targetActions) {
+                            $targetKey = $storedTargets[$card['key']] ?? $card['key'];
+                            $target = $targetActions[$targetKey] ?? $targetActions[$card['key']] ?? null;
+                            if ($target) {
+                                $card['action'] = $target['action'];
+                                $card['type'] = $target['type'];
+                            }
+                            return $card;
+                        })
+                        ->sortBy(fn($card) => array_search($card['key'], $orderedKeys, true))
+                        ->values();
                 @endphp
                 @foreach($ctaCards as $card)
                     <article class="border border-white/10 rounded-2xl p-0 overflow-hidden flex flex-col" style="background-color: {{ $card['bg_color'] }}; color: {{ $card['text_color'] }};">
@@ -304,9 +344,7 @@
                             </div>
                         @endif
                         <div class="p-5 flex flex-col gap-3">
-                            <p class="text-xs uppercase tracking-[0.35em]" style="opacity: 0.8;">{{ $card['subtitle'] }}</p>
                             <h3 class="text-2xl font-semibold">{{ $card['title'] }}</h3>
-                            <p class="text-sm flex-1">{{ $card['copy'] }}</p>
                             @if($card['type'] === 'vip')
                                 <button data-open-notify
                                         class="w-full rounded-full py-3 font-semibold transition vip-button"

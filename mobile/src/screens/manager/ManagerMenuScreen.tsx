@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import {
   createManagedItem,
   deleteCategory,
   deleteManagedItem,
+  getMobileViewSettings,
   getManagerExtras,
   getManagerPrepLabels,
   getManagerTaxes,
@@ -33,22 +34,23 @@ import {
   Dish,
   DishFormInput,
   ExtraOption,
-  ManagerView,
+  ManagerMenuView,
   PrepLabel,
   Tax,
+  ViewSetting,
 } from '../../types';
 import DishFormModal from '../../components/DishFormModal';
 import CategoryFormModal from '../../components/CategoryFormModal';
 
 type ViewMeta = {
-  key: ManagerView;
+  key: ManagerMenuView;
   label: string;
   description: string;
   itemLabel: string;
   actionLabel: string;
 };
 
-const VIEW_META: Record<ManagerView, ViewMeta> = {
+const VIEW_META: Record<ManagerMenuView, ViewMeta> = {
   menu: {
     key: 'menu',
     label: 'Menú',
@@ -73,6 +75,14 @@ const VIEW_META: Record<ManagerView, ViewMeta> = {
     itemLabel: 'cóctel',
     actionLabel: '+ Nuevo cóctel',
   },
+  cantina: {
+    key: 'cantina',
+    label: 'Cantina',
+    description:
+      'Administra la carta de cantina y los productos visibles al público.',
+    itemLabel: 'artículo',
+    actionLabel: '+ Nuevo artículo',
+  },
 };
 
 type ViewStatus = {
@@ -81,16 +91,18 @@ type ViewStatus = {
   error: string | null;
 };
 
-const INITIAL_STATUS: Record<ManagerView, ViewStatus> = {
+const INITIAL_STATUS: Record<ManagerMenuView, ViewStatus> = {
   menu: {loading: true, refreshing: false, error: null},
   wines: {loading: false, refreshing: false, error: null},
   cocktails: {loading: false, refreshing: false, error: null},
+  cantina: {loading: false, refreshing: false, error: null},
 };
 
-const VIEW_SCOPE: Record<ManagerView, string> = {
+const VIEW_SCOPE: Record<ManagerMenuView, string> = {
   menu: 'menu',
   cocktails: 'cocktails',
   wines: 'coffee',
+  cantina: 'cantina',
 };
 
 const SECTION_MODES = [
@@ -100,27 +112,39 @@ const SECTION_MODES = [
 
 type SectionMode = (typeof SECTION_MODES)[number]['key'];
 
+const buildDefaultViewSettings = () =>
+  (Object.values(VIEW_META) as ViewMeta[]).reduce<Record<
+    ManagerMenuView,
+    ViewSetting
+  >>((acc, meta) => {
+    acc[meta.key] = {label: meta.label, enabled: true};
+    return acc;
+  }, {} as Record<ManagerMenuView, ViewSetting>);
+
 const ManagerMenuScreen = () => {
   const {token} = useAuth();
-  const [activeView, setActiveView] = useState<ManagerView>('menu');
+  const [activeView, setActiveView] = useState<ManagerMenuView>('menu');
   const [categoriesByView, setCategoriesByView] = useState<
-    Record<ManagerView, CategoryPayload[]>
+    Record<ManagerMenuView, CategoryPayload[]>
   >({
     menu: [],
     wines: [],
     cocktails: [],
+    cantina: [],
   });
   const [extrasByView, setExtrasByView] = useState<
-    Record<ManagerView, ExtraOption[]>
+    Record<ManagerMenuView, ExtraOption[]>
   >({
     menu: [],
     wines: [],
     cocktails: [],
+    cantina: [],
   });
   const [prepLabels, setPrepLabels] = useState<PrepLabel[]>([]);
   const [taxes, setTaxes] = useState<Tax[]>([]);
+  const [viewSettings, setViewSettings] = useState(buildDefaultViewSettings);
   const [statusByView, setStatusByView] =
-    useState<Record<ManagerView, ViewStatus>>(INITIAL_STATUS);
+    useState<Record<ManagerMenuView, ViewStatus>>(INITIAL_STATUS);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
   const [defaultCategoryId, setDefaultCategoryId] = useState<
@@ -137,7 +161,7 @@ const ManagerMenuScreen = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const updateStatus = useCallback(
-    (view: ManagerView, patch: Partial<ViewStatus>) => {
+    (view: ManagerMenuView, patch: Partial<ViewStatus>) => {
       setStatusByView(prev => ({
         ...prev,
         [view]: {...prev[view], ...patch},
@@ -147,7 +171,7 @@ const ManagerMenuScreen = () => {
   );
 
   const loadData = useCallback(
-    async (view: ManagerView, showLoader = true) => {
+    async (view: ManagerMenuView, showLoader = true) => {
       if (!token) {
         return;
       }
@@ -179,7 +203,7 @@ const ManagerMenuScreen = () => {
   );
 
   const loadExtras = useCallback(
-    async (view: ManagerView) => {
+    async (view: ManagerMenuView) => {
       if (!token) {
         return;
       }
@@ -226,8 +250,26 @@ const ManagerMenuScreen = () => {
     }
   }, [token]);
 
+  const loadViewSettings = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    try {
+      const data = await getMobileViewSettings(token);
+      if (data?.views) {
+        setViewSettings(prev => ({
+          ...prev,
+          ...data.views,
+        }));
+      }
+    } catch (err) {
+      // No bloqueamos la pantalla si no carga la config
+    }
+  }, [token]);
+
   useFocusEffect(
     useCallback(() => {
+      loadViewSettings();
       loadData(activeView);
       loadExtras(activeView);
       if (!prepLabels.length) {
@@ -242,12 +284,13 @@ const ManagerMenuScreen = () => {
       loadExtras,
       loadPrepLabels,
       loadTaxes,
+      loadViewSettings,
       prepLabels.length,
       taxes.length,
     ]),
   );
 
-  const handleChangeView = (view: ManagerView) => {
+  const handleChangeView = (view: ManagerMenuView) => {
     setActiveView(view);
     setSectionMode('dishes');
     if (!categoriesByView[view].length && !statusByView[view].loading) {
@@ -434,6 +477,7 @@ const ManagerMenuScreen = () => {
   const currentStatus = statusByView[activeView];
   const categories = categoriesByView[activeView];
   const viewMeta = VIEW_META[activeView];
+  const viewLabel = viewSettings[activeView]?.label ?? viewMeta.label;
   const isCategoriesMode = sectionMode === 'categories';
   const filteredCategories = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -465,6 +509,25 @@ const ManagerMenuScreen = () => {
     return parts.length ? parts.join(' · ') : 'Visible en portada.';
   }, []);
 
+  const availableViews = useMemo(
+    () =>
+      (Object.values(VIEW_META) as ViewMeta[]).filter(
+        meta => viewSettings[meta.key]?.enabled !== false,
+      ),
+    [viewSettings],
+  );
+  const viewTabs =
+    availableViews.length > 0
+      ? availableViews
+      : (Object.values(VIEW_META) as ViewMeta[]);
+
+  useEffect(() => {
+    if (viewTabs.find(tab => tab.key === activeView)) {
+      return;
+    }
+    setActiveView(viewTabs[0]?.key ?? 'menu');
+  }, [activeView, viewTabs]);
+
   return (
     <>
       <ScrollView
@@ -485,8 +548,9 @@ const ManagerMenuScreen = () => {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tabs}>
-            {Object.values(VIEW_META).map(meta => {
+            {viewTabs.map(meta => {
               const focused = meta.key === activeView;
+              const tabLabel = viewSettings[meta.key]?.label ?? meta.label;
               return (
                 <TouchableOpacity
                   key={meta.key}
@@ -497,14 +561,14 @@ const ManagerMenuScreen = () => {
                       styles.tabChipText,
                       focused && styles.tabChipTextActive,
                     ]}>
-                    {meta.label}
+                    {tabLabel}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
           <View style={styles.header}>
-            <Text style={styles.heading}>{viewMeta.label}</Text>
+            <Text style={styles.heading}>{viewLabel}</Text>
             {currentStatus.loading && <ActivityIndicator color="#fbbf24" />}
           </View>
           <Text style={styles.subtitle}>{viewMeta.description}</Text>
@@ -718,7 +782,7 @@ const ManagerMenuScreen = () => {
         onClose={() => setModalVisible(false)}
         loading={formLoading}
         onSubmit={handleSubmit}
-        viewLabel={viewMeta.label}
+        viewLabel={viewLabel}
         itemLabel={viewMeta.itemLabel}
       />
       <CategoryFormModal
@@ -727,7 +791,7 @@ const ManagerMenuScreen = () => {
         onClose={() => setCategoryModalVisible(false)}
         onSubmit={handleCategorySubmit}
         loading={categoryFormLoading}
-        viewLabel={viewMeta.label}
+        viewLabel={viewLabel}
       />
     </>
   );

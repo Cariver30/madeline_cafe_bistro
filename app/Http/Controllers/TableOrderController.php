@@ -203,7 +203,7 @@ class TableOrderController extends Controller
 
         $validator = Validator::make($request->all(), [
             'items' => ['required', 'array', 'min:1'],
-            'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine'],
+            'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine,cantina'],
             'items.*.id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
             'items.*.notes' => ['nullable', 'string', 'max:500'],

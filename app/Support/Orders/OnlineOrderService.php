@@ -3,6 +3,8 @@
 namespace App\Support\Orders;
 
 use App\Models\Category;
+use App\Models\CantinaCategory;
+use App\Models\CantinaItem;
 use App\Models\Cocktail;
 use App\Models\CocktailCategory;
 use App\Models\Dish;
@@ -226,6 +228,7 @@ class OnlineOrderService
                 'menu' => Category::find($item->category_id),
                 'cocktails' => CocktailCategory::find($item->category_id),
                 'wines' => WineCategory::find($item->category_id),
+                'cantina' => CantinaCategory::find($item->category_id),
                 default => null,
             };
         }
@@ -246,6 +249,7 @@ class OnlineOrderService
             'dish' => $this->resolveMenuItem(Dish::class, 'menu', $id),
             'cocktail' => $this->resolveMenuItem(Cocktail::class, 'cocktails', $id),
             'wine' => $this->resolveMenuItem(Wine::class, 'wines', $id),
+            'cantina' => $this->resolveMenuItem(CantinaItem::class, 'cantina', $id),
             default => [null, null, null],
         };
     }

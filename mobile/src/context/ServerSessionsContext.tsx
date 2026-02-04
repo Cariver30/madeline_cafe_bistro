@@ -19,6 +19,10 @@ import {
 import {disconnectEcho, getEcho} from '../services/realtime';
 import {TableOrder, TableSession} from '../types';
 import {getKitchenSummary} from '../utils/serverOrderHelpers';
+import {
+  playServerChime,
+  preloadNotificationSounds,
+} from '../utils/notificationSounds';
 
 export type PendingOrderEntry = {
   order: TableOrder;
@@ -84,6 +88,8 @@ export const ServerSessionsProvider = ({
   });
   const hasInitialOrders = useRef(false);
   const seenPendingOrders = useRef<Set<number>>(new Set());
+  const sessionSnapshot = useRef<Set<number>>(new Set());
+  const hasSessionSnapshot = useRef(false);
 
   const trackNewOrders = useCallback((data: TableSession[]) => {
     const pendingIds = new Set<number>();
@@ -114,6 +120,28 @@ export const ServerSessionsProvider = ({
     }
   }, []);
 
+  const trackNewSessions = useCallback(
+    (data: TableSession[]) => {
+      if (!user || (user.role !== 'server' && user.role !== 'manager')) {
+        return;
+      }
+      const nextIds = new Set(data.map(session => session.id));
+      if (!hasSessionSnapshot.current) {
+        hasSessionSnapshot.current = true;
+        sessionSnapshot.current = nextIds;
+        return;
+      }
+      const newOnes = [...nextIds].filter(
+        id => !sessionSnapshot.current.has(id),
+      );
+      sessionSnapshot.current = nextIds;
+      if (newOnes.length) {
+        playServerChime();
+      }
+    },
+    [user],
+  );
+
   const loadSessions = useCallback(
     async (showLoader = true) => {
       if (!token) {
@@ -126,6 +154,7 @@ export const ServerSessionsProvider = ({
         const data = await getActiveTableSessions(token);
         setSessions(data);
         trackNewOrders(data);
+        trackNewSessions(data);
         setError(null);
         return data;
       } catch (err) {
@@ -138,7 +167,7 @@ export const ServerSessionsProvider = ({
         setRefreshing(false);
       }
     },
-    [token, trackNewOrders],
+    [token, trackNewOrders, trackNewSessions],
   );
 
   useEffect(() => {
@@ -153,11 +182,14 @@ export const ServerSessionsProvider = ({
       });
       hasInitialOrders.current = false;
       seenPendingOrders.current = new Set();
+      hasSessionSnapshot.current = false;
+      sessionSnapshot.current = new Set();
       setKitchenNotice(null);
       disconnectEcho();
       return;
     }
 
+    preloadNotificationSounds();
     loadSessions();
     const interval = setInterval(() => {
       if (actionState.confirmingOrderId || actionState.cancellingOrderId) {

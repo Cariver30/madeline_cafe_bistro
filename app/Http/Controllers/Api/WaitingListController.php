@@ -276,7 +276,8 @@ class WaitingListController extends Controller
                 'guest_name' => $waitingListEntry->guest_name,
                 'guest_email' => strtolower(trim((string) $waitingListEntry->guest_email)),
                 'guest_phone' => $waitingListEntry->guest_phone,
-                'order_mode' => 'table',
+                // El mesero decide si habilita QR (modo table) o tradicional.
+                'order_mode' => 'traditional',
                 'status' => 'active',
                 'expires_at' => now()->addHour(),
                 'seated_at' => now(),

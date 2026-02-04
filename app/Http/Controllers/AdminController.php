@@ -487,10 +487,19 @@ $foodPairings = FoodPairing::all();
             'button_label_vip' => 'nullable|string|max:255',
             'button_label_reservations' => 'nullable|string|max:255',
             'button_label_online' => 'nullable|string|max:255',
+            'button_label_specials' => 'nullable|string|max:255',
             'cta_image_online' => 'nullable|image',
+            'cta_image_specials' => 'nullable|image',
             'cover_cta_online_bg_color' => 'nullable|string',
             'cover_cta_online_text_color' => 'nullable|string',
+            'cover_cta_specials_bg_color' => 'nullable|string',
+            'cover_cta_specials_text_color' => 'nullable|string',
             'show_cta_online' => 'nullable|boolean',
+            'show_cta_specials' => 'nullable|boolean',
+            'cover_cta_position' => 'nullable|array',
+            'cover_cta_position.*' => 'nullable|integer|min:1|max:99',
+            'cover_cta_target' => 'nullable|array',
+            'cover_cta_target.*' => 'nullable|string|in:menu,online,cafe,cocktails,cantina,specials,events,reservations,vip',
             'tab_label_menu' => 'nullable|string|max:255',
             'tab_label_cocktails' => 'nullable|string|max:255',
             'tab_label_wines' => 'nullable|string|max:255',
@@ -516,6 +525,7 @@ $foodPairings = FoodPairing::all();
         $buttonLabelCantina = $this->sanitizeLabel($request->input('button_label_cantina', $settings->button_label_cantina));
         $buttonLabelEvents = $this->sanitizeLabel($request->input('button_label_events', $settings->button_label_events));
         $buttonLabelOnline = $this->sanitizeLabel($request->input('button_label_online', $settings->button_label_online));
+        $buttonLabelSpecials = $this->sanitizeLabel($request->input('button_label_specials', $settings->button_label_specials));
 
         if ($request->hasFile('background_image_cover')) {
             $path = $request->file('background_image_cover')->store('background_images', 'public');
@@ -595,6 +605,9 @@ $foodPairings = FoodPairing::all();
         if ($request->hasFile('cta_image_online')) {
             $settings->cta_image_online = $request->file('cta_image_online')->store('cta_images', 'public');
         }
+        if ($request->hasFile('cta_image_specials')) {
+            $settings->cta_image_specials = $request->file('cta_image_specials')->store('cta_images', 'public');
+        }
 
         $settings->text_color_cover = $request->input('text_color_cover', $settings->text_color_cover);
         if (Schema::hasColumn('settings', 'text_color_cover_secondary')) {
@@ -621,6 +634,8 @@ $foodPairings = FoodPairing::all();
             $settings->cover_cta_online_text_color = $request->input('cover_cta_online_text_color', $settings->cover_cta_online_text_color);
             $settings->cover_cta_vip_bg_color = $request->input('cover_cta_vip_bg_color', $settings->cover_cta_vip_bg_color);
             $settings->cover_cta_vip_text_color = $request->input('cover_cta_vip_text_color', $settings->cover_cta_vip_text_color);
+            $settings->cover_cta_specials_bg_color = $request->input('cover_cta_specials_bg_color', $settings->cover_cta_specials_bg_color);
+            $settings->cover_cta_specials_text_color = $request->input('cover_cta_specials_text_color', $settings->cover_cta_specials_text_color);
         }
         $settings->text_color_menu = $request->input('text_color_menu', $settings->text_color_menu);
         $settings->text_color_cocktails = $request->input('text_color_cocktails', $settings->text_color_cocktails);
@@ -732,6 +747,7 @@ $foodPairings = FoodPairing::all();
         $settings->button_label_wines = $buttonLabelWines;
         $settings->button_label_cantina = $buttonLabelCantina;
         $settings->button_label_events = $buttonLabelEvents;
+        $settings->button_label_specials = $buttonLabelSpecials;
         $settings->button_label_vip = $request->input('button_label_vip', $settings->button_label_vip);
         $settings->button_label_reservations = $request->input('button_label_reservations', $settings->button_label_reservations);
         $settings->button_label_online = $buttonLabelOnline;
@@ -768,9 +784,62 @@ $foodPairings = FoodPairing::all();
             if (Schema::hasColumn('settings', 'show_cta_online')) {
                 $settings->show_cta_online = $request->boolean('show_cta_online', (bool) $settings->show_cta_online);
             }
+            if (Schema::hasColumn('settings', 'show_cta_specials')) {
+                $settings->show_cta_specials = $request->boolean('show_cta_specials', (bool) ($settings->show_cta_specials ?? true));
+            }
         }
         if (Schema::hasColumn('settings', 'show_cta_vip')) {
             $settings->show_cta_vip = $request->boolean('show_cta_vip', (bool) $settings->show_cta_vip);
+        }
+
+        if ($request->has('cover_cta_position')) {
+            $ctaOrderKeys = [
+                'menu',
+                'online',
+                'cafe',
+                'cocktails',
+                'cantina',
+                'specials',
+                'events',
+                'reservations',
+                'vip',
+            ];
+            $inputPositions = $request->input('cover_cta_position');
+            $positions = [];
+            foreach ($ctaOrderKeys as $key) {
+                $value = is_array($inputPositions) ? ($inputPositions[$key] ?? null) : null;
+                $positions[$key] = is_numeric($value) ? (int) $value : null;
+            }
+            $sortedOrder = collect($ctaOrderKeys)
+                ->sortBy(function ($key, $index) use ($positions) {
+                    $position = $positions[$key];
+                    return [$position ?? 9999, $index];
+                })
+                ->values()
+                ->all();
+            $settings->cover_cta_order = $sortedOrder;
+        }
+
+        if ($request->has('cover_cta_target')) {
+            $ctaTargetKeys = [
+                'menu',
+                'online',
+                'cafe',
+                'cocktails',
+                'cantina',
+                'specials',
+                'events',
+                'reservations',
+                'vip',
+            ];
+            $ctaTargetAllowed = $ctaTargetKeys;
+            $inputTargets = $request->input('cover_cta_target');
+            $targetMap = [];
+            foreach ($ctaTargetKeys as $key) {
+                $value = is_array($inputTargets) ? ($inputTargets[$key] ?? null) : null;
+                $targetMap[$key] = in_array($value, $ctaTargetAllowed, true) ? $value : $key;
+            }
+            $settings->cover_cta_targets = $targetMap;
         }
 
         if (Schema::hasColumn('settings', 'featured_card_bg_color')) {

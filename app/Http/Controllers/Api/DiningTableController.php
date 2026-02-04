@@ -124,7 +124,7 @@ class DiningTableController extends Controller
         $assignment = $table->activeAssignment;
         $session = $table->activeSession;
         $seatedAt = $session?->seated_at ?? $session?->created_at;
-        $elapsedMinutes = $seatedAt ? now()->diffInMinutes($seatedAt) : null;
+        $elapsedMinutes = $this->safeMinutesDiff($seatedAt, now());
         $estimatedTurn = $session ? TableTurnTimeEstimator::estimateTurnMinutes($session->party_size) : null;
         $remainingMinutes = $estimatedTurn !== null && $elapsedMinutes !== null
             ? max($estimatedTurn - $elapsedMinutes, 0)
@@ -165,5 +165,17 @@ class DiningTableController extends Controller
             'created_at' => optional($table->created_at)->toIso8601String(),
             'updated_at' => optional($table->updated_at)->toIso8601String(),
         ];
+    }
+
+    private function safeMinutesDiff($start, $end): ?int
+    {
+        if (! $start || ! $end) {
+            return null;
+        }
+
+        $diffSeconds = $end->diffInSeconds($start, false);
+        $diffSeconds = max($diffSeconds, 0);
+
+        return (int) floor($diffSeconds / 60);
     }
 }

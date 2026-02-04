@@ -3,10 +3,10 @@
     $cocktailLabel = trim($settings->tab_label_cocktails ?? $settings->button_label_cocktails ?? 'Cócteles');
     $coffeeLabel = trim($settings->tab_label_wines ?? $settings->button_label_wines ?? 'Café & Brunch');
     $cantinaLabel = trim($settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina');
-    $showMenu = ($settings->show_tab_menu ?? true) && ($settings->show_cta_menu ?? true);
-    $showCocktails = ($settings->show_tab_cocktails ?? true) && ($settings->show_cta_cocktails ?? true);
-    $showWines = ($settings->show_tab_wines ?? true) && ($settings->show_cta_cafe ?? true);
-    $showCantina = ($settings->show_tab_cantina ?? true) && ($settings->show_cta_cantina ?? true);
+    $showMenu = ($settings->show_tab_menu ?? true);
+    $showCocktails = ($settings->show_tab_cocktails ?? true);
+    $showWines = ($settings->show_tab_wines ?? true);
+    $showCantina = ($settings->show_tab_cantina ?? true);
     $showSpecials = ($settings->show_cta_specials ?? true);
 
     $navLinks = [

@@ -7,9 +7,11 @@ use App\Http\Controllers\Api\WaitingListController;
 use Illuminate\Broadcasting\BroadcastController;
 use App\Http\Controllers\Api\TwilioWebhookController;
 use App\Http\Controllers\Api\ExtraManagementController;
+use App\Http\Controllers\Api\CantinaManagementController;
 use App\Http\Controllers\Api\ManagerDashboardController;
 use App\Http\Controllers\Api\MenuManagementController;
 use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\MobileViewSettingsController;
 use App\Http\Controllers\Api\KitchenAreaController;
 use App\Http\Controllers\Api\KitchenOrderController;
 use App\Http\Controllers\Api\LoyaltyRedemptionController;
@@ -44,6 +46,7 @@ Route::prefix('mobile')->group(function () {
     });
     Route::middleware('mobile.api')->group(function () {
         Route::get('/settings/tips', [TipSettingsController::class, 'show']);
+        Route::get('/settings/views', [MobileViewSettingsController::class, 'show']);
     });
     Route::middleware('mobile.api:server,manager,pos')->group(function () {
         Route::get('/tap-to-pay/config', [TapToPayController::class, 'config']);
@@ -69,6 +72,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/table-sessions/{tableSession}/orders', [ServerTableSessionController::class, 'orders']);
         Route::post('/table-sessions/{tableSession}/orders', [ServerTableSessionController::class, 'storeOrder']);
         Route::patch('/table-sessions/{tableSession}/renew', [ServerTableSessionController::class, 'renew']);
+        Route::patch('/table-sessions/{tableSession}/order-mode', [ServerTableSessionController::class, 'updateOrderMode']);
         Route::patch('/table-sessions/{tableSession}/close', [ServerTableSessionController::class, 'close']);
         Route::patch('/table-sessions/{tableSession}/pay', [ServerTableSessionController::class, 'pay']);
         Route::post('/table-sessions/{tableSession}/payments', [ServerTableSessionController::class, 'addPayment']);
@@ -185,6 +189,17 @@ Route::prefix('mobile')->group(function () {
         Route::put('/wines/items/{wine}', [WineManagementController::class, 'update']);
         Route::delete('/wines/items/{wine}', [WineManagementController::class, 'destroy']);
         Route::patch('/wines/items/{wine}/toggle', [WineManagementController::class, 'toggle']);
+
+        Route::get('/cantina/categories', [CantinaManagementController::class, 'categories']);
+        Route::post('/cantina/categories', [CantinaManagementController::class, 'storeCategory']);
+        Route::put('/cantina/categories/{category}', [CantinaManagementController::class, 'updateCategory']);
+        Route::delete('/cantina/categories/{category}', [CantinaManagementController::class, 'destroyCategory']);
+        Route::post('/cantina/categories/reorder', [CantinaManagementController::class, 'reorderCategories']);
+        Route::post('/cantina/items', [CantinaManagementController::class, 'store']);
+        Route::post('/cantina/items/reorder', [CantinaManagementController::class, 'reorder']);
+        Route::put('/cantina/items/{cantinaItem}', [CantinaManagementController::class, 'update']);
+        Route::delete('/cantina/items/{cantinaItem}', [CantinaManagementController::class, 'destroy']);
+        Route::patch('/cantina/items/{cantinaItem}/toggle', [CantinaManagementController::class, 'toggle']);
 
         Route::get('/campaigns', [CampaignController::class, 'index']);
         Route::post('/campaigns', [CampaignController::class, 'store']);

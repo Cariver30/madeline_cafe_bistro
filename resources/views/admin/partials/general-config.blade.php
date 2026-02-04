@@ -39,114 +39,120 @@
     </div>
 
     <div class="border rounded-3 p-3 mb-4">
-        <h5 class="mb-3">Imágenes para los CTA de portada</h5>
-        <p class="text-muted small mb-3">Cada botón (Menú, Ordenar en línea, Café, Bebidas, Eventos, Reservas) puede mostrar una imagen. Deja el campo vacío para usar solo texto.</p>
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">CTA Menú</label>
-                <input type="file" class="form-control" name="cta_image_menu">
-                @if($settings->cta_image_menu)
-                    <img src="{{ asset('storage/' . $settings->cta_image_menu) }}" class="img-fluid rounded mt-2" alt="CTA Menú">
-                @endif
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">CTA Ordenar en línea</label>
-                <input type="file" class="form-control" name="cta_image_online">
-                @if($settings->cta_image_online)
-                    <img src="{{ asset('storage/' . $settings->cta_image_online) }}" class="img-fluid rounded mt-2" alt="CTA Ordenar en línea">
-                @endif
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">CTA Café</label>
-                <input type="file" class="form-control" name="cta_image_cafe">
-                @if($settings->cta_image_cafe)
-                    <img src="{{ asset('storage/' . $settings->cta_image_cafe) }}" class="img-fluid rounded mt-2" alt="CTA Café">
-                @endif
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">CTA Bebidas</label>
-                <input type="file" class="form-control" name="cta_image_cocktails">
-                @if($settings->cta_image_cocktails)
-                    <img src="{{ asset('storage/' . $settings->cta_image_cocktails) }}" class="img-fluid rounded mt-2" alt="CTA Bebidas">
-                @endif
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">CTA Cantina</label>
-                <input type="file" class="form-control" name="cta_image_cantina">
-                @if($settings->cta_image_cantina)
-                    <img src="{{ asset('storage/' . $settings->cta_image_cantina) }}" class="img-fluid rounded mt-2" alt="CTA Cantina">
-                @endif
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">CTA Eventos</label>
-                <input type="file" class="form-control" name="cta_image_events">
-                @if($settings->cta_image_events)
-                    <img src="{{ asset('storage/' . $settings->cta_image_events) }}" class="img-fluid rounded mt-2" alt="CTA Eventos">
-                @endif
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">CTA Reservas</label>
-                <input type="file" class="form-control" name="cta_image_reservations">
-                @if($settings->cta_image_reservations)
-                    <img src="{{ asset('storage/' . $settings->cta_image_reservations) }}" class="img-fluid rounded mt-2" alt="CTA Reservas">
-                @endif
-            </div>
-        </div>
-    </div>
-
-    <div class="border rounded-3 p-3 mb-4">
-        <h5 class="mb-3">Colores individuales de CTA</h5>
+        <h5 class="mb-3">Gestor de CTA de portada</h5>
+        <p class="text-muted small mb-3">Configura nombre, acción, visibilidad, orden, imagen y colores desde un solo bloque.</p>
         @php
-            $ctaKeys = [
+	            $ctaManager = [
+	                'menu' => ['label' => 'Menú', 'label_field' => 'button_label_menu', 'show_field' => 'show_cta_menu', 'image_field' => 'cta_image_menu'],
+	                'online' => ['label' => 'Ordenar en línea', 'label_field' => 'button_label_online', 'show_field' => 'show_cta_online', 'image_field' => 'cta_image_online'],
+	                'cafe' => ['label' => 'Café & Brunch', 'label_field' => 'button_label_wines', 'show_field' => 'show_cta_cafe', 'image_field' => 'cta_image_cafe'],
+	                'cocktails' => ['label' => 'Bebidas', 'label_field' => 'button_label_cocktails', 'show_field' => 'show_cta_cocktails', 'image_field' => 'cta_image_cocktails'],
+	                'cantina' => ['label' => 'Cantina', 'label_field' => 'button_label_cantina', 'show_field' => 'show_cta_cantina', 'image_field' => 'cta_image_cantina'],
+	                'specials' => ['label' => 'Especiales', 'label_field' => 'button_label_specials', 'show_field' => 'show_cta_specials', 'image_field' => 'cta_image_specials'],
+	                'events' => ['label' => 'Eventos', 'label_field' => 'button_label_events', 'show_field' => 'show_cta_events', 'image_field' => 'cta_image_events'],
+	                'reservations' => ['label' => 'Reservas', 'label_field' => 'button_label_reservations', 'show_field' => 'show_cta_reservations', 'image_field' => 'cta_image_reservations'],
+	                'vip' => ['label' => 'Lista VIP', 'label_field' => 'button_label_vip', 'show_field' => 'show_cta_vip', 'image_field' => null],
+	            ];
+            $ctaTargetOptions = [
                 'menu' => 'Menú',
                 'online' => 'Ordenar en línea',
                 'cafe' => 'Café & Brunch',
                 'cocktails' => 'Bebidas',
                 'cantina' => 'Cantina',
+                'specials' => 'Especiales',
                 'events' => 'Eventos',
                 'reservations' => 'Reservas',
+                'vip' => 'Lista VIP',
             ];
+            $defaultOrder = array_keys($ctaManager);
+            $storedOrder = $settings->cover_cta_order ?? [];
+            if (is_string($storedOrder)) {
+                $decoded = json_decode($storedOrder, true);
+                $storedOrder = is_array($decoded) ? $decoded : [];
+            }
+            $storedOrder = array_values(array_unique(array_filter($storedOrder, fn($key) => in_array($key, $defaultOrder, true))));
+            $ordered = array_values(array_merge($storedOrder, array_diff($defaultOrder, $storedOrder)));
+            $ctaPositions = [];
+            foreach ($ordered as $index => $key) {
+                $ctaPositions[$key] = $index + 1;
+            }
+            $storedTargets = $settings->cover_cta_targets ?? [];
+            if (is_string($storedTargets)) {
+                $decodedTargets = json_decode($storedTargets, true);
+                $storedTargets = is_array($decodedTargets) ? $decodedTargets : [];
+            }
         @endphp
-        <div class="row g-3">
-            @foreach($ctaKeys as $key => $label)
-                <div class="col-md-6">
-                    <label class="form-label">Fondo {{ $label }}</label>
-                    <input type="color" class="form-control" name="cover_cta_{{ $key }}_bg_color" value="{{ $settings->{'cover_cta_'.$key.'_bg_color'} ?? '#000000' }}">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Texto {{ $label }}</label>
-                    <input type="color" class="form-control" name="cover_cta_{{ $key }}_text_color" value="{{ $settings->{'cover_cta_'.$key.'_text_color'} ?? '#ffffff' }}">
-                </div>
-            @endforeach
-        </div>
-        <small class="text-muted d-block mt-2">Si dejas un color vacío usará el fondo genérico configurado arriba.</small>
-    </div>
 
-    <div class="border rounded-3 p-3 mb-4">
-        <h5 class="mb-3">Visibilidad de CTA principales</h5>
-        <p class="text-muted small mb-3">Decide qué botones se muestran en la portada. La tarjeta VIP se controla abajo.</p>
         <div class="row g-3">
-            @php
-                $ctaVisibility = [
-                    'show_cta_menu' => 'Mostrar CTA Menú',
-                    'show_cta_online' => 'Mostrar CTA Ordenar en línea',
-                    'show_cta_cafe' => 'Mostrar CTA Café & Brunch',
-                    'show_cta_cocktails' => 'Mostrar CTA Bebidas',
-                    'show_cta_cantina' => 'Mostrar CTA Cantina',
-                    'show_cta_events' => 'Mostrar CTA Eventos',
-                    'show_cta_reservations' => 'Mostrar CTA Reservas',
-                ];
-            @endphp
-            @foreach($ctaVisibility as $field => $label)
-                <div class="col-md-4">
-                    <div class="form-check form-switch">
-                        <input type="hidden" name="{{ $field }}" value="0">
-                        <input class="form-check-input" type="checkbox" id="{{ $field }}" name="{{ $field }}" value="1" {{ ($settings->{$field} ?? true) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="{{ $field }}">{{ $label }}</label>
+            @foreach($ctaManager as $key => $meta)
+                <div class="col-12">
+                    <div class="border rounded-3 p-3">
+                        <div class="d-flex flex-wrap gap-3 align-items-end">
+                            <div style="min-width: 90px;">
+                                <label class="form-label">Orden</label>
+                                <input type="number"
+                                       class="form-control"
+                                       name="cover_cta_position[{{ $key }}]"
+                                       min="1"
+                                       value="{{ $ctaPositions[$key] ?? '' }}">
+                            </div>
+                            <div class="flex-grow-1">
+                                <label class="form-label">Nombre visible</label>
+                                <input type="text"
+                                       class="form-control"
+                                       name="{{ $meta['label_field'] }}"
+                                       value="{{ $settings->{$meta['label_field']} ?? $meta['label'] }}">
+                            </div>
+                            <div style="min-width: 220px;">
+                                <label class="form-label">Acción</label>
+                                <select class="form-select" name="cover_cta_target[{{ $key }}]">
+                                    @foreach($ctaTargetOptions as $targetKey => $targetLabel)
+                                        <option value="{{ $targetKey }}" {{ ($storedTargets[$key] ?? $key) === $targetKey ? 'selected' : '' }}>
+                                            {{ $targetLabel }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label d-block">Visible</label>
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="{{ $meta['show_field'] }}" value="0">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="show_{{ $key }}"
+                                           name="{{ $meta['show_field'] }}"
+                                           value="1"
+                                           {{ ($settings->{$meta['show_field']} ?? true) ? 'checked' : '' }}>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Imagen</label>
+                                @if($meta['image_field'])
+                                    <input type="file" class="form-control" name="{{ $meta['image_field'] }}">
+                                    @if($settings->{$meta['image_field']})
+                                        <img src="{{ asset('storage/' . $settings->{$meta['image_field']}) }}" class="img-fluid rounded mt-2" alt="CTA {{ $meta['label'] }}">
+                                    @endif
+                                @else
+                                    <div class="form-text text-muted">No aplica para este CTA.</div>
+                                @endif
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Color de fondo</label>
+                                <input type="color" class="form-control" name="cover_cta_{{ $key }}_bg_color" value="{{ $settings->{'cover_cta_'.$key.'_bg_color'} ?? '#000000' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Color de texto</label>
+                                <input type="color" class="form-control" name="cover_cta_{{ $key }}_text_color" value="{{ $settings->{'cover_cta_'.$key.'_text_color'} ?? '#ffffff' }}">
+                            </div>
+                        </div>
                     </div>
                 </div>
             @endforeach
         </div>
+        <small class="text-muted d-block mt-2">Los cambios se aplican al guardar el formulario.</small>
     </div>
 
     <div class="mb-3">
@@ -333,45 +339,8 @@
     </div>
 
     <div class="border rounded-3 p-3 mb-4">
-        <h5 class="mb-3">Etiquetas de botones en la portada</h5>
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label for="button_label_menu" class="form-label">Botón principal 1</label>
-                <input type="text" class="form-control" id="button_label_menu" name="button_label_menu" value="{{ $settings->button_label_menu ?? 'Menú' }}">
-            </div>
-            <div class="col-md-6">
-                <label for="button_label_online" class="form-label">Botón ordenar en línea</label>
-                <input type="text" class="form-control" id="button_label_online" name="button_label_online" value="{{ $settings->button_label_online ?? 'Ordenar en línea' }}">
-            </div>
-            <div class="col-md-6">
-                <label for="button_label_cocktails" class="form-label">Botón principal 2</label>
-                <input type="text" class="form-control" id="button_label_cocktails" name="button_label_cocktails" value="{{ $settings->button_label_cocktails ?? 'Cócteles' }}">
-            </div>
-            <div class="col-md-6">
-                <label for="button_label_wines" class="form-label">Botón principal 3</label>
-                <input type="text" class="form-control" id="button_label_wines" name="button_label_wines" value="{{ $settings->button_label_wines ?? 'Cafe' }}">
-            </div>
-            <div class="col-md-6">
-                <label for="button_label_cantina" class="form-label">Botón principal 4</label>
-                <input type="text" class="form-control" id="button_label_cantina" name="button_label_cantina" value="{{ $settings->button_label_cantina ?? 'Cantina' }}">
-            </div>
-            <div class="col-md-6">
-                <label for="button_label_events" class="form-label">Botón principal 5</label>
-                <input type="text" class="form-control" id="button_label_events" name="button_label_events" value="{{ $settings->button_label_events ?? 'Eventos especiales' }}">
-            </div>
-            <div class="col-md-6">
-                <label for="button_label_vip" class="form-label">Botón lista VIP</label>
-                <input type="text" class="form-control" id="button_label_vip" name="button_label_vip" value="{{ $settings->button_label_vip ?? 'Lista VIP' }}">
-            </div>
-            <div class="col-md-6">
-                <label for="button_label_reservations" class="form-label">Botón de reservas</label>
-                <input type="text" class="form-control" id="button_label_reservations" name="button_label_reservations" value="{{ $settings->button_label_reservations ?? 'Reservas' }}">
-            </div>
-        </div>
-    </div>
-
-    <div class="border rounded-3 p-3 mb-4">
-        <h5 class="mb-3">Nombres de secciones (tabs)</h5>
+        <h5 class="mb-2">Pestañas del menú (App + Web)</h5>
+        <p class="text-muted small mb-3">Estas pestañas son las vistas que verá el gerente/mesero/host en la app y el cliente en la web. Solo el admin decide cuáles se habilitan.</p>
         <div class="row g-3">
             <div class="col-md-6">
                 <label for="tab_label_menu" class="form-label">Nombre para “Menú”</label>

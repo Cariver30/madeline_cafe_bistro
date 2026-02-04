@@ -258,7 +258,7 @@ class ServerTableSessionController extends Controller
 
         $validator = Validator::make($request->all(), [
             'items' => ['required', 'array', 'min:1'],
-            'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine'],
+            'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine,cantina'],
             'items.*.id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
             'items.*.notes' => ['nullable', 'string', 'max:500'],
@@ -349,6 +349,31 @@ class ServerTableSessionController extends Controller
 
         return response()->json([
             'message' => 'Mesa renovada.',
+            'session' => $this->formatSession($tableSession->fresh()),
+        ]);
+    }
+
+    public function updateOrderMode(Request $request, TableSession $tableSession)
+    {
+        $server = $request->user();
+        $isManager = $server?->isManager() ?? false;
+
+        abort_unless($isManager || $tableSession->server_id === $server->id, Response::HTTP_FORBIDDEN);
+
+        $data = $request->validate([
+            'order_mode' => ['required', 'string', Rule::in(['traditional', 'table'])],
+        ]);
+
+        $tableSession->update([
+            'order_mode' => $data['order_mode'],
+        ]);
+
+        if ($tableSession->dining_table_id) {
+            event(new HostDashboardUpdated('tables', $tableSession->dining_table_id));
+        }
+
+        return response()->json([
+            'message' => 'Modo de orden actualizado.',
             'session' => $this->formatSession($tableSession->fresh()),
         ]);
     }
@@ -1145,14 +1170,12 @@ class ServerTableSessionController extends Controller
     {
         $seatedAt = $session->seated_at ?? $session->created_at;
         $clockEnd = $session->closed_at ?? now();
-        $elapsedMinutes = $seatedAt ? $clockEnd->diffInMinutes($seatedAt) : null;
+        $elapsedMinutes = $this->safeMinutesDiff($seatedAt, $clockEnd);
         $estimatedTurn = TableTurnTimeEstimator::estimateTurnMinutes($session->party_size);
         $remainingMinutes = $elapsedMinutes !== null
             ? max($estimatedTurn - $elapsedMinutes, 0)
             : null;
-        $elapsedSinceFirstOrder = $session->first_order_at
-            ? $clockEnd->diffInMinutes($session->first_order_at)
-            : null;
+        $elapsedSinceFirstOrder = $this->safeMinutesDiff($session->first_order_at, $clockEnd);
 
         $payload = [
             'id' => $session->id,
@@ -1182,6 +1205,7 @@ class ServerTableSessionController extends Controller
             'paid_at' => optional($session->paid_at)->toIso8601String(),
             'expires_at' => optional($session->expires_at)->toIso8601String(),
             'closed_at' => optional($session->closed_at)->toIso8601String(),
+            'qr_token' => $session->qr_token,
             'timeclock' => [
                 'elapsed_minutes' => $elapsedMinutes,
                 'estimated_turn_minutes' => $estimatedTurn,
@@ -1211,6 +1235,18 @@ class ServerTableSessionController extends Controller
         }
 
         return $payload;
+    }
+
+    private function safeMinutesDiff($start, $end): ?int
+    {
+        if (! $start || ! $end) {
+            return null;
+        }
+
+        $diffSeconds = $end->diffInSeconds($start, false);
+        $diffSeconds = max($diffSeconds, 0);
+
+        return (int) floor($diffSeconds / 60);
     }
 
     private function formatBatches($orders, array $cloverStates = []): array

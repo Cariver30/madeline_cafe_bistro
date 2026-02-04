@@ -17,7 +17,12 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useAuth} from '../../context/AuthContext';
 import {useServerSessions} from '../../context/ServerSessionsContext';
 import {ServerStackParamList} from '../../navigation/serverTypes';
-import {getAvailableServers, transferServerTableSession} from '../../services/api';
+import {
+  getAvailableServers,
+  transferServerTableSession,
+  updateTableSessionOrderMode,
+  WEB_BASE_URL,
+} from '../../services/api';
 import {ServerUser} from '../../types';
 import {formatTime, timeLeft} from '../../utils/serverOrderHelpers';
 
@@ -48,6 +53,9 @@ const TableDetailScreen = ({navigation, route}: Props) => {
   const [availableServers, setAvailableServers] = useState<ServerUser[]>([]);
   const [loadingServers, setLoadingServers] = useState(false);
   const [selectedServerId, setSelectedServerId] = useState<number | null>(null);
+  const [orderModeBusy, setOrderModeBusy] = useState(false);
+  const [orderModeError, setOrderModeError] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
 
   if (!session) {
     return (
@@ -65,13 +73,28 @@ const TableDetailScreen = ({navigation, route}: Props) => {
       ? `Expira en ${minutes} min`
       : 'Expiración no disponible';
   const timeclock = session.timeclock;
+  const isQrEnabled = (session.order_mode ?? 'table') === 'table';
+  const elapsedDisplay =
+    timeclock?.elapsed_minutes != null
+      ? Math.max(0, Math.round(timeclock.elapsed_minutes))
+      : null;
+  const estimatedDisplay =
+    timeclock?.estimated_turn_minutes != null
+      ? Math.max(0, Math.round(timeclock.estimated_turn_minutes))
+      : null;
+  const remainingDisplay =
+    timeclock?.remaining_minutes != null
+      ? Math.max(0, Math.round(timeclock.remaining_minutes))
+      : null;
   const orderModeLabel =
-    (session.order_mode ?? 'table') === 'traditional'
+    isQrEnabled === false
       ? 'Tradicional'
       : 'Mesa ordena';
-  const qrImageUrl = session.qr_url
+  const resolvedQrUrl =
+    session.qr_url ?? (session.qr_token ? `${WEB_BASE_URL}/mesa/${session.qr_token}` : null);
+  const qrImageUrl = resolvedQrUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(
-        session.qr_url,
+        resolvedQrUrl,
       )}`
     : null;
   const orders = [...(session.orders ?? [])].sort((a, b) => {
@@ -97,6 +120,28 @@ const TableDetailScreen = ({navigation, route}: Props) => {
   const selectableServers = availableServers.filter(
     server => server.id !== session.server_id,
   );
+
+  const toggleOrderMode = async () => {
+    if (!token) {
+      return;
+    }
+    setOrderModeError(null);
+    setOrderModeBusy(true);
+    const nextMode = isQrEnabled ? 'traditional' : 'table';
+    try {
+      await updateTableSessionOrderMode(token, session.id, nextMode);
+      if (nextMode === 'traditional') {
+        setShowQr(false);
+      }
+      await refresh();
+    } catch (err) {
+      setOrderModeError(
+        err instanceof Error ? err.message : 'No se pudo actualizar.',
+      );
+    } finally {
+      setOrderModeBusy(false);
+    }
+  };
 
   useEffect(() => {
     const loadServers = async () => {
@@ -201,11 +246,11 @@ const TableDetailScreen = ({navigation, route}: Props) => {
           <View style={styles.timeclockCard}>
             <Text style={styles.timeclockTitle}>Tiempo en mesa</Text>
             <Text style={styles.timeclockText}>
-              Transcurrido: {timeclock.elapsed_minutes ?? 0} min
+              Transcurrido: {elapsedDisplay ?? '--'} min
             </Text>
             <Text style={styles.timeclockText}>
-              Estimado: {timeclock.estimated_turn_minutes ?? 0} min · Restan{' '}
-              {timeclock.remaining_minutes ?? 0} min
+              Estimado: {estimatedDisplay ?? '--'} min · Restan{' '}
+              {remainingDisplay ?? '--'} min
             </Text>
             <View style={styles.timeclockRow}>
               <Text style={styles.timeclockLabel}>Sentado</Text>
@@ -228,9 +273,46 @@ const TableDetailScreen = ({navigation, route}: Props) => {
           </View>
         ) : null}
 
-        {qrImageUrl ? (
-          <Image source={{uri: qrImageUrl}} style={styles.qrImage} />
-        ) : null}
+        {isQrEnabled ? (
+          showQr ? (
+            qrImageUrl ? (
+              <Image source={{uri: qrImageUrl}} style={styles.qrImage} />
+            ) : (
+              <Text style={styles.qrEmpty}>QR no disponible.</Text>
+            )
+          ) : (
+            <Text style={styles.qrHidden}>QR oculto.</Text>
+          )
+        ) : (
+          <Text style={styles.qrDisabled}>QR desactivado por el mesero.</Text>
+        )}
+
+        <View style={styles.qrActions}>
+          {isQrEnabled ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.qrToggleButton]}
+              onPress={() => setShowQr(current => !current)}>
+              <Text style={styles.qrToggleText}>
+                {showQr ? 'Ocultar QR' : 'Mostrar QR'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.qrModeButton]}
+            onPress={toggleOrderMode}
+            disabled={orderModeBusy}>
+            {orderModeBusy ? (
+              <ActivityIndicator color="#0f172a" />
+            ) : (
+              <Text style={styles.qrToggleText}>
+                {isQrEnabled ? 'Desactivar QR' : 'Activar QR'}
+              </Text>
+            )}
+          </TouchableOpacity>
+          {orderModeError ? (
+            <Text style={styles.qrError}>{orderModeError}</Text>
+          ) : null}
+        </View>
 
         <View style={styles.actions}>
           <TouchableOpacity
@@ -551,6 +633,38 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 16,
     backgroundColor: '#020617',
+  },
+  qrEmpty: {
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  qrHidden: {
+    color: '#94a3b8',
+    textAlign: 'center',
+    fontSize: 13,
+  },
+  qrDisabled: {
+    color: '#94a3b8',
+    textAlign: 'center',
+    fontSize: 13,
+  },
+  qrActions: {
+    gap: 6,
+  },
+  qrToggleButton: {
+    backgroundColor: '#fbbf24',
+  },
+  qrModeButton: {
+    backgroundColor: '#fbbf24',
+  },
+  qrToggleText: {
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+  qrError: {
+    color: '#fb7185',
+    fontSize: 12,
+    textAlign: 'center',
   },
   actions: {
     gap: 10,

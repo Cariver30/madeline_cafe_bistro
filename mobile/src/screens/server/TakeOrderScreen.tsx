@@ -18,6 +18,7 @@ import {
   confirmOrder as confirmOrderApi,
   createServerOrder,
   getServerMenuCategories,
+  getMobileViewSettings,
 } from '../../services/api';
 import {PosItemCard} from '../../components/pos/PosItemCard';
 import {
@@ -26,6 +27,7 @@ import {
   ServerOrderItemPayload,
   ExtraOption,
   UpsellItem,
+  ViewSetting,
 } from '../../types';
 
 type Props = NativeStackScreenProps<ServerStackParamList, 'TakeOrder'>;
@@ -41,28 +43,34 @@ type CartItem = {
   notes?: string;
 };
 
-const VIEW_LABELS: Record<ManagerView, string> = {
-  menu: 'Menú',
-  cocktails: 'Cócteles',
-  wines: 'Bebidas',
+const VIEW_ORDER: ManagerView[] = ['menu', 'cocktails', 'wines', 'cantina'];
+
+const DEFAULT_VIEW_SETTINGS: Record<ManagerView, ViewSetting> = {
+  menu: {label: 'Menú', enabled: true},
+  cocktails: {label: 'Cócteles', enabled: true},
+  wines: {label: 'Bebidas', enabled: true},
+  cantina: {label: 'Cantina', enabled: true},
 };
 
 const VIEW_TO_TYPE: Record<ManagerView, ServerOrderItemPayload['type']> = {
   menu: 'dish',
   cocktails: 'cocktail',
   wines: 'wine',
+  cantina: 'cantina',
 };
 
 const TYPE_TO_VIEW: Record<ServerOrderItemPayload['type'], ManagerView> = {
   dish: 'menu',
   cocktail: 'cocktails',
   wine: 'wines',
+  cantina: 'cantina',
 };
 
 const UPSELL_TYPE_LABEL: Record<ServerOrderItemPayload['type'], string> = {
   dish: 'Plato',
   cocktail: 'Cóctel',
   wine: 'Bebida',
+  cantina: 'Cantina',
 };
 
 const TakeOrderScreen = ({route, navigation}: Props) => {
@@ -70,6 +78,9 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
   const {sessionId} = route.params;
   const {getSessionById, loadSessions} = useServerSessions();
   const session = getSessionById(sessionId);
+  const [viewSettings, setViewSettings] = useState<
+    Record<ManagerView, ViewSetting>
+  >(DEFAULT_VIEW_SETTINGS);
   const [activeView, setActiveView] = useState<ManagerView>('menu');
   const [activeCategoryByView, setActiveCategoryByView] = useState<
     Record<ManagerView, number | null>
@@ -77,6 +88,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     menu: null,
     cocktails: null,
     wines: null,
+    cantina: null,
   });
   const [categoriesByView, setCategoriesByView] = useState<
     Record<ManagerView, CategoryPayload[]>
@@ -84,11 +96,13 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     menu: [],
     cocktails: [],
     wines: [],
+    cantina: [],
   });
   const [loadingView, setLoadingView] = useState<Record<ManagerView, boolean>>({
     menu: false,
     cocktails: false,
     wines: false,
+    cantina: false,
   });
   const [errorsByView, setErrorsByView] = useState<
     Record<ManagerView, string | null>
@@ -96,6 +110,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     menu: null,
     cocktails: null,
     wines: null,
+    cantina: null,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<Record<string, CartItem>>({});
@@ -106,8 +121,14 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     menu: false,
     cocktails: false,
     wines: false,
+    cantina: false,
   });
   const isMounted = useRef(true);
+
+  const viewTabs = useMemo(
+    () => VIEW_ORDER.filter(view => viewSettings[view]?.enabled !== false),
+    [viewSettings],
+  );
 
   const findItemByType = useCallback(
     (type: ServerOrderItemPayload['type'], id: number) => {
@@ -125,6 +146,34 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
       isMounted.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    let cancelled = false;
+    const loadSettings = async () => {
+      try {
+        const data = await getMobileViewSettings(token);
+        if (cancelled || !isMounted.current) return;
+        const merged = {
+          ...DEFAULT_VIEW_SETTINGS,
+          ...(data.views ?? {}),
+        } as Record<ManagerView, ViewSetting>;
+        setViewSettings(merged);
+        const firstEnabled =
+          VIEW_ORDER.find(view => merged[view]?.enabled !== false) ?? 'menu';
+        setActiveView(firstEnabled);
+      } catch {
+        if (cancelled || !isMounted.current) return;
+        setViewSettings(DEFAULT_VIEW_SETTINGS);
+      }
+    };
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const loadView = useCallback(
     async (view: ManagerView, force = false) => {
@@ -170,15 +219,35 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
     if (!token) {
       return;
     }
-    loadedViews.current = {menu: false, cocktails: false, wines: false};
-    setCategoriesByView({menu: [], cocktails: [], wines: []});
-    setErrorsByView({menu: null, cocktails: null, wines: null});
-    setActiveCategoryByView({menu: null, cocktails: null, wines: null});
+    loadedViews.current = {
+      menu: false,
+      cocktails: false,
+      wines: false,
+      cantina: false,
+    };
+    setCategoriesByView({
+      menu: [],
+      cocktails: [],
+      wines: [],
+      cantina: [],
+    });
+    setErrorsByView({
+      menu: null,
+      cocktails: null,
+      wines: null,
+      cantina: null,
+    });
+    setActiveCategoryByView({
+      menu: null,
+      cocktails: null,
+      wines: null,
+      cantina: null,
+    });
 
-    (['menu', 'cocktails', 'wines'] as ManagerView[]).forEach(view => {
+    viewTabs.forEach(view => {
       void loadView(view, true);
     });
-  }, [token, loadView]);
+  }, [token, loadView, viewTabs]);
 
   const categoriesForView = (categoriesByView[activeView] ?? []).filter(
     category => (category.dishes?.length ?? 0) > 0,
@@ -548,7 +617,7 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
       </View>
 
       <View style={styles.tabs}>
-        {(Object.keys(VIEW_LABELS) as ManagerView[]).map(view => (
+        {viewTabs.map(view => (
           <TouchableOpacity
             key={view}
             style={[styles.tab, activeView === view && styles.tabActive]}
@@ -558,7 +627,8 @@ const TakeOrderScreen = ({route, navigation}: Props) => {
                 styles.tabText,
                 activeView === view && styles.tabTextActive,
               ]}>
-              {VIEW_LABELS[view]}
+              {viewSettings[view]?.label ??
+                DEFAULT_VIEW_SETTINGS[view].label}
             </Text>
           </TouchableOpacity>
         ))}

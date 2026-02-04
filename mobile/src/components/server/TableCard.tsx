@@ -65,6 +65,7 @@ export const TableCard = ({
           </TouchableOpacity>
         ) : null}
       </View>
+
     </TouchableOpacity>
   );
 };

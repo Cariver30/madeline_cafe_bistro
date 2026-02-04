@@ -336,7 +336,9 @@
                                 @php
                                     $itemType = ($category->scope ?? 'menu') === 'cocktails'
                                         ? 'cocktail'
-                                        : (($category->scope ?? 'menu') === 'wines' ? 'wine' : 'dish');
+                                        : (($category->scope ?? 'menu') === 'wines'
+                                            ? 'wine'
+                                            : (($category->scope ?? 'menu') === 'cantina' ? 'cantina' : 'dish'));
                                     $itemIdPrefix = $itemType === 'dish' ? 'dish' : $itemType;
                                     $itemExtras = $item->extras->where('active', true);
                                     $itemExtrasPayload = $itemExtras->map(function ($extra) {
@@ -474,7 +476,9 @@
                             @php
                                 $itemType = ($category->scope ?? 'menu') === 'cocktails'
                                     ? 'cocktail'
-                                    : (($category->scope ?? 'menu') === 'wines' ? 'wine' : 'dish');
+                                    : (($category->scope ?? 'menu') === 'wines'
+                                        ? 'wine'
+                                        : (($category->scope ?? 'menu') === 'cantina' ? 'cantina' : 'dish'));
                                 $itemIdPrefix = $itemType === 'dish' ? 'dish' : $itemType;
                                 $itemExtras = $item->extras->where('active', true);
                                 $itemExtrasPayload = $itemExtras->map(function ($extra) {
@@ -610,7 +614,9 @@
                         @php
                             $itemType = ($category->scope ?? 'menu') === 'cocktails'
                                 ? 'cocktail'
-                                : (($category->scope ?? 'menu') === 'wines' ? 'wine' : 'dish');
+                                : (($category->scope ?? 'menu') === 'wines'
+                                    ? 'wine'
+                                    : (($category->scope ?? 'menu') === 'cantina' ? 'cantina' : 'dish'));
                             $itemIdPrefix = $itemType === 'dish' ? 'dish' : $itemType;
                             $itemExtras = $item->extras->where('active', true);
                             $itemExtrasPayload = $itemExtras->map(function ($extra) {
