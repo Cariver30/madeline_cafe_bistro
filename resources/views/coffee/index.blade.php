@@ -121,6 +121,36 @@
             border-radius: 999px;
             background-color: rgba(0, 0, 0, 0.25);
         }
+
+        .subcategory-tabs {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding: 0.5rem 0;
+            margin: -0.25rem 0 1.5rem;
+        }
+        .subcategory-tab {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 999px;
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.08);
+            color: inherit;
+            transition: all 0.2s ease;
+        }
+        .subcategory-tab:hover {
+            transform: translateY(-1px);
+        }
+        .subcategory-tab.active {
+            background: var(--drink-accent-color, rgba(255, 255, 255, 0.2));
+            color: #0f172a;
+        }
+        .subcategory-panel.hidden {
+            display: none;
+        }
         @media (max-width: 768px) {
             body {
                 background-position: center top;
@@ -222,90 +252,125 @@
                 $uncategorizedItems = $categoryItems->whereNull('subcategory_id');
             @endphp
             @if($subcategories->count())
-                @foreach ($subcategories as $subcategory)
-                    @php
+                @php
+                    $subcategoryGroups = collect();
+                    foreach ($subcategories as $subcategory) {
                         $subcategoryItems = ($subcategory->items ?? collect())->where('visible', true);
-                    @endphp
-                    @if($subcategoryItems->isNotEmpty())
-                        <h3 class="subcategory-title" style="background-color: {{ $subcategoryBgColor }}; color: {{ $subcategoryTextColor }};">
-                            {{ $subcategory->name }}
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            @foreach($subcategoryItems as $drink)
-                                @php
-                                    $drinkImage = $drink->image ? asset('storage/' . $drink->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png'));
-                                    $drinkNotes = $drink->grapes?->pluck('name')->implode(', ');
-                                    $drinkPairs = $drink->dishes?->map(fn($dish) => $dish->id.'::'.$dish->name)->implode('|');
-                                    $drinkExtras = $drink->extras->where('active', true);
-                                    $drinkExtrasPayload = $drinkExtras->map(function ($extra) {
-                                        return [
-                                            'name' => $extra->name,
-                                            'price' => number_format($extra->price, 2, '.', ''),
-                                            'description' => $extra->description,
-                                        ];
-                                    });
-                                @endphp
-                                <div id="drink{{ $drink->id }}" onclick="openDrinkModal(this)"
-                                     class="drink-card rounded-2xl p-4 shadow-lg relative flex flex-col gap-3 cursor-pointer hover:scale-105 transition border border-white/10"
-                                     style="opacity: {{ $drinkCardOpacity }};"
-                                     data-name="{{ $drink->name }}"
-                                     data-description="{{ $drink->description }}"
-                                     data-price="${{ number_format($drink->price, 2) }}"
-                                     data-image="{{ $drinkImage }}"
-                                     data-region="{{ $drink->region->name ?? '' }}"
-                                     data-method="{{ $drink->type->name ?? '' }}"
-                                     data-notes="{{ $drinkNotes }}"
-                                     data-pairings="{{ $drinkPairs }}"
-                                     data-extras='@json($drinkExtrasPayload)'>
-
-                                    <span class="absolute top-2 right-2 text-xs bg-black/60 text-white px-2 py-1 rounded-full">Ver más</span>
-
-                                    <div class="flex items-center gap-3">
-                                        <img src="{{ $drinkImage }}"
-                                             alt="{{ $drink->name }}"
-                                             class="h-20 w-20 rounded-2xl object-cover border border-white/10">
-                                        <div class="flex-1">
-                                            <h3 class="text-xl font-bold">{{ $drink->name }}</h3>
-                                            <p class="text-sm opacity-80">{{ $drink->type->name ?? 'Especialidad de la barra' }}</p>
-                                            <p class="text-sm opacity-70">{{ $drink->region->name ?? 'Origen mixto' }}</p>
-                                        </div>
-                                        <span class="text-lg font-semibold" style="color: var(--drink-accent-color);">
-                                            ${{ number_format($drink->price, 2) }}
-                                        </span>
-                                    </div>
-
-                                    <p class="text-sm opacity-90">{{ $drink->description }}</p>
-
-
-                                    @if($drink->grapes && $drink->grapes->count())
-                                        <div class="flex flex-wrap gap-2 text-xs">
-                                            @foreach($drink->grapes as $note)
-                                                <span class="tag-chip px-3 py-1 rounded-full">{{ $note->name }}</span>
-                                            @endforeach
-                                        </div>
-                                    @endif
-
-                                    @if($drink->dishes && $drink->dishes->count())
-                                        <div class="pt-3 border-t border-white/15">
-                                            <p class="text-xs uppercase tracking-[0.3em] opacity-80 mb-2">Maridajes sugeridos</p>
-                                            <div class="flex flex-wrap gap-2 text-xs">
-                                                @foreach($drink->dishes as $dish)
-                                                    <a href="{{ route('menu') }}#dish{{ $dish->id }}" class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/15 bg-white/5 hover:border-white/40 transition">
-                                                        {{ $dish->name }}
-                                                    </a>
-                                                @endforeach
-                                            </div>
-                                        </div>
-                                    @endif
-                                </div>
+                        $sameName = trim(mb_strtolower((string) $subcategory->name)) === trim(mb_strtolower((string) $category->name));
+                        if ($subcategoryItems->isNotEmpty() && ! $sameName) {
+                            $subcategoryGroups->push([
+                                'id' => $subcategory->id,
+                                'name' => $subcategory->name,
+                                'items' => $subcategoryItems,
+                            ]);
+                        } elseif ($subcategoryItems->isNotEmpty() && $sameName) {
+                            $uncategorizedItems = $uncategorizedItems->merge($subcategoryItems);
+                        }
+                    }
+                    $hasSubcategoryGroups = $subcategoryGroups->isNotEmpty();
+                    $includeOtherTab = $hasSubcategoryGroups && $uncategorizedItems->count();
+                    $tabGroups = $includeOtherTab
+                        ? $subcategoryGroups->merge([['id' => 'other', 'name' => 'Otros', 'items' => $uncategorizedItems]])
+                        : $subcategoryGroups;
+                    $showTabs = $tabGroups->count() > 1;
+                @endphp
+                @if($hasSubcategoryGroups)
+                    @if($showTabs)
+                        <div class="subcategory-tabs" data-category-tabs="{{ $category->id }}">
+                            @foreach ($tabGroups as $group)
+                                <button type="button"
+                                    class="subcategory-tab {{ $loop->first ? 'active' : '' }}"
+                                    data-category-tab="{{ $category->id }}"
+                                    data-subcategory-tab="{{ $group['id'] }}">
+                                    {{ $group['name'] }}
+                                </button>
                             @endforeach
                         </div>
                     @endif
-                @endforeach
-                @if($uncategorizedItems->count())
-                    <h3 class="subcategory-title" style="background-color: {{ $subcategoryBgColor }}; color: {{ $subcategoryTextColor }};">Otros</h3>
+                    @foreach ($tabGroups as $group)
+                        <div class="subcategory-panel {{ $loop->first ? '' : 'hidden' }}"
+                             data-category-panel="{{ $category->id }}"
+                             data-subcategory-panel="{{ $group['id'] }}">
+                            @if(! $showTabs)
+                                <h3 class="subcategory-title" style="background-color: {{ $subcategoryBgColor }}; color: {{ $subcategoryTextColor }};">
+                                    {{ $group['name'] }}
+                                </h3>
+                            @endif
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                @foreach($group['items'] as $drink)
+                                    @php
+                                        $drinkImage = $drink->image ? asset('storage/' . $drink->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png'));
+                                        $drinkNotes = $drink->grapes?->pluck('name')->implode(', ');
+                                        $drinkPairs = $drink->dishes?->map(fn($dish) => $dish->id.'::'.$dish->name)->implode('|');
+                                        $drinkExtras = $drink->extras->where('active', true);
+                                        $drinkExtrasPayload = $drinkExtras->map(function ($extra) {
+                                            return [
+                                                'name' => $extra->name,
+                                                'price' => number_format($extra->price, 2, '.', ''),
+                                                'description' => $extra->description,
+                                            ];
+                                        });
+                                    @endphp
+                                    <div id="drink{{ $drink->id }}" onclick="openDrinkModal(this)"
+                                         class="drink-card rounded-2xl p-4 shadow-lg relative flex flex-col gap-3 cursor-pointer hover:scale-105 transition border border-white/10"
+                                         style="opacity: {{ $drinkCardOpacity }};"
+                                         data-name="{{ $drink->name }}"
+                                         data-description="{{ $drink->description }}"
+                                         data-price="${{ number_format($drink->price, 2) }}"
+                                         data-image="{{ $drinkImage }}"
+                                         data-region="{{ $drink->region->name ?? '' }}"
+                                         data-method="{{ $drink->type->name ?? '' }}"
+                                         data-notes="{{ $drinkNotes }}"
+                                         data-pairings="{{ $drinkPairs }}"
+                                         data-extras='@json($drinkExtrasPayload)'>
+
+                                        <span class="absolute top-2 right-2 text-xs bg-black/60 text-white px-2 py-1 rounded-full">Ver más</span>
+
+                                        <div class="flex items-center gap-3">
+                                            <img src="{{ $drinkImage }}"
+                                                 alt="{{ $drink->name }}"
+                                                 class="h-20 w-20 rounded-2xl object-cover border border-white/10">
+                                            <div class="flex-1">
+                                                <h3 class="text-xl font-bold">{{ $drink->name }}</h3>
+                                                <p class="text-sm opacity-80">{{ $drink->type->name ?? 'Especialidad de la barra' }}</p>
+                                                <p class="text-sm opacity-70">{{ $drink->region->name ?? 'Origen mixto' }}</p>
+                                            </div>
+                                            <span class="text-lg font-semibold" style="color: var(--drink-accent-color);">
+                                                ${{ number_format($drink->price, 2) }}
+                                            </span>
+                                        </div>
+
+                                        <p class="text-sm opacity-90">{{ $drink->description }}</p>
+
+
+                                        @if($drink->grapes && $drink->grapes->count())
+                                            <div class="flex flex-wrap gap-2 text-xs">
+                                                @foreach($drink->grapes as $note)
+                                                    <span class="tag-chip px-3 py-1 rounded-full">{{ $note->name }}</span>
+                                                @endforeach
+                                            </div>
+                                        @endif
+
+                                        @if($drink->dishes && $drink->dishes->count())
+                                            <div class="pt-3 border-t border-white/15">
+                                                <p class="text-xs uppercase tracking-[0.3em] opacity-80 mb-2">Maridajes sugeridos</p>
+                                                <div class="flex flex-wrap gap-2 text-xs">
+                                                    @foreach($drink->dishes as $dish)
+                                                        <a href="{{ route('menu') }}#dish{{ $dish->id }}" class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/15 bg-white/5 hover:border-white/40 transition">
+                                                            {{ $dish->name }}
+                                                        </a>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                @else
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        @foreach($uncategorizedItems as $drink)
+                        @foreach($categoryItems as $drink)
                             @php
                                 $drinkImage = $drink->image ? asset('storage/' . $drink->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png'));
                                 $drinkNotes = $drink->grapes?->pluck('name')->implode(', ');
@@ -377,7 +442,7 @@
                 @endif
             @else
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    @foreach(($category->items ?? collect()) as $drink)
+                    @foreach($categoryItems as $drink)
                         @php
                             $drinkImage = $drink->image ? asset('storage/' . $drink->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png'));
                             $drinkNotes = $drink->grapes?->pluck('name')->implode(', ');
@@ -513,6 +578,32 @@
 <script>
     let drinkPopupInstance;
 
+    
+    function initSubcategoryTabs() {
+        const tabRows = document.querySelectorAll('[data-category-tabs]');
+        tabRows.forEach((row) => {
+            const categoryId = row.dataset.categoryTabs;
+            const tabs = row.querySelectorAll('[data-subcategory-tab]');
+            const panels = document.querySelectorAll(`[data-category-panel="${categoryId}"]`);
+            if (!tabs.length || !panels.length) return;
+
+            tabs.forEach((tab) => {
+                tab.addEventListener('click', () => {
+                    const target = tab.dataset.subcategoryTab;
+                    tabs.forEach((btn) => btn.classList.remove('active'));
+                    tab.classList.add('active');
+                    panels.forEach((panel) => {
+                        if (panel.dataset.subcategoryPanel === target) {
+                            panel.classList.remove('hidden');
+                        } else {
+                            panel.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const toggleMenuBtn = document.getElementById('toggleMenu');
         const categoryMenu = document.getElementById('categoryMenu');
@@ -520,6 +611,8 @@
         const closeMenuBtn = document.getElementById('closeMenu');
         const navLinks = document.querySelectorAll('.category-nav-link');
         const scrollButtons = document.querySelectorAll('[data-scroll-target="categoryChipRow"]');
+
+        initSubcategoryTabs();
 
         const openMenu = () => {
             categoryMenu?.classList.remove('-translate-y-full');
