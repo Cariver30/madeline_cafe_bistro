@@ -54,13 +54,19 @@ class MenuController extends Controller
         }
 
         if ($visible($settings?->show_tab_cocktails)) {
-            $cocktailCategories = CocktailCategory::with(['items' => function ($query) {
-                    $query->where('visible', true)->orderBy('position')->orderBy('id');
-                }])
+            $cocktailItemQuery = function ($query) {
+                $query->where('visible', true)->orderBy('position')->orderBy('id');
+            };
+            $cocktailCategories = CocktailCategory::with([
+                    'items' => $cocktailItemQuery,
+                    'subcategories' => function ($query) use ($cocktailItemQuery) {
+                        $query->orderBy('order')
+                            ->orderBy('id')
+                            ->with(['items' => $cocktailItemQuery]);
+                    },
+                ])
                 ->orderBy('order')
-                ->get()
-                ->filter(fn ($category) => $category->items->where('visible', true)->isNotEmpty())
-                ->values();
+                ->get();
 
             $cocktailCategories->each(function ($category) {
                 $category->setAttribute('scope', 'cocktails');
@@ -70,13 +76,19 @@ class MenuController extends Controller
         }
 
         if ($visible($settings?->show_tab_wines)) {
-            $wineCategories = WineCategory::with(['items' => function ($query) {
-                    $query->where('visible', true)->orderBy('position')->orderBy('id');
-                }])
+            $wineItemQuery = function ($query) {
+                $query->where('visible', true)->orderBy('position')->orderBy('id');
+            };
+            $wineCategories = WineCategory::with([
+                    'items' => $wineItemQuery,
+                    'subcategories' => function ($query) use ($wineItemQuery) {
+                        $query->orderBy('order')
+                            ->orderBy('id')
+                            ->with(['items' => $wineItemQuery]);
+                    },
+                ])
                 ->orderBy('order')
-                ->get()
-                ->filter(fn ($category) => $category->items->where('visible', true)->isNotEmpty())
-                ->values();
+                ->get();
 
             $wineCategories->each(function ($category) {
                 $category->setAttribute('scope', 'wines');
@@ -90,9 +102,7 @@ class MenuController extends Controller
                     $query->where('visible', true)->orderBy('position')->orderBy('id');
                 }])
                 ->orderBy('order')
-                ->get()
-                ->filter(fn ($category) => $category->items->where('visible', true)->isNotEmpty())
-                ->values();
+                ->get();
 
             $cantinaCategories->each(function ($category) {
                 $category->setAttribute('scope', 'cantina');
@@ -100,6 +110,23 @@ class MenuController extends Controller
 
             $categories = $categories->merge($cantinaCategories);
         }
+
+        $categories = $categories->filter(function ($category) {
+            $items = $category->items ?? $category->dishes ?? collect();
+            if ($items->where('visible', true)->isNotEmpty()) {
+                return true;
+            }
+
+            $subcategories = $category->subcategories ?? collect();
+            foreach ($subcategories as $subcategory) {
+                $subItems = $subcategory->items ?? $subcategory->dishes ?? collect();
+                if ($subItems->where('visible', true)->isNotEmpty()) {
+                    return true;
+                }
+            }
+
+            return false;
+        })->values();
 
         $popups = Popup::where('active', 1)
             ->where('view', 'menu')

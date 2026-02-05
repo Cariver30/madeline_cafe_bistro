@@ -39,6 +39,41 @@
         @endif
 
         @php
+            $scopeLabels = $viewLabels ?? [
+                'menu' => $settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú',
+                'cocktails' => $settings->tab_label_cocktails ?? $settings->button_label_cocktails ?? 'Cócteles',
+                'wines' => $settings->tab_label_wines ?? $settings->button_label_wines ?? 'Café & Brunch',
+                'cantina' => $settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina',
+            ];
+        @endphp
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="mb-2">Crear categoría interna (para agrupar Clover)</h5>
+                <p class="text-muted small mb-3">Crea una categoría padre como “Postres” sin salir del mapeo Clover.</p>
+                <form method="POST" action="{{ route('admin.clover.parent-categories.store') }}" class="row g-3 align-items-end">
+                    @csrf
+                    <div class="col-md-4">
+                        <label class="form-label">Vista</label>
+                        <select name="parent_scope" class="form-select" required>
+                            <option value="menu">{{ $scopeLabels['menu'] }}</option>
+                            <option value="cocktails">{{ $scopeLabels['cocktails'] }}</option>
+                            <option value="wines">{{ $scopeLabels['wines'] }}</option>
+                            <option value="cantina">{{ $scopeLabels['cantina'] }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Nombre de la categoría</label>
+                        <input type="text" name="parent_name" class="form-control" placeholder="Ej: Postres" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-primary w-100">Crear</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @php
             $defaultFrom = $fromValue ?: now()->subDays(6)->toDateString();
             $defaultTo = $toValue ?: now()->toDateString();
         @endphp
@@ -100,6 +135,7 @@
                             <th>Orden</th>
                             <th>Borrada</th>
                             <th>Vista asignada</th>
+                            <th>Categoría padre</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -110,18 +146,53 @@
                                 <td>{{ $category->sort_order }}</td>
                                 <td>{{ $category->deleted ? 'Sí' : 'No' }}</td>
                                 <td>
-                                    <select class="form-select" name="scopes[{{ $category->id }}]">
+                                    <select class="form-select scope-select" name="scopes[{{ $category->id }}]">
                                         <option value="">Sin asignar</option>
-                                        <option value="menu" @selected($category->scope === 'menu')>Menú</option>
-                                        <option value="cocktails" @selected($category->scope === 'cocktails')>Cócteles</option>
-                                        <option value="wines" @selected($category->scope === 'wines')>Vinos / Café</option>
-                                        <option value="cantina" @selected($category->scope === 'cantina')>Cantina</option>
+                                        <option value="menu" @selected($category->scope === 'menu')>{{ $scopeLabels['menu'] }}</option>
+                                        <option value="cocktails" @selected($category->scope === 'cocktails')>{{ $scopeLabels['cocktails'] }}</option>
+                                        <option value="wines" @selected($category->scope === 'wines')>{{ $scopeLabels['wines'] }}</option>
+                                        <option value="cantina" @selected($category->scope === 'cantina')>{{ $scopeLabels['cantina'] }}</option>
                                     </select>
+                                </td>
+                                <td>
+                                    <select class="form-select parent-select"
+                                            name="parent_categories[{{ $category->id }}]">
+                                        <option value="">Usar categoría Clover</option>
+                                        @foreach(($parentOptions['menu'] ?? []) as $parent)
+                                            <option value="{{ $parent->id }}"
+                                                    data-scope="menu"
+                                                    @selected($category->parent_category_id === $parent->id)>
+                                                {{ $parent->name }}
+                                            </option>
+                                        @endforeach
+                                        @foreach(($parentOptions['cocktails'] ?? []) as $parent)
+                                            <option value="{{ $parent->id }}"
+                                                    data-scope="cocktails"
+                                                    @selected($category->parent_category_id === $parent->id)>
+                                                {{ $parent->name }}
+                                            </option>
+                                        @endforeach
+                                        @foreach(($parentOptions['wines'] ?? []) as $parent)
+                                            <option value="{{ $parent->id }}"
+                                                    data-scope="wines"
+                                                    @selected($category->parent_category_id === $parent->id)>
+                                                {{ $parent->name }}
+                                            </option>
+                                        @endforeach
+                                        @foreach(($parentOptions['cantina'] ?? []) as $parent)
+                                            <option value="{{ $parent->id }}"
+                                                    data-scope="cantina"
+                                                    @selected($category->parent_category_id === $parent->id)>
+                                                {{ $parent->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <p class="text-muted small mt-1 mb-0">Si eliges un padre, esta categoría Clover se convertirá en subcategoría.</p>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted">
+                                <td colspan="6" class="text-center text-muted">
                                     No hay categorías Clover aún. Usa “Actualizar categorías”.
                                 </td>
                             </tr>
@@ -136,4 +207,32 @@
             </div>
         </form>
     </div>
+
+    <script>
+        (function () {
+            const updateRow = (scopeSelect) => {
+                const row = scopeSelect.closest('tr');
+                if (!row) return;
+                const parentSelect = row.querySelector('.parent-select');
+                if (!parentSelect) return;
+                const scope = scopeSelect.value;
+
+                parentSelect.disabled = !scope;
+
+                parentSelect.querySelectorAll('option[data-scope]').forEach((option) => {
+                    option.hidden = scope && option.dataset.scope !== scope;
+                });
+
+                const selected = parentSelect.selectedOptions[0];
+                if (selected?.dataset?.scope && selected.dataset.scope !== scope) {
+                    parentSelect.value = '';
+                }
+            };
+
+            document.querySelectorAll('.scope-select').forEach((scopeSelect) => {
+                updateRow(scopeSelect);
+                scopeSelect.addEventListener('change', () => updateRow(scopeSelect));
+            });
+        })();
+    </script>
 @endsection

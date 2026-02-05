@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\CloverCategory;
+use App\Models\CocktailCategory;
+use App\Models\CantinaCategory;
 use App\Models\Setting;
+use App\Models\WineCategory;
 use App\Support\CloverClient;
 use App\Support\CloverSyncService;
 use Illuminate\Http\Request;
@@ -22,6 +26,18 @@ class CloverController extends Controller
         $cloverCategories = CloverCategory::orderBy('sort_order')
             ->orderBy('name')
             ->get();
+        $viewLabels = [
+            'menu' => trim($settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú'),
+            'cocktails' => trim($settings->tab_label_cocktails ?? $settings->button_label_cocktails ?? 'Cócteles'),
+            'wines' => trim($settings->tab_label_wines ?? $settings->button_label_wines ?? 'Café & Brunch'),
+            'cantina' => trim($settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina'),
+        ];
+        $parentOptions = [
+            'menu' => Category::orderBy('order')->orderBy('id')->get(),
+            'cocktails' => CocktailCategory::orderBy('order')->orderBy('id')->get(),
+            'wines' => WineCategory::orderBy('order')->orderBy('id')->get(),
+            'cantina' => CantinaCategory::orderBy('order')->orderBy('id')->get(),
+        ];
 
         $topSellers = null;
         $fromValue = $request->input('from');
@@ -48,6 +64,8 @@ class CloverController extends Controller
         return view('admin.clover', [
             'settings' => $settings,
             'cloverCategories' => $cloverCategories,
+            'viewLabels' => $viewLabels,
+            'parentOptions' => $parentOptions,
             'topSellers' => $topSellers,
             'fromValue' => $fromValue,
             'toValue' => $toValue,
@@ -144,9 +162,12 @@ class CloverController extends Controller
         $data = $request->validate([
             'scopes' => ['nullable', 'array'],
             'scopes.*' => ['nullable', 'in:menu,cocktails,wines,cantina'],
+            'parent_categories' => ['nullable', 'array'],
+            'parent_categories.*' => ['nullable', 'integer'],
         ]);
 
         $scopes = Arr::get($data, 'scopes', []);
+        $parents = Arr::get($data, 'parent_categories', []);
 
         foreach ($scopes as $categoryId => $scope) {
             $category = CloverCategory::find($categoryId);
@@ -154,11 +175,61 @@ class CloverController extends Controller
                 continue;
             }
 
-            $category->scope = $scope ?: null;
+            $originalScope = $category->scope;
+            $originalParent = $category->parent_category_id;
+            $newScope = $scope ?: null;
+            $parentId = $parents[$categoryId] ?? null;
+
+            $category->scope = $newScope;
+            $category->parent_category_id = $this->resolveParentCategoryId($newScope, $parentId);
+
+            if ($originalScope !== $category->scope || $originalParent !== $category->parent_category_id) {
+                $category->subcategory_id = null;
+            }
+
             $category->save();
         }
 
         return back()->with('success', 'Mapeo de categorías actualizado.');
+    }
+
+    public function storeParentCategory(Request $request)
+    {
+        $this->authorizeAdmin();
+
+        $data = $request->validate([
+            'parent_scope' => ['required', 'in:menu,cocktails,wines,cantina'],
+            'parent_name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $name = trim($data['parent_name']);
+        $scope = $data['parent_scope'];
+
+        $created = match ($scope) {
+            'menu' => Category::create([
+                'name' => $name,
+                'show_on_cover' => false,
+            ]),
+            'cocktails' => CocktailCategory::create([
+                'name' => $name,
+                'show_on_cover' => false,
+            ]),
+            'wines' => WineCategory::create([
+                'name' => $name,
+                'show_on_cover' => false,
+            ]),
+            'cantina' => CantinaCategory::create([
+                'name' => $name,
+                'show_on_cover' => false,
+            ]),
+            default => null,
+        };
+
+        if (! $created) {
+            return back()->with('error', 'No se pudo crear la categoría interna.');
+        }
+
+        return back()->with('success', 'Categoría interna creada. Ya puedes usarla en el mapeo.');
     }
 
     private function resolveClient(Request $request): ?CloverClient
@@ -175,5 +246,22 @@ class CloverController extends Controller
     private function authorizeAdmin(): void
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
+    }
+
+    private function resolveParentCategoryId(?string $scope, $parentId): ?int
+    {
+        if (! $scope || ! $parentId) {
+            return null;
+        }
+
+        $id = (int) $parentId;
+
+        return match ($scope) {
+            'menu' => Category::whereKey($id)->exists() ? $id : null,
+            'cocktails' => CocktailCategory::whereKey($id)->exists() ? $id : null,
+            'wines' => WineCategory::whereKey($id)->exists() ? $id : null,
+            'cantina' => CantinaCategory::whereKey($id)->exists() ? $id : null,
+            default => null,
+        };
     }
 }

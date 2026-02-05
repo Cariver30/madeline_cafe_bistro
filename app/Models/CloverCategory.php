@@ -15,9 +15,13 @@ class CloverCategory extends Model
         'sort_order',
         'deleted',
         'scope',
+        'subcategory_id',
+        'parent_category_id',
     ];
 
     protected $casts = [
         'deleted' => 'boolean',
+        'subcategory_id' => 'integer',
+        'parent_category_id' => 'integer',
     ];
 }

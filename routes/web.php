@@ -238,6 +238,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin/clover/categories/sync', [CloverController::class, 'syncCategories'])->name('admin.clover.categories.sync');
     Route::post('/admin/clover/items/sync', [CloverController::class, 'syncItems'])->name('admin.clover.items.sync');
     Route::post('/admin/clover/sync-all', [CloverController::class, 'syncAll'])->name('admin.clover.sync_all');
+    Route::post('/admin/clover/parent-categories', [CloverController::class, 'storeParentCategory'])->name('admin.clover.parent-categories.store');
     Route::post('/admin/clover/scopes', [CloverController::class, 'updateScopes'])->name('admin.clover.scopes.update');
     Route::post('/admin/managers', [UserManagementController::class, 'storeManager'])->name('admin.managers.store');
     Route::patch('/admin/managers/{user}/toggle', [UserManagementController::class, 'toggleManager'])->name('admin.managers.toggle');

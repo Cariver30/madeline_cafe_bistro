@@ -5,14 +5,17 @@ namespace App\Support;
 use App\Models\CantinaCategory;
 use App\Models\CantinaItem;
 use App\Models\Category;
+use App\Models\CategorySubcategory;
 use App\Models\CloverCategory;
 use App\Models\Cocktail;
 use App\Models\CocktailCategory;
+use App\Models\CocktailSubcategory;
 use App\Models\Dish;
 use App\Models\Extra;
 use App\Models\Tax;
 use App\Models\Wine;
 use App\Models\WineCategory;
+use App\Models\WineSubcategory;
 use Illuminate\Support\Arr;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -61,11 +64,11 @@ class CloverSyncService
 
     public function syncItems(bool $syncTaxes = true): int
     {
-        $scopeMap = CloverCategory::whereNotNull('scope')
-            ->pluck('scope', 'clover_id')
-            ->all();
+        $cloverCategories = CloverCategory::whereNotNull('scope')
+            ->get()
+            ->keyBy('clover_id');
 
-        if ($scopeMap === []) {
+        if ($cloverCategories->isEmpty()) {
             return 0;
         }
 
@@ -90,27 +93,39 @@ class CloverSyncService
                     continue;
                 }
 
-                [$scope, $categoryId] = $this->resolveScope($item, $scopeMap);
-                if (! $scope || ! $categoryId) {
+                [$scope, $cloverCategory] = $this->resolveScope($item, $cloverCategories);
+                if (! $scope || ! $cloverCategory) {
                     continue;
                 }
 
-                $localCategory = $this->resolveLocalCategory($scope, $categoryId);
+                $parentCategory = $this->resolveParentCategory($scope, $cloverCategory);
+                $localCategory = $parentCategory ?: $this->resolveLocalCategory($scope, $cloverCategory);
                 if (! $localCategory) {
                     continue;
                 }
 
+                $subcategory = $this->resolveSubcategoryForScope($scope, $cloverCategory, $localCategory);
+
                 $price = $this->formatPrice($item['price'] ?? null);
                 $visible = $this->resolveVisibility($item);
 
-                $itemModel = $this->upsertItem($scope, [
+                $payload = [
                     'clover_id' => $itemId,
                     'name' => $name,
                     'description' => $this->resolveDescription($item),
                     'price' => $price,
                     'category_id' => $localCategory->id,
                     'visible' => $visible,
-                ]);
+                ];
+
+                if ($subcategory) {
+                    $payload['subcategory_id'] = $subcategory->id;
+                } elseif (Schema::hasColumn($this->resolveItemTable($scope), 'subcategory_id')) {
+                    // Clear stale subcategory when no parent is selected in mapping.
+                    $payload['subcategory_id'] = null;
+                }
+
+                $itemModel = $this->upsertItem($scope, $payload);
 
                 $this->syncItemModifiers($scope, $itemId, $itemModel);
                 if ($syncTaxes) {
@@ -333,27 +348,29 @@ class CloverSyncService
         ];
     }
 
-    private function resolveScope(array $item, array $scopeMap): array
+    private function resolveScope(array $item, $cloverCategories): array
     {
         $categories = Arr::get($item, 'categories.elements', []);
 
         foreach ($categories as $category) {
             $cloverId = $category['id'] ?? null;
-            if (! $cloverId || ! isset($scopeMap[$cloverId])) {
+            if (! $cloverId || ! isset($cloverCategories[$cloverId])) {
                 continue;
             }
 
-            return [$scopeMap[$cloverId], $cloverId];
+            $cloverCategory = $cloverCategories[$cloverId];
+
+            return [$cloverCategory->scope, $cloverCategory];
         }
 
         return [null, null];
     }
 
-    private function resolveLocalCategory(string $scope, string $cloverId)
+    private function resolveLocalCategory(string $scope, CloverCategory $cloverCategory)
     {
-        $cloverCategory = CloverCategory::where('clover_id', $cloverId)->first();
-        $name = $cloverCategory?->name ?? 'Categoría';
-        $order = $cloverCategory?->sort_order ?? 0;
+        $name = $cloverCategory->name ?? 'Categoría';
+        $order = $cloverCategory->sort_order ?? 0;
+        $cloverId = $cloverCategory->clover_id;
 
         return match ($scope) {
             'menu' => $this->upsertCategory(Category::class, $cloverId, $name, $order),
@@ -437,6 +454,10 @@ class CloverSyncService
             unset($payload['visible']);
         }
 
+        if (! Schema::hasColumn($this->resolveItemTable($scope), 'subcategory_id')) {
+            unset($payload['subcategory_id']);
+        }
+
         return $payload;
     }
 
@@ -513,6 +534,82 @@ class CloverSyncService
         $deleted = (bool) ($item['deleted'] ?? false);
 
         return ! $hidden && $available && $enabledOnline && ! $deleted;
+    }
+
+    private function resolveParentCategory(string $scope, CloverCategory $cloverCategory)
+    {
+        $parentId = $cloverCategory->parent_category_id;
+        if (! $parentId) {
+            return null;
+        }
+
+        $id = (int) $parentId;
+
+        return match ($scope) {
+            'menu' => Category::find($id),
+            'cocktails' => CocktailCategory::find($id),
+            'wines' => WineCategory::find($id),
+            'cantina' => CantinaCategory::find($id),
+            default => null,
+        };
+    }
+
+    private function resolveSubcategoryForScope(string $scope, CloverCategory $cloverCategory, $parentCategory)
+    {
+        if (! $parentCategory) {
+            return null;
+        }
+
+        if ($scope === 'cantina') {
+            return null;
+        }
+
+        $existingId = $cloverCategory->subcategory_id ? (int) $cloverCategory->subcategory_id : null;
+        $subcategory = null;
+
+        if ($existingId) {
+            $subcategory = match ($scope) {
+                'menu' => CategorySubcategory::find($existingId),
+                'cocktails' => CocktailSubcategory::find($existingId),
+                'wines' => WineSubcategory::find($existingId),
+                default => null,
+            };
+
+            if ($subcategory) {
+                $parentId = match ($scope) {
+                    'menu' => $subcategory->category_id,
+                    'cocktails' => $subcategory->cocktail_category_id,
+                    'wines' => $subcategory->wine_category_id,
+                    default => null,
+                };
+
+                if ($parentId !== $parentCategory->id) {
+                    $subcategory = null;
+                }
+            }
+        }
+
+        if (! $subcategory) {
+            $subcategory = match ($scope) {
+                'menu' => CategorySubcategory::firstOrCreate(
+                    ['category_id' => $parentCategory->id, 'name' => $cloverCategory->name]
+                ),
+                'cocktails' => CocktailSubcategory::firstOrCreate(
+                    ['cocktail_category_id' => $parentCategory->id, 'name' => $cloverCategory->name]
+                ),
+                'wines' => WineSubcategory::firstOrCreate(
+                    ['wine_category_id' => $parentCategory->id, 'name' => $cloverCategory->name]
+                ),
+                default => null,
+            };
+
+            if ($subcategory) {
+                $cloverCategory->subcategory_id = $subcategory->id;
+                $cloverCategory->save();
+            }
+        }
+
+        return $subcategory;
     }
 
     private function formatPrice($price): float
