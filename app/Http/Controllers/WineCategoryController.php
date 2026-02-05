@@ -42,7 +42,7 @@ class WineCategoryController extends Controller
         $category->taxes()->sync($this->collectTaxIds($request));
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Categoría creada con éxito');
@@ -75,7 +75,7 @@ class WineCategoryController extends Controller
         $wineCategory->taxes()->sync($this->collectTaxIds($request));
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Categoría actualizada con éxito');
@@ -87,7 +87,7 @@ class WineCategoryController extends Controller
         $wineCategory->delete();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Categoría eliminada con éxito');
@@ -116,7 +116,7 @@ class WineCategoryController extends Controller
         $wineCategory->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Categoría de café actualizada en la portada.');
@@ -138,7 +138,7 @@ class WineCategoryController extends Controller
         }
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Bebidas destacadas actualizadas.');

@@ -29,7 +29,7 @@ class FoodPairingController extends Controller
 
         FoodPairing::create($request->only('name', 'dish_id'));
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])->with('success', 'Maridaje creado con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])->with('success', 'Maridaje creado con éxito.');
     }
 
     public function edit(FoodPairing $foodPairing)
@@ -47,12 +47,12 @@ class FoodPairingController extends Controller
 
         $foodPairing->update($request->only('name', 'dish_id'));
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])->with('success', 'Maridaje actualizado con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])->with('success', 'Maridaje actualizado con éxito.');
     }
 
     public function destroy(FoodPairing $foodPairing)
     {
         $foodPairing->delete();
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])->with('success', 'Maridaje eliminado con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])->with('success', 'Maridaje eliminado con éxito.');
     }
 }

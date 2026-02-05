@@ -125,6 +125,45 @@
             background-color: rgba(0, 0, 0, 0.25);
         }
 
+        .subcategory-tabs {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin: 0 0 1.25rem;
+            overflow-x: auto;
+            padding: 0.2rem 0.4rem 0.4rem;
+            scroll-snap-type: x mandatory;
+        }
+
+        .subcategory-tab {
+            padding: 0.4rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--menu-text-color);
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+            white-space: nowrap;
+            scroll-snap-align: start;
+        }
+
+        .subcategory-tab:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .subcategory-tab.active {
+            background: var(--menu-accent-color);
+            color: #111827;
+            border-color: transparent;
+        }
+
+        .subcategory-panel.hidden {
+            display: none;
+        }
+
         .hero-media {
             width: 100%;
             max-height: 420px;
@@ -322,17 +361,53 @@
                 };
             @endphp
             @if($subcategories->count())
-                @foreach ($subcategories as $subcategory)
-                    @php
+                @php
+                    $subcategoryGroups = collect();
+                    foreach ($subcategories as $subcategory) {
                         $subcategoryItems = ($subcategory->dishes ?? $subcategory->items ?? collect())
                             ->where('visible', true);
-                    @endphp
-                    @if($subcategoryItems->isNotEmpty())
-                        <h3 class="subcategory-title" style="background-color: {{ $subcategoryBg }}; color: {{ $subcategoryText }};">
-                            {{ $subcategory->name }}
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            @foreach ($subcategoryItems as $item)
+                        $sameName = trim(mb_strtolower((string) $subcategory->name)) === trim(mb_strtolower((string) $category->name));
+                        if ($subcategoryItems->isNotEmpty() && ! $sameName) {
+                            $subcategoryGroups->push([
+                                'id' => $subcategory->id,
+                                'name' => $subcategory->name,
+                                'items' => $subcategoryItems,
+                            ]);
+                        } elseif ($subcategoryItems->isNotEmpty() && $sameName) {
+                            $uncategorizedItems = $uncategorizedItems->merge($subcategoryItems);
+                        }
+                    }
+                    $hasSubcategoryGroups = $subcategoryGroups->isNotEmpty();
+                    $includeOtherTab = $hasSubcategoryGroups && $uncategorizedItems->count();
+                    $tabGroups = $includeOtherTab
+                        ? $subcategoryGroups->merge([['id' => 'other', 'name' => 'Otros', 'items' => $uncategorizedItems]])
+                        : $subcategoryGroups;
+                    $showTabs = $tabGroups->count() > 1;
+                @endphp
+                @if($hasSubcategoryGroups)
+                    @if($showTabs)
+                        <div class="subcategory-tabs" data-category-tabs="{{ $category->id }}">
+                            @foreach ($tabGroups as $group)
+                                <button type="button"
+                                    class="subcategory-tab {{ $loop->first ? 'active' : '' }}"
+                                    data-category-tab="{{ $category->id }}"
+                                    data-subcategory-tab="{{ $group['id'] }}">
+                                    {{ $group['name'] }}
+                                </button>
+                            @endforeach
+                        </div>
+                    @endif
+                    @foreach ($tabGroups as $group)
+                        <div class="subcategory-panel {{ $loop->first ? '' : 'hidden' }}"
+                             data-category-panel="{{ $category->id }}"
+                             data-subcategory-panel="{{ $group['id'] }}">
+                            @if(! $showTabs)
+                                <h3 class="subcategory-title" style="background-color: {{ $subcategoryBg }}; color: {{ $subcategoryText }};">
+                                    {{ $group['name'] }}
+                                </h3>
+                            @endif
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            @foreach ($group['items'] as $item)
                                 @php
                                     $itemType = ($category->scope ?? 'menu') === 'cocktails'
                                         ? 'cocktail'
@@ -466,13 +541,15 @@
                                     </div>
                                 </div>
                             @endforeach
+                            </div>
                         </div>
-                    @endif
-                @endforeach
-                @if($uncategorizedItems->count())
-                    <h3 class="subcategory-title" style="background-color: {{ $subcategoryBg }}; color: {{ $subcategoryText }};">Otros</h3>
+                    @endforeach
+                @else
+                    @php
+                        $fallbackItems = $categoryItems->merge($uncategorizedItems)->unique('id');
+                    @endphp
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        @foreach ($uncategorizedItems as $item)
+                        @foreach ($fallbackItems as $item)
                             @php
                                 $itemType = ($category->scope ?? 'menu') === 'cocktails'
                                     ? 'cocktail'
@@ -552,61 +629,61 @@
                                     ->values()
                                     ->all();
                             @endphp
-                                <div id="{{ $itemIdPrefix }}{{ $item->id }}" onclick="openDishModal(this)"
-                                    class="dish-card rounded-lg p-4 shadow-lg relative flex items-center cursor-pointer hover:scale-105 transition"
-                                    style="background-color: {{ $settings->card_bg_color_menu ?? '#191919' }};
-                                           opacity: {{ $settings->card_opacity_menu ?? 0.9 }};"
-                                data-item-type="{{ $itemType }}"
-                                data-item-id="{{ $item->id }}"
-                                data-name="{{ $item->name }}"
-                                data-description="{{ $item->description }}"
-                                data-price="${{ number_format($item->price, 2) }}"
-                                data-image="{{ $item->image ? asset('storage/' . $item->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}"
-                                    data-wines="{{ e($winePairs) }}"
-                                    data-recommended="{{ e($recommendedPairs) }}"
-                                    data-upsells='@json($upsellPayload)'
-                                    data-extras='@json($itemExtrasPayload)'
-                                    data-taxes='@json($itemTaxesPayload)'>
+                            <div id="{{ $itemIdPrefix }}{{ $item->id }}" onclick="openDishModal(this)"
+                                class="dish-card rounded-lg p-4 shadow-lg relative flex items-center cursor-pointer hover:scale-105 transition"
+                                style="background-color: {{ $settings->card_bg_color_menu ?? '#191919' }};
+                                       opacity: {{ $settings->card_opacity_menu ?? 0.9 }};"
+                            data-item-type="{{ $itemType }}"
+                            data-item-id="{{ $item->id }}"
+                            data-name="{{ $item->name }}"
+                            data-description="{{ $item->description }}"
+                            data-price="${{ number_format($item->price, 2) }}"
+                            data-image="{{ $item->image ? asset('storage/' . $item->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}"
+                                data-wines="{{ e($winePairs) }}"
+                                data-recommended="{{ e($recommendedPairs) }}"
+                                data-upsells='@json($upsellPayload)'
+                                data-extras='@json($itemExtrasPayload)'
+                                data-taxes='@json($itemTaxesPayload)'>
 
-                                <span class="absolute top-2 right-2 text-xs bg-gray-700 text-white px-2 py-1 rounded">Ver más</span>
-
-
-                                <img src="{{ $item->image ? asset('storage/' . $item->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}"
-                                     alt="{{ $item->name }}"
-                                     class="h-24 w-24 rounded-full object-cover mr-4 border border-white/10">
-
-                                <div class="flex-1">
-                                    <h3 class="text-xl font-bold">{{ $item->name }}</h3>
-                                    <p class="text-sm mb-2">${{ number_format($item->price, 2) }}</p>
+                            <span class="absolute top-2 right-2 text-xs bg-gray-700 text-white px-2 py-1 rounded">Ver más</span>
 
 
-                                    @if ($itemType === 'dish' && $item->wines && $item->wines->count())
-                                        <div class="mt-3">
-                                            <p class="text-xs uppercase tracking-[0.2em] mb-2" style="color: {{ $settings->text_color_menu ?? '#fefefe' }};">Maridajes sugeridos</p>
-                                            <div class="flex flex-wrap gap-2">
-                                                @foreach($item->wines as $wine)
-                                                    @if (!empty($orderMode))
-                                                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border"
-                                                            style="background-color: {{ $settings->category_name_bg_color_menu ?? 'rgba(254, 90, 90, 0.2)' }}; border-color: {{ $settings->button_color_menu ?? '#FFB347' }}; color: {{ $settings->text_color_menu ?? '#ffffff' }};">
-                                                            <i class="fas fa-wine-glass-alt" style="color: {{ $settings->button_color_menu ?? '#FFB347' }};"></i>
-                                                            {{ $wine->name }}
-                                                        </span>
-                                                    @else
-                                                        <a href="{{ route('coffee.index') }}#drink{{ $wine->id }}"
-                                                           class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border transition hover:scale-105"
-                                                           style="background-color: {{ $settings->category_name_bg_color_menu ?? 'rgba(254, 90, 90, 0.2)' }}; border-color: {{ $settings->button_color_menu ?? '#FFB347' }}; color: {{ $settings->text_color_menu ?? '#ffffff' }};">
-                                                            <i class="fas fa-wine-glass-alt" style="color: {{ $settings->button_color_menu ?? '#FFB347' }};"></i>
-                                                            {{ $wine->name }}
-                                                        </a>
-                                                    @endif
-                                                @endforeach
-                                            </div>
+                            <img src="{{ $item->image ? asset('storage/' . $item->image) : asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}"
+                                 alt="{{ $item->name }}"
+                                 class="h-24 w-24 rounded-full object-cover mr-4 border border-white/10">
+
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold">{{ $item->name }}</h3>
+                                <p class="text-sm mb-2">${{ number_format($item->price, 2) }}</p>
+
+
+                                @if ($itemType === 'dish' && $item->wines && $item->wines->count())
+                                    <div class="mt-3">
+                                        <p class="text-xs uppercase tracking-[0.2em] mb-2" style="color: {{ $settings->text_color_menu ?? '#fefefe' }};">Maridajes sugeridos</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach($item->wines as $wine)
+                                                @if (!empty($orderMode))
+                                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border"
+                                                        style="background-color: {{ $settings->category_name_bg_color_menu ?? 'rgba(254, 90, 90, 0.2)' }}; border-color: {{ $settings->button_color_menu ?? '#FFB347' }}; color: {{ $settings->text_color_menu ?? '#ffffff' }};">
+                                                        <i class="fas fa-wine-glass-alt" style="color: {{ $settings->button_color_menu ?? '#FFB347' }};"></i>
+                                                        {{ $wine->name }}
+                                                    </span>
+                                                @else
+                                                    <a href="{{ route('coffee.index') }}#drink{{ $wine->id }}"
+                                                       class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border transition hover:scale-105"
+                                                       style="background-color: {{ $settings->category_name_bg_color_menu ?? 'rgba(254, 90, 90, 0.2)' }}; border-color: {{ $settings->button_color_menu ?? '#FFB347' }}; color: {{ $settings->text_color_menu ?? '#ffffff' }};">
+                                                        <i class="fas fa-wine-glass-alt" style="color: {{ $settings->button_color_menu ?? '#FFB347' }};"></i>
+                                                        {{ $wine->name }}
+                                                    </a>
+                                                @endif
+                                            @endforeach
                                         </div>
-                                    @endif
-                                </div>
+                                    </div>
+                                @endif
                             </div>
-                        @endforeach
-                    </div>
+                        </div>
+                    @endforeach
+                </div>
                 @endif
             @else
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1953,6 +2030,33 @@
             menuPopupInstance.hide();
         }
     }
+
+    function initSubcategoryTabs() {
+        const tabRows = document.querySelectorAll('[data-category-tabs]');
+        tabRows.forEach((row) => {
+            const categoryId = row.dataset.categoryTabs;
+            const tabs = row.querySelectorAll('[data-subcategory-tab]');
+            const panels = document.querySelectorAll(`[data-category-panel="${categoryId}"]`);
+            if (!tabs.length || !panels.length) return;
+
+            tabs.forEach((tab) => {
+                tab.addEventListener('click', () => {
+                    const target = tab.dataset.subcategoryTab;
+                    tabs.forEach((btn) => btn.classList.remove('active'));
+                    tab.classList.add('active');
+                    panels.forEach((panel) => {
+                        if (panel.dataset.subcategoryPanel === target) {
+                            panel.classList.remove('hidden');
+                        } else {
+                            panel.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initSubcategoryTabs);
 </script>
 
 </body>

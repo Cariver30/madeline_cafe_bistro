@@ -26,7 +26,7 @@ class RegionController extends Controller
 
         Region::create($request->all());
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])->with('success', 'Región creada con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])->with('success', 'Región creada con éxito.');
     }
 
     public function edit(Region $region)
@@ -42,13 +42,13 @@ class RegionController extends Controller
 
         $region->update($request->all());
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])->with('success', 'Región actualizada con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])->with('success', 'Región actualizada con éxito.');
     }
 
     public function destroy(Region $region)
     {
         $region->delete();
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])->with('success', 'Región eliminada con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])->with('success', 'Región eliminada con éxito.');
     }
 }

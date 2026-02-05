@@ -934,7 +934,8 @@ $foodPairings = FoodPairing::all();
             'repeat_days' => $request->repeat_days ? implode(',', $request->repeat_days) : null
         ]);
 
-        return redirect()->route('admin.new-panel')->with('success', 'Pop-up creado con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'popups'])
+            ->with('success', 'Pop-up creado con éxito.');
     }
 
     public function editPopup(Popup $popup)
@@ -969,18 +970,21 @@ $foodPairings = FoodPairing::all();
 
         $popup->save();
 
-        return redirect()->route('admin.new-panel')->with('success', 'Pop-up actualizado con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'popups'])
+            ->with('success', 'Pop-up actualizado con éxito.');
     }
     public function destroyPopup(Popup $popup)
     {
         $popup->delete();
-        return redirect()->route('admin.new-panel')->with('success', 'Pop-up eliminado con éxito.');
+        return redirect()->route('admin.new-panel', ['section' => 'popups'])
+            ->with('success', 'Pop-up eliminado con éxito.');
     }
 
     public function toggleVisibility(Popup $popup)
     {
         $popup->update(['active' => !$popup->active]);
-        return redirect()->route('admin.new-panel')->with('success', 'Visibilidad del pop-up actualizada.');
+        return redirect()->route('admin.new-panel', ['section' => 'popups'])
+            ->with('success', 'Visibilidad del pop-up actualizada.');
     }
 
 }

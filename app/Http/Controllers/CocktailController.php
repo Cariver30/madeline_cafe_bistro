@@ -185,7 +185,7 @@ class CocktailController extends Controller
     {
         $cocktail->delete();
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Artículo de Cocktail eliminado con éxito');
@@ -197,7 +197,7 @@ class CocktailController extends Controller
         $cocktail->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Visibilidad del artículo de Cocktail actualizada');
@@ -209,7 +209,7 @@ class CocktailController extends Controller
         $cocktail->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Destacado en portada actualizado.');

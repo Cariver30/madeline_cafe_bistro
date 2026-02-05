@@ -26,7 +26,7 @@ class GrapeController extends Controller
 
         Grape::create($request->all());
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])
                         ->with('success', 'Uva creada con éxito.');
     }
 
@@ -43,7 +43,7 @@ class GrapeController extends Controller
 
         $grape->update($request->all());
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])
                         ->with('success', 'Uva actualizada con éxito.');
     }
 
@@ -51,7 +51,7 @@ class GrapeController extends Controller
     {
         $grape->delete();
 
-        return redirect()->route('admin.new-panel', ['section' => 'wines-section'])
+        return redirect()->route('admin.new-panel', ['section' => 'wines'])
                         ->with('success', 'Uva eliminada con éxito.');
     }
 }

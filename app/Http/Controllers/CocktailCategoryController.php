@@ -39,7 +39,7 @@ class CocktailCategoryController extends Controller
         $category->taxes()->sync($this->collectTaxIds($request));
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Categoría de cocktail creada con éxito.');
@@ -70,7 +70,7 @@ class CocktailCategoryController extends Controller
         $cocktailCategory->taxes()->sync($this->collectTaxIds($request));
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Categoría de cocktail actualizada con éxito.');
@@ -81,7 +81,7 @@ class CocktailCategoryController extends Controller
         $cocktailCategory->delete();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Categoría de cocktail eliminada con éxito.');
@@ -110,7 +110,7 @@ class CocktailCategoryController extends Controller
         $cocktailCategory->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Categoría actualizada en la portada.');
@@ -132,7 +132,7 @@ class CocktailCategoryController extends Controller
         }
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cocktails-section',
+            'section' => 'cocktails',
             'open' => 'cocktail-create',
             'expand' => 'cocktail-categories',
         ])->with('success', 'Cócteles destacados actualizados.');

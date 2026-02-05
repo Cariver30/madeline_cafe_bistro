@@ -564,6 +564,16 @@ class CloverSyncService
             return null;
         }
 
+        $parentName = mb_strtolower(trim((string) ($parentCategory->name ?? '')));
+        $cloverName = mb_strtolower(trim((string) ($cloverCategory->name ?? '')));
+        if ($parentName !== '' && $cloverName !== '' && $parentName === $cloverName) {
+            if ($cloverCategory->subcategory_id) {
+                $cloverCategory->subcategory_id = null;
+                $cloverCategory->save();
+            }
+            return null;
+        }
+
         $existingId = $cloverCategory->subcategory_id ? (int) $cloverCategory->subcategory_id : null;
         $subcategory = null;
 

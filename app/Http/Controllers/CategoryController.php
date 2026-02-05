@@ -49,7 +49,7 @@ class CategoryController extends Controller
         $category->taxes()->sync($this->collectTaxIds($request));
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Categoría creada con éxito.');
@@ -100,7 +100,7 @@ class CategoryController extends Controller
         $category->taxes()->sync($this->collectTaxIds($request));
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Categoría actualizada con éxito.');
@@ -114,7 +114,7 @@ class CategoryController extends Controller
         $category->delete();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Categoría eliminada con éxito.');
@@ -149,7 +149,7 @@ class CategoryController extends Controller
         $category->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Se actualizó la visibilidad en portada.');
@@ -172,7 +172,7 @@ class CategoryController extends Controller
         }
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Destacados actualizados.');

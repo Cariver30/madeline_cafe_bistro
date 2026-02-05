@@ -34,7 +34,7 @@ class CantinaCategoryController extends Controller
         CantinaCategory::create($data);
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
             'expand' => 'cantina-categories',
         ])->with('success', 'Categoría de cantina creada con éxito.');
@@ -59,7 +59,7 @@ class CantinaCategoryController extends Controller
         $cantinaCategory->update($data);
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
             'expand' => 'cantina-categories',
         ])->with('success', 'Categoría de cantina actualizada con éxito.');
@@ -70,7 +70,7 @@ class CantinaCategoryController extends Controller
         $cantinaCategory->delete();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
             'expand' => 'cantina-categories',
         ])->with('success', 'Categoría de cantina eliminada con éxito.');
@@ -99,7 +99,7 @@ class CantinaCategoryController extends Controller
         $cantinaCategory->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
             'expand' => 'cantina-categories',
         ])->with('success', 'Categoría actualizada en la portada.');
@@ -121,7 +121,7 @@ class CantinaCategoryController extends Controller
         }
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
             'expand' => 'cantina-categories',
         ])->with('success', 'Destacados de cantina actualizados.');

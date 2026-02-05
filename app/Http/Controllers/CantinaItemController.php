@@ -80,7 +80,7 @@ class CantinaItemController extends Controller
         $cantinaItem->delete();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
         ])->with('success', 'Artículo de cantina eliminado con éxito.');
     }
@@ -91,7 +91,7 @@ class CantinaItemController extends Controller
         $cantinaItem->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
         ])->with('success', 'Visibilidad del artículo de cantina actualizada.');
     }
@@ -102,7 +102,7 @@ class CantinaItemController extends Controller
         $cantinaItem->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'cantina-section',
+            'section' => 'cantina',
             'open' => 'cantina-create',
         ])->with('success', 'Destacado en portada actualizado.');
     }

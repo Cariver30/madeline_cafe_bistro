@@ -299,7 +299,7 @@ class WineController extends Controller
         $wine->delete();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Bebida de café eliminada con éxito');
@@ -311,7 +311,7 @@ class WineController extends Controller
         $wine->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Visibilidad del artículo actualizada');
@@ -323,7 +323,7 @@ class WineController extends Controller
         $wine->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'wines-section',
+            'section' => 'wines',
             'open' => 'wine-create',
             'expand' => 'wine-categories',
         ])->with('success', 'Destacado en portada actualizado');

@@ -84,7 +84,7 @@ class DishController extends Controller
         $dish->taxes()->sync($this->collectTaxIds($request));
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Plato creado exitosamente y visible en el menú.');
@@ -161,7 +161,7 @@ class DishController extends Controller
     {
         $dish->delete();
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Plato eliminado exitosamente.');
@@ -173,7 +173,7 @@ class DishController extends Controller
         $dish->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Visibilidad del plato actualizada.');
@@ -185,7 +185,7 @@ class DishController extends Controller
         $dish->save();
 
         return redirect()->route('admin.new-panel', [
-            'section' => 'menu-section',
+            'section' => 'menu',
             'open' => 'menu-create',
             'expand' => 'dish-categories',
         ])->with('success', 'Estado destacado actualizado.');
