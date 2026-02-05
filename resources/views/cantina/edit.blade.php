@@ -3,62 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Artículo de Cantina</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Editar artículo · Cantina</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" />
 </head>
-<body>
-<div class="container mt-5">
-    <h1>Editar Artículo de Cantina</h1>
+<body class="min-h-screen bg-slate-950 text-white">
+    <div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-0 space-y-8">
+        <a href="{{ route('admin.new-panel', ['section' => 'cantina']) }}" class="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition">
+            <span class="text-lg">←</span> Volver al panel
+        </a>
 
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+        <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-8 shadow-2xl">
+            <div class="space-y-2 mb-8">
+                <p class="text-xs uppercase tracking-[0.35em] text-white/60">Cantina</p>
+                <h1 class="text-3xl font-semibold">Editar artículo</h1>
+                <p class="text-white/60 text-sm">Actualiza la información del artículo de cantina.</p>
+            </div>
 
-    <form action="{{ route('cantina-items.update', $cantinaItem->id) }}" method="POST" enctype="multipart/form-data">
-        @csrf
-        @method('PUT')
-        <div class="mb-3">
-            <label for="name" class="form-label">Nombre</label>
-            <input type="text" class="form-control" id="name" name="name" value="{{ $cantinaItem->name }}" required>
+            @if ($errors->any())
+                <div class="mb-6 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-100">
+                    <p class="font-semibold mb-2">Revisa estos campos:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form action="{{ route('cantina-items.update', $cantinaItem->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label for="name" class="block text-sm font-semibold text-white/80 mb-2">Nombre del artículo</label>
+                    <input type="text" id="name" name="name" value="{{ old('name', $cantinaItem->name) }}" required
+                           class="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:border-amber-400 focus:ring-amber-400" />
+                </div>
+
+                <div>
+                    <label for="description" class="block text-sm font-semibold text-white/80 mb-2">Descripción</label>
+                    <textarea id="description" name="description" rows="4"
+                              class="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:border-amber-400 focus:ring-amber-400">{{ old('description', $cantinaItem->description) }}</textarea>
+                </div>
+
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="price" class="block text-sm font-semibold text-white/80 mb-2">Precio</label>
+                        <input type="number" step="0.01" id="price" name="price" value="{{ old('price', $cantinaItem->price) }}" required
+                               class="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:border-amber-400 focus:ring-amber-400" />
+                    </div>
+                    <div>
+                        <label for="category_id" class="block text-sm font-semibold text-white/80 mb-2">Categoría</label>
+                        <select id="category_id" name="category_id" required
+                                class="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-amber-400 focus:ring-amber-400">
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" {{ (int) old('category_id', $cantinaItem->category_id) === $category->id ? 'selected' : '' }}>
+                                    {{ $category->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="image" class="block text-sm font-semibold text-white/80 mb-2">Imagen (opcional)</label>
+                    <input type="file" id="image" name="image"
+                           class="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white file:mr-4 file:rounded-xl file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-white/20" />
+                    @if($cantinaItem->image)
+                        <p class="mt-2 text-xs text-white/60">Imagen actual:</p>
+                        <img src="{{ asset('storage/' . $cantinaItem->image) }}" alt="{{ $cantinaItem->name }}" class="mt-2 h-20 w-20 rounded-xl object-cover border border-white/10">
+                    @endif
+                </div>
+
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <label class="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                        <input type="hidden" name="visible" value="0">
+                        <input class="h-4 w-4 rounded text-amber-400 focus:ring-amber-400" type="checkbox" id="visible" name="visible" value="1" {{ old('visible', $cantinaItem->visible) ? 'checked' : '' }}>
+                        <span class="text-sm text-white/80">Visible</span>
+                    </label>
+                    <label class="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                        <input type="hidden" name="featured_on_cover" value="0">
+                        <input class="h-4 w-4 rounded text-amber-400 focus:ring-amber-400" type="checkbox" id="featured_on_cover" name="featured_on_cover" value="1" {{ old('featured_on_cover', $cantinaItem->featured_on_cover) ? 'checked' : '' }}>
+                        <span class="text-sm text-white/80">Destacar en portada</span>
+                    </label>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <a href="{{ route('admin.new-panel', ['section' => 'cantina']) }}" class="rounded-2xl border border-white/20 px-5 py-2 text-sm font-semibold text-white/80 hover:text-white">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="rounded-2xl bg-amber-400 px-6 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-300">
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
         </div>
-        <div class="mb-3">
-            <label for="description" class="form-label">Descripción</label>
-            <textarea class="form-control" id="description" name="description">{{ $cantinaItem->description }}</textarea>
-        </div>
-        <div class="mb-3">
-            <label for="price" class="form-label">Precio</label>
-            <input type="number" class="form-control" id="price" name="price" step="0.01" value="{{ $cantinaItem->price }}" required>
-        </div>
-        <div class="mb-3">
-            <label for="category_id" class="form-label">Categoría</label>
-            <select class="form-control" id="category_id" name="category_id" required>
-                @foreach($categories as $category)
-                    <option value="{{ $category->id }}" {{ $category->id == $cantinaItem->category_id ? 'selected' : '' }}>{{ $category->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="mb-3">
-            <label for="image" class="form-label">Imagen</label>
-            <input type="file" class="form-control" id="image" name="image">
-        </div>
-        <div class="form-check mb-3">
-            <input type="hidden" name="visible" value="0">
-            <input class="form-check-input" type="checkbox" id="visible" name="visible" value="1" {{ $cantinaItem->visible ? 'checked' : '' }}>
-            <label class="form-check-label" for="visible">Visible</label>
-        </div>
-        <div class="form-check mb-3">
-            <input type="hidden" name="featured_on_cover" value="0">
-            <input class="form-check-input" type="checkbox" id="featured_on_cover" name="featured_on_cover" value="1" {{ $cantinaItem->featured_on_cover ? 'checked' : '' }}>
-            <label class="form-check-label" for="featured_on_cover">Destacar en portada</label>
-        </div>
-        <button type="submit" class="btn btn-primary">Actualizar</button>
-    </form>
-</div>
+    </div>
 </body>
 </html>
