@@ -7,6 +7,7 @@ use App\Models\CantinaCategory;
 use App\Models\CantinaItem;
 use App\Models\Category;
 use App\Models\CocktailCategory;
+use App\Models\CloverCategory;
 use App\Models\Order;
 use App\Models\OrderBatch;
 use App\Models\Payment;
@@ -30,6 +31,16 @@ class OnlineOrderController extends Controller
     {
         $settings = Setting::first();
         $onlineOrdering = $this->resolveOnlineOrderingStatus($settings);
+        $cloverScopeMap = CloverCategory::select('clover_id', 'scope')
+            ->get()
+            ->keyBy('clover_id');
+        $matchesScope = function ($category, string $scope) use ($cloverScopeMap): bool {
+            if (empty($category->clover_id)) {
+                return true;
+            }
+
+            return ($cloverScopeMap[$category->clover_id]->scope ?? null) === $scope;
+        };
 
         $dishQuery = function ($query) {
             $query->where('visible', true)
@@ -62,6 +73,7 @@ class OnlineOrderController extends Controller
             $category->setAttribute('key', 'menu-' . $category->id);
             $category->setRelation('items', $category->dishes);
         });
+        $menuCategories = $menuCategories->filter(fn ($category) => $matchesScope($category, 'menu'));
 
         $cocktailItemQuery = function ($query) {
             $query->where('visible', true)
@@ -91,6 +103,7 @@ class OnlineOrderController extends Controller
             $category->setAttribute('scope', 'cocktails');
             $category->setAttribute('key', 'cocktails-' . $category->id);
         });
+        $cocktailCategories = $cocktailCategories->filter(fn ($category) => $matchesScope($category, 'cocktails'));
 
         $wineItemQuery = function ($query) {
             $query->where('visible', true)
@@ -120,6 +133,7 @@ class OnlineOrderController extends Controller
             $category->setAttribute('scope', 'wines');
             $category->setAttribute('key', 'wines-' . $category->id);
         });
+        $wineCategories = $wineCategories->filter(fn ($category) => $matchesScope($category, 'wines'));
 
         $cantinaCategories = collect();
         if ($settings?->show_tab_cantina ?? true) {
@@ -143,6 +157,7 @@ class OnlineOrderController extends Controller
                 $category->setAttribute('scope', 'cantina');
                 $category->setAttribute('key', 'cantina-' . $category->id);
             });
+            $cantinaCategories = $cantinaCategories->filter(fn ($category) => $matchesScope($category, 'cantina'));
         }
 
         $categories = $menuCategories

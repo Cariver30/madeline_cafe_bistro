@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cocktail;
 use App\Models\CocktailCategory;
 use App\Models\CocktailSubcategory;
+use App\Models\CloverCategory;
 use App\Models\Extra;
 use App\Models\Setting;
 use App\Models\Dish;
@@ -31,6 +32,10 @@ class CocktailController extends Controller
             ->orderBy('position');
     };
 
+    $cloverScopeMap = CloverCategory::select('clover_id', 'scope')
+        ->get()
+        ->keyBy('clover_id');
+
     $cocktailCategories = CocktailCategory::with([
         'items' => $itemQuery,
         'subcategories' => function ($query) use ($itemQuery) {
@@ -38,7 +43,14 @@ class CocktailController extends Controller
                 ->orderBy('id')
                 ->with(['items' => $itemQuery]);
         },
-    ])->orderBy('order')->get();
+    ])->orderBy('order')->get()
+        ->filter(function ($category) use ($cloverScopeMap) {
+            if (empty($category->clover_id)) {
+                return true;
+            }
+
+            return ($cloverScopeMap[$category->clover_id]->scope ?? null) === 'cocktails';
+        });
     $popups = Popup::where('active', 1)
                     ->where('view', 'cocktails')
                     ->whereDate('start_date', '<=', now())

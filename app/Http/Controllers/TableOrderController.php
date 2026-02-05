@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\CocktailCategory;
 use App\Models\OrderBatch;
 use App\Models\TableSession;
+use App\Models\CloverCategory;
 use App\Models\WineCategory;
 use App\Models\Setting;
 use App\Support\Orders\TableOrderService;
@@ -43,6 +44,16 @@ class TableOrderController extends Controller
 
         $orderMode = ($session->order_mode ?? 'table') === 'table';
         $settings = Setting::first();
+        $cloverScopeMap = CloverCategory::select('clover_id', 'scope')
+            ->get()
+            ->keyBy('clover_id');
+        $matchesScope = function ($category, string $scope) use ($cloverScopeMap): bool {
+            if (empty($category->clover_id)) {
+                return true;
+            }
+
+            return ($cloverScopeMap[$category->clover_id]->scope ?? null) === $scope;
+        };
 
         $dishQuery = function ($query) {
             $query->where('visible', true)
@@ -74,6 +85,7 @@ class TableOrderController extends Controller
             $category->setAttribute('key', 'menu-' . $category->id);
             $category->setRelation('items', $category->dishes);
         });
+        $menuCategories = $menuCategories->filter(fn ($category) => $matchesScope($category, 'menu'));
 
         $cocktailItemQuery = function ($query) {
             $query->where('visible', true)
@@ -102,6 +114,7 @@ class TableOrderController extends Controller
             $category->setAttribute('scope', 'cocktails');
             $category->setAttribute('key', 'cocktails-' . $category->id);
         });
+        $cocktailCategories = $cocktailCategories->filter(fn ($category) => $matchesScope($category, 'cocktails'));
 
         $wineItemQuery = function ($query) {
             $query->where('visible', true)
@@ -130,6 +143,7 @@ class TableOrderController extends Controller
             $category->setAttribute('scope', 'wines');
             $category->setAttribute('key', 'wines-' . $category->id);
         });
+        $wineCategories = $wineCategories->filter(fn ($category) => $matchesScope($category, 'wines'));
 
         $categories = $menuCategories
             ->concat($cocktailCategories)

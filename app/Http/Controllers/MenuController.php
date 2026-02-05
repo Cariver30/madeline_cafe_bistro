@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use App\Models\CantinaCategory;
-use App\Models\CocktailCategory;
+use App\Models\CloverCategory;
 use App\Models\Popup;
 use App\Models\Setting;
-use App\Models\WineCategory;
 
 class MenuController extends Controller
 {
@@ -32,6 +30,16 @@ class MenuController extends Controller
         };
 
         $categories = collect();
+        $cloverScopeMap = CloverCategory::select('clover_id', 'scope')
+            ->get()
+            ->keyBy('clover_id');
+        $matchesScope = function ($category, string $scope) use ($cloverScopeMap): bool {
+            if (empty($category->clover_id)) {
+                return true;
+            }
+
+            return ($cloverScopeMap[$category->clover_id]->scope ?? null) === $scope;
+        };
 
         if ($visible($settings?->show_tab_menu)) {
             $menuCategories = Category::with([
@@ -50,65 +58,8 @@ class MenuController extends Controller
                 $category->setRelation('items', $category->dishes);
             });
 
+            $menuCategories = $menuCategories->filter(fn ($category) => $matchesScope($category, 'menu'));
             $categories = $categories->merge($menuCategories);
-        }
-
-        if ($visible($settings?->show_tab_cocktails)) {
-            $cocktailItemQuery = function ($query) {
-                $query->where('visible', true)->orderBy('position')->orderBy('id');
-            };
-            $cocktailCategories = CocktailCategory::with([
-                    'items' => $cocktailItemQuery,
-                    'subcategories' => function ($query) use ($cocktailItemQuery) {
-                        $query->orderBy('order')
-                            ->orderBy('id')
-                            ->with(['items' => $cocktailItemQuery]);
-                    },
-                ])
-                ->orderBy('order')
-                ->get();
-
-            $cocktailCategories->each(function ($category) {
-                $category->setAttribute('scope', 'cocktails');
-            });
-
-            $categories = $categories->merge($cocktailCategories);
-        }
-
-        if ($visible($settings?->show_tab_wines)) {
-            $wineItemQuery = function ($query) {
-                $query->where('visible', true)->orderBy('position')->orderBy('id');
-            };
-            $wineCategories = WineCategory::with([
-                    'items' => $wineItemQuery,
-                    'subcategories' => function ($query) use ($wineItemQuery) {
-                        $query->orderBy('order')
-                            ->orderBy('id')
-                            ->with(['items' => $wineItemQuery]);
-                    },
-                ])
-                ->orderBy('order')
-                ->get();
-
-            $wineCategories->each(function ($category) {
-                $category->setAttribute('scope', 'wines');
-            });
-
-            $categories = $categories->merge($wineCategories);
-        }
-
-        if ($visible($settings?->show_tab_cantina)) {
-            $cantinaCategories = CantinaCategory::with(['items' => function ($query) {
-                    $query->where('visible', true)->orderBy('position')->orderBy('id');
-                }])
-                ->orderBy('order')
-                ->get();
-
-            $cantinaCategories->each(function ($category) {
-                $category->setAttribute('scope', 'cantina');
-            });
-
-            $categories = $categories->merge($cantinaCategories);
         }
 
         $categories = $categories->filter(function ($category) {

@@ -15,6 +15,7 @@ use App\Models\WineCategory;
 use App\Models\WineSubcategory;
 use App\Models\WineType;
 use App\Models\Tax;
+use App\Models\CloverCategory;
 
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -84,6 +85,10 @@ class WineController extends Controller
             ->orderBy('id');
     };
 
+    $cloverScopeMap = CloverCategory::select('clover_id', 'scope')
+        ->get()
+        ->keyBy('clover_id');
+
     return view('coffee.index', [
         'settings'       => $settings,
         'wineCategories' => WineCategory::with([
@@ -93,7 +98,14 @@ class WineController extends Controller
                     ->orderBy('id')
                     ->with(['items' => $itemQuery]);
             },
-        ])->orderBy('order')->get(),
+        ])->orderBy('order')->get()
+            ->filter(function ($category) use ($cloverScopeMap) {
+                if (empty($category->clover_id)) {
+                    return true;
+                }
+
+                return ($cloverScopeMap[$category->clover_id]->scope ?? null) === 'wines';
+            }),
         'filters'        => false,
         'regions'        => Region::all(),
         'types'          => WineType::all(),
