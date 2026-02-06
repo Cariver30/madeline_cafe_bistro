@@ -9,6 +9,7 @@ use App\Models\DiningTable;
 use App\Models\TableAssignment;
 use App\Models\TableSession;
 use App\Models\User;
+use App\Models\Setting;
 use App\Models\WaitingListEntry;
 use App\Models\WaitingListSetting;
 use App\Support\TwilioSmsClient;
@@ -22,6 +23,7 @@ use Symfony\Component\HttpFoundation\Response;
 class WaitingListController extends Controller
 {
     private ?int $defaultWaitMinutes = null;
+    private ?string $defaultAreaCode = null;
 
     public function index(Request $request)
     {
@@ -451,6 +453,10 @@ class WaitingListController extends Controller
             return $phone;
         }
 
+        if (str_starts_with($digits, '00')) {
+            return '+' . substr($digits, 2);
+        }
+
         if (strlen($digits) === 10) {
             return '+1' . $digits;
         }
@@ -459,10 +465,34 @@ class WaitingListController extends Controller
             return '+' . $digits;
         }
 
-        if (str_starts_with($digits, '00')) {
-            return '+' . substr($digits, 2);
+        if (strlen($digits) === 7) {
+            $area = $this->resolveDefaultAreaCode();
+            if ($area) {
+                return '+1' . $area . $digits;
+            }
         }
 
-        return '+' . $digits;
+        return $phone;
+    }
+
+    private function resolveDefaultAreaCode(): ?string
+    {
+        if ($this->defaultAreaCode !== null) {
+            return $this->defaultAreaCode !== '' ? $this->defaultAreaCode : null;
+        }
+
+        $settingsPhone = Setting::first()?->phone_number;
+        $digits = preg_replace('/\D+/', '', $settingsPhone ?? '');
+        $area = null;
+
+        if (strlen($digits) === 10) {
+            $area = substr($digits, 0, 3);
+        } elseif (strlen($digits) === 11 && str_starts_with($digits, '1')) {
+            $area = substr($digits, 1, 3);
+        }
+
+        $this->defaultAreaCode = $area ?: '';
+
+        return $area;
     }
 }
