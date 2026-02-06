@@ -18,8 +18,18 @@
             'wines' => $settings->tab_label_wines ?? $settings->button_label_wines ?? 'Café & Brunch',
             'cantina' => $settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina',
         ];
-        $scopeList = collect($categories ?? [])
+        $enabledScopes = collect([
+            'menu' => $settings->show_tab_menu ?? true,
+            'cocktails' => $settings->show_tab_cocktails ?? true,
+            'wines' => $settings->show_tab_wines ?? true,
+            'cantina' => $settings->show_tab_cantina ?? true,
+        ])->filter(fn ($show) => (bool) $show)->keys();
+        $scopesWithCategories = collect($categories ?? [])
             ->map(fn ($category) => $category->scope ?? 'menu')
+            ->unique()
+            ->values();
+        $scopeList = $enabledScopes
+            ->merge($scopesWithCategories)
             ->unique()
             ->values()
             ->all();
@@ -208,6 +218,29 @@
             color: #111827;
             border-color: transparent;
         }
+
+        .scope-tabs {
+            scrollbar-width: none;
+        }
+
+        .scope-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .scope-tabs {
+                flex-wrap: nowrap;
+                justify-content: flex-start;
+                overflow-x: auto;
+                padding: 0.25rem 0.5rem 0.5rem;
+                scroll-snap-type: x mandatory;
+            }
+
+            .scope-tab {
+                white-space: nowrap;
+                scroll-snap-align: start;
+            }
+        }
     </style>
 </head>
 <body class="text-white bg-black/70">
@@ -268,7 +301,7 @@
     </div>
 @endif
 
-@if($showScopeTabs)
+@if($showScopeTabs && empty($orderMode))
     <div class="max-w-5xl mx-auto px-4 content-layer">
         <div class="scope-tabs" id="scopeTabs" data-default-scope="{{ $defaultScope }}">
             @foreach($scopeList as $scope)
@@ -329,7 +362,18 @@
 </div>
 
 <!-- CONTENIDO DE CATEGORÍAS Y PLATOS -->
-<div class="max-w-5xl mx-auto px-4 pb-32 content-layer">
+<div class="max-w-5xl mx-auto px-4 {{ !empty($orderMode) ? 'pb-40' : 'pb-32' }} content-layer">
+    @if($showScopeTabs)
+        @foreach($scopeList as $scope)
+            @if(!in_array($scope, $scopesWithCategories->all(), true))
+                <section class="mb-10 category-section hidden" data-scope="{{ $scope }}">
+                    <div class="rounded-2xl bg-black/40 p-6 text-center text-sm font-semibold text-white/80">
+                        {{ $scopeLabels[$scope] ?? ucfirst($scope) }} no tiene productos disponibles por ahora.
+                    </div>
+                </section>
+            @endif
+        @endforeach
+    @endif
     @foreach ($categories as $category)
         <section id="{{ $category->key ?? ('category' . $category->id) }}"
                  class="mb-10 category-section"
@@ -828,6 +872,26 @@
 </div>
 
 <!-- BOTONES FLOTANTES -->
+@if (!empty($orderMode) && $showScopeTabs)
+    <div class="fixed bottom-5 left-0 right-0 z-50 content-layer px-4">
+        <div class="w-full lg:flex lg:justify-center">
+            <div class="w-full lg:max-w-4xl lg:mx-auto">
+                <div id="scopeTabsBottom"
+                    class="scope-tabs scope-tabs-bottom flex-nowrap items-center gap-3 px-4 py-2 rounded-3xl backdrop-blur-lg border border-white/20 shadow-2xl overflow-x-auto scroll-smooth lg:overflow-visible lg:justify-center"
+                    style="background-color: {{ $settings->floating_bar_bg_menu ?? 'rgba(0,0,0,0.55)' }};">
+                    @foreach($scopeList as $scope)
+                        <button type="button"
+                            class="scope-tab {{ $scope === $defaultScope ? 'active' : '' }}"
+                            data-scope-tab="{{ $scope }}">
+                            {{ $scopeLabels[$scope] ?? ucfirst($scope) }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
 @if (empty($orderMode))
     @include('components.floating-nav', [
         'settings' => $settings,
@@ -838,7 +902,7 @@
 
 @if (!empty($orderMode))
     <button id="openCartButton"
-        class="fixed bottom-6 right-6 z-50 rounded-full px-5 py-3 shadow-xl text-sm font-semibold bg-amber-400 text-slate-900 hover:scale-105 transition">
+        class="fixed {{ $showScopeTabs ? 'bottom-24' : 'bottom-6' }} right-6 z-50 rounded-full px-5 py-3 shadow-xl text-sm font-semibold bg-amber-400 text-slate-900 hover:scale-105 transition">
         Pedido (<span id="cartCount">0</span>)
     </button>
 @endif

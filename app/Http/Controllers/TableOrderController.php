@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\CantinaCategory;
 use App\Models\CocktailCategory;
 use App\Models\OrderBatch;
 use App\Models\TableSession;
@@ -145,9 +146,35 @@ class TableOrderController extends Controller
         });
         $wineCategories = $wineCategories->filter(fn ($category) => $matchesScope($category, 'wines'));
 
+        $cantinaCategories = collect();
+        if ($settings?->show_tab_cantina ?? true) {
+            $cantinaItemQuery = function ($query) {
+                $query->where('visible', true)
+                    ->with([
+                        'extras' => function ($extraQuery) {
+                            $extraQuery->select('extras.id', 'name', 'group_name', 'group_required', 'max_select', 'min_select', 'kind', 'price', 'description', 'active');
+                        },
+                    ])
+                    ->orderBy('position');
+            };
+
+            $cantinaCategories = CantinaCategory::with([
+                    'items' => $cantinaItemQuery,
+                ])
+                ->orderBy('order')
+                ->get();
+
+            $cantinaCategories->each(function ($category) {
+                $category->setAttribute('scope', 'cantina');
+                $category->setAttribute('key', 'cantina-' . $category->id);
+            });
+            $cantinaCategories = $cantinaCategories->filter(fn ($category) => $matchesScope($category, 'cantina'));
+        }
+
         $categories = $menuCategories
             ->concat($cocktailCategories)
             ->concat($wineCategories)
+            ->concat($cantinaCategories)
             ->filter(function ($category) {
                 $items = $category->items ?? $category->dishes ?? collect();
                 if ($items->where('visible', true)->isNotEmpty()) {

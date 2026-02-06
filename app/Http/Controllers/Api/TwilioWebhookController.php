@@ -24,7 +24,7 @@ class TwilioWebhookController extends Controller
             ->first();
 
         if (! $entry) {
-            return response('', 200);
+            return $this->twimlResponse('No encontramos una reserva activa para cancelar.');
         }
 
         $entry->update([
@@ -36,7 +36,7 @@ class TwilioWebhookController extends Controller
         event(new HostDashboardUpdated('waiting_list', $entry->id));
         event(new HostDashboardUpdated('tables'));
 
-        return response('', 200);
+        return $this->twimlResponse('Tu reserva fue cancelada. ¡Gracias!');
     }
 
     private function releaseAssignments(WaitingListEntry $entry): void
@@ -76,5 +76,13 @@ class TwilioWebhookController extends Controller
     private function isCancelMessage(string $body): bool
     {
         return str_contains($body, 'cancel') || str_contains($body, 'cancelar') || str_contains($body, 'stop') || str_contains($body, 'no voy') || str_contains($body, 'no ire');
+    }
+
+    private function twimlResponse(string $message)
+    {
+        $safeMessage = htmlspecialchars($message, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response><Message>{$safeMessage}</Message></Response>";
+
+        return response($xml, 200)->header('Content-Type', 'text/xml');
     }
 }
