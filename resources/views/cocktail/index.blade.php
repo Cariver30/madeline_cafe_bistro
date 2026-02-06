@@ -10,8 +10,9 @@
     $subcategoryBg = $settings->subcategory_name_bg_color_cocktails ?? 'rgba(0, 0, 0, 0.25)';
     $subcategoryText = $settings->subcategory_name_text_color_cocktails ?? $textColor;
     $cocktailLabel = trim($settings->tab_label_cocktails ?? 'Cócteles');
-    $seoTitle = 'Kfeina · ' . $cocktailLabel . ' · Barra creativa';
-    $seoDescription = 'Kfeina prepara café cosechado por ellos, desayunos, brunch y una variedad de platos creativos.';
+    $appName = config('app.name', 'Madeleine Cafe Bistro');
+    $seoTitle = $appName . ' · ' . $cocktailLabel . ' · Barra creativa';
+    $seoDescription = $appName . ' prepara café, desayunos, brunch y una variedad de platos creativos.';
     $seoImage = $settings?->logo
         ? asset('storage/' . $settings->logo)
         : asset('storage/default-logo.png');
@@ -27,7 +28,7 @@
     <meta property="og:description" content="{{ $seoDescription }}" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="{{ $seoImage }}" />
-    <meta property="og:site_name" content="Kfeina" />
+    <meta property="og:site_name" content="{{ $appName }}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $seoTitle }}" />
     <meta name="twitter:description" content="{{ $seoDescription }}" />

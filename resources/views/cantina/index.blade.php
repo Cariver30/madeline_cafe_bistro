@@ -6,7 +6,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     @php
         $cantinaLabel = trim($settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina');
-        $seoTitle = 'Kfeina · ' . $cantinaLabel . ' · Barra de la casa';
+        $appName = config('app.name', 'Madeleine Cafe Bistro');
+        $seoTitle = $appName . ' · ' . $cantinaLabel . ' · Barra de la casa';
         $seoDescription = 'Descubre la selección de la cantina: especiales, cervezas y coctelería.';
         $seoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
@@ -25,7 +26,7 @@
     <meta property="og:description" content="{{ $seoDescription }}" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="{{ $seoImage }}" />
-    <meta property="og:site_name" content="Kfeina" />
+    <meta property="og:site_name" content="{{ $appName }}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $seoTitle }}" />
     <meta name="twitter:description" content="{{ $seoDescription }}" />

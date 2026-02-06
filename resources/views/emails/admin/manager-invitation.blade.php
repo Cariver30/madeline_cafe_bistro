@@ -14,7 +14,7 @@
                             <p style="text-transform:uppercase; letter-spacing:0.35em; color:#f97316; font-size:11px; margin:0 0 12px;">Panel administrativo</p>
                             <h1 style="font-size:24px; margin:0 0 12px;">Hola {{ $user->name }}</h1>
                             <p style="margin:0; font-size:15px; line-height:1.6;">
-                                Te hemos invitado a colaborar como gerente en el panel de Café Negro.
+                                Te hemos invitado a colaborar como gerente en el panel de {{ config('app.name', 'Madeleine Cafe Bistro') }}.
                                 Para activar tu acceso y definir una contraseña segura, presiona el botón a continuación.
                             </p>
                         </td>
@@ -35,7 +35,7 @@
                     </tr>
                 </table>
                 <p style="text-align:center; font-size:12px; color:#94a3b8; margin-top:24px;">
-                    &copy; {{ date('Y') }} Café Negro · Seguridad ante todo.
+                    &copy; {{ date('Y') }} {{ config('app.name', 'Madeleine Cafe Bistro') }} · Seguridad ante todo.
                 </p>
             </td>
         </tr>

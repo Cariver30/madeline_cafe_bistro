@@ -8,7 +8,7 @@
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden;">
         <tr>
             <td style="padding: 32px;">
-                <p style="text-transform: uppercase; letter-spacing: 0.3em; font-size: 12px; color: #a16207; margin-bottom: 16px;">Café Negro · Accesos</p>
+                <p style="text-transform: uppercase; letter-spacing: 0.3em; font-size: 12px; color: #a16207; margin-bottom: 16px;">{{ config('app.name', 'Madeleine Cafe Bistro') }} · Accesos</p>
                 <h1 style="font-size: 22px; margin: 0 0 12px; color: #111827;">Hola {{ $user->name }},</h1>
                 <p style="color: #4b5563; line-height: 1.5; margin-bottom: 24px;">
                     Fuiste invitado como {{ $roleLabel ?? 'mesero' }} para {{ $roleDescription ?? 'gestionar mesas y fidelización' }}. Para activar tu cuenta y definir una contraseña segura, haz clic en el botón:

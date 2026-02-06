@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     @php
-        $specialsTitle = 'Kfeina · Especiales y ofertas';
+        $appName = config('app.name', 'Madeleine Cafe Bistro');
+        $specialsTitle = $appName . ' · Especiales y ofertas';
         $specialsDescription = 'Especiales de la casa, happy hour y ofertas por tiempo limitado.';
         $seoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
@@ -48,7 +49,7 @@
     <meta property="og:description" content="{{ $specialsDescription }}" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="{{ $seoImage }}" />
-    <meta property="og:site_name" content="Kfeina" />
+    <meta property="og:site_name" content="{{ $appName }}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $specialsTitle }}" />
     <meta name="twitter:description" content="{{ $specialsDescription }}" />

@@ -61,7 +61,7 @@
 <body>
     <div class="card">
         <h1>Hola {{ $customer->name }},</h1>
-        <p>Acabas de acumular los puntos necesarios para desbloquear una nueva recompensa dentro del programa de fidelidad de {{ config('app.name', 'Café Negro') }}.</p>
+        <p>Acabas de acumular los puntos necesarios para desbloquear una nueva recompensa dentro del programa de fidelidad de {{ config('app.name', 'Madeleine Cafe Bistro') }}.</p>
 
         <div class="reward">
             <h2 style="margin:0 0 8px;">{{ $reward->title }}</h2>
@@ -89,7 +89,7 @@
         @endif
 
         <p class="footer">
-            © {{ date('Y') }} {{ config('app.name', 'Café Negro') }} &middot; Gracias por ser parte de nuestra comunidad.
+            © {{ date('Y') }} {{ config('app.name', 'Madeleine Cafe Bistro') }} &middot; Gracias por ser parte de nuestra comunidad.
         </p>
     </div>
 </body>

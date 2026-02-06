@@ -1,5 +1,5 @@
 @php
-    $storeName = config('app.name', 'Café Negro');
+    $storeName = config('app.name', 'Madeleine Cafe Bistro');
 @endphp
 
 <!DOCTYPE html>

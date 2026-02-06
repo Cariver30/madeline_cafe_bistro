@@ -72,7 +72,7 @@
         </div>
 
         <p class="footer">
-            © {{ date('Y') }} {{ config('app.name', 'Café Negro') }} &middot; Gracias por visitarnos.
+            © {{ date('Y') }} {{ config('app.name', 'Madeleine Cafe Bistro') }} &middot; Gracias por visitarnos.
         </p>
     </div>
 </body>

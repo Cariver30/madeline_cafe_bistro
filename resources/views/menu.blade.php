@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     @php
+        $appName = config('app.name', 'Madeleine Cafe Bistro');
         $menuLabel = trim($settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú');
-        $seoTitle = 'Kfeina · ' . $menuLabel . ' · Desayunos, brunch y platos creativos';
-        $seoDescription = 'Kfeina prepara café cosechado por ellos, desayunos, brunch y una variedad de platos creativos.';
+        $seoTitle = $appName . ' · ' . $menuLabel . ' · Desayunos, brunch y platos creativos';
+        $seoDescription = $appName . ' prepara café, desayunos, brunch y una variedad de platos creativos.';
         $seoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
             : asset('storage/default-logo.png');
@@ -42,7 +43,7 @@
     <meta property="og:description" content="{{ $seoDescription }}" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="{{ $seoImage }}" />
-    <meta property="og:site_name" content="Kfeina" />
+    <meta property="og:site_name" content="{{ $appName }}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $seoTitle }}" />
     <meta name="twitter:description" content="{{ $seoDescription }}" />
