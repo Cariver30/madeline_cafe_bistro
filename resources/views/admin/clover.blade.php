@@ -11,10 +11,8 @@
                 <form method="POST" action="{{ route('admin.clover.sync_all') }}" class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
                     @csrf
                     <button class="btn btn-dark">Sync Clover (todo)</button>
-                    <label class="form-check text-muted small d-flex align-items-center gap-2 mb-0">
-                        <input class="form-check-input" type="checkbox" name="sync_taxes" value="1">
-                        Incluir taxes Clover (lento)
-                    </label>
+                    <input type="hidden" name="sync_taxes" value="1">
+                    <span class="text-muted small d-flex align-items-center">Taxes Clover siempre activos</span>
                 </form>
                 <form method="POST" action="{{ route('admin.clover.categories.sync') }}">
                     @csrf
@@ -23,10 +21,8 @@
                 <form method="POST" action="{{ route('admin.clover.items.sync') }}" class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
                     @csrf
                     <button class="btn btn-dark">Importar items</button>
-                    <label class="form-check text-muted small d-flex align-items-center gap-2 mb-0">
-                        <input class="form-check-input" type="checkbox" name="sync_taxes" value="1">
-                        Incluir taxes Clover (lento)
-                    </label>
+                    <input type="hidden" name="sync_taxes" value="1">
+                    <span class="text-muted small d-flex align-items-center">Taxes Clover siempre activos</span>
                 </form>
             </div>
         </div>

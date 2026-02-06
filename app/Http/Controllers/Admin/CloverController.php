@@ -123,8 +123,8 @@ class CloverController extends Controller
 
         try {
             $syncService = new CloverSyncService($client);
-            $syncTaxes = $request->boolean('sync_taxes');
-            $count = $syncService->syncItems($syncTaxes);
+            // Always sync taxes to keep receipts accurate and avoid losing tax mappings.
+            $count = $syncService->syncItems(true);
         } catch (RuntimeException $exception) {
             return back()->with('error', 'Error al importar items: ' . $exception->getMessage());
         }
@@ -146,8 +146,8 @@ class CloverController extends Controller
         try {
             $syncService = new CloverSyncService($client);
             $categoriesCount = $syncService->syncCategories();
-            $syncTaxes = $request->boolean('sync_taxes');
-            $itemsCount = $syncService->syncItems($syncTaxes);
+            // Always sync taxes to keep receipts accurate and avoid losing tax mappings.
+            $itemsCount = $syncService->syncItems(true);
         } catch (RuntimeException $exception) {
             return back()->with('error', 'Error al sincronizar Clover: ' . $exception->getMessage());
         }

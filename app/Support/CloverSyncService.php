@@ -192,6 +192,13 @@ class CloverSyncService
             $taxIds = $this->getDefaultTaxIds();
         }
 
+        if ($taxIds === []) {
+            // Keep existing taxes if Clover doesn't return any, to avoid losing mappings.
+            if ($itemModel->taxes()->exists()) {
+                return;
+            }
+        }
+
         $itemModel->taxes()->sync($taxIds);
     }
 
