@@ -302,17 +302,6 @@
     </div>
 @endif
 
-@if($showScopeTabs && empty($orderMode))
-    <div class="max-w-5xl mx-auto px-4 content-layer">
-        <div class="scope-tabs" id="scopeTabs" data-default-scope="{{ $defaultScope }}">
-            @foreach($scopeList as $scope)
-                <button type="button" class="scope-tab {{ $scope === $defaultScope ? 'active' : '' }}" data-scope-tab="{{ $scope }}">
-                    {{ $scopeLabels[$scope] ?? ucfirst($scope) }}
-                </button>
-            @endforeach
-        </div>
-    </div>
-@endif
 
 <!-- Menú flotante móvil -->
 <div id="categoryMenu"
