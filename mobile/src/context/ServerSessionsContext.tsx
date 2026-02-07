@@ -52,7 +52,7 @@ type ServerSessionsContextValue = {
   loadSessions: (showLoader?: boolean) => Promise<TableSession[] | null>;
   refresh: () => void;
   renewSession: (sessionId: number) => Promise<void>;
-  closeSession: (sessionId: number, tip?: number) => Promise<void>;
+  closeSession: (sessionId: number, tip?: number) => Promise<boolean>;
   confirmOrder: (orderId: number) => Promise<void>;
   cancelOrder: (orderId: number) => Promise<void>;
   getSessionById: (sessionId: number) => TableSession | undefined;
@@ -244,12 +244,13 @@ export const ServerSessionsProvider = ({
   const renewSession = useCallback(
     async (sessionId: number) => {
       if (!token) {
-        return;
+        return false;
       }
       setActionState(prev => ({...prev, renewingSessionId: sessionId}));
       try {
         await renewTableSession(token, sessionId);
         await loadSessions(false);
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'No se pudo renovar.');
       } finally {
@@ -262,14 +263,16 @@ export const ServerSessionsProvider = ({
   const closeSession = useCallback(
     async (sessionId: number, tip?: number) => {
       if (!token) {
-        return;
+        return false;
       }
       setActionState(prev => ({...prev, closingSessionId: sessionId}));
       try {
         await closeTableSession(token, sessionId, tip);
         await loadSessions(false);
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'No se pudo cerrar.');
+        return false;
       } finally {
         setActionState(prev => ({...prev, closingSessionId: null}));
       }
@@ -280,7 +283,7 @@ export const ServerSessionsProvider = ({
   const confirmOrder = useCallback(
     async (orderId: number) => {
       if (!token) {
-        return;
+        return false;
       }
       setActionState(prev => ({...prev, confirmingOrderId: orderId}));
       setSessions(prev =>
@@ -306,7 +309,7 @@ export const ServerSessionsProvider = ({
   const cancelOrder = useCallback(
     async (orderId: number) => {
       if (!token) {
-        return;
+        return false;
       }
       setActionState(prev => ({...prev, cancellingOrderId: orderId}));
       setSessions(prev =>

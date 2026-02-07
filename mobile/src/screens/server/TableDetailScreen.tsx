@@ -169,7 +169,10 @@ const TableDetailScreen = ({navigation, route}: Props) => {
     if (normalized.length === 0) {
       setTipError(null);
       setTipModalVisible(false);
-      await closeSession(session.id);
+      const ok = await closeSession(session.id);
+      if (ok) {
+        navigation.goBack();
+      }
       return;
     }
 
@@ -181,7 +184,10 @@ const TableDetailScreen = ({navigation, route}: Props) => {
 
     setTipError(null);
     setTipModalVisible(false);
-    await closeSession(session.id, parsed);
+    const ok = await closeSession(session.id, parsed);
+    if (ok) {
+      navigation.goBack();
+    }
   };
 
   const handleTransfer = async () => {
