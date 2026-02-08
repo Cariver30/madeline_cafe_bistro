@@ -32,9 +32,42 @@ class CocktailController extends Controller
             ->orderBy('position');
     };
 
-    $cloverScopeMap = CloverCategory::select('clover_id', 'scope')
+    $cloverScopeMap = CloverCategory::select('clover_id', 'scope', 'parent_category_id')
         ->get()
         ->keyBy('clover_id');
+    $matchesScope = function ($category, string $scope) use ($cloverScopeMap): bool {
+        if (empty($category->clover_id)) {
+            return true;
+        }
+
+        $meta = $cloverScopeMap[$category->clover_id] ?? null;
+        if (! $meta || ($meta->scope ?? null) !== $scope) {
+            return false;
+        }
+
+        // Hide Clover categories mapped as subcategories (children).
+        if (! empty($meta->parent_category_id)) {
+            return false;
+        }
+
+        return true;
+    };
+    $hasVisibleItems = function ($category): bool {
+        $items = $category->items ?? collect();
+        if ($items->where('visible', true)->isNotEmpty()) {
+            return true;
+        }
+
+        $subcategories = $category->subcategories ?? collect();
+        foreach ($subcategories as $subcategory) {
+            $subItems = $subcategory->items ?? collect();
+            if ($subItems->where('visible', true)->isNotEmpty()) {
+                return true;
+            }
+        }
+
+        return false;
+    };
 
     $cocktailCategories = CocktailCategory::with([
         'items' => $itemQuery,
@@ -44,13 +77,9 @@ class CocktailController extends Controller
                 ->with(['items' => $itemQuery]);
         },
     ])->orderBy('order')->get()
-        ->filter(function ($category) use ($cloverScopeMap) {
-            if (empty($category->clover_id)) {
-                return true;
-            }
-
-            return ($cloverScopeMap[$category->clover_id]->scope ?? null) === 'cocktails';
-        });
+        ->filter(fn ($category) => $matchesScope($category, 'cocktails'))
+        ->filter($hasVisibleItems)
+        ->values();
     $popups = Popup::where('active', 1)
                     ->where('view', 'cocktails')
                     ->whereDate('start_date', '<=', now())

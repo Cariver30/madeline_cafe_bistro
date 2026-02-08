@@ -19,20 +19,35 @@ class CantinaController extends Controller
                 ->orderBy('id');
         };
 
-        $cloverScopeMap = CloverCategory::select('clover_id', 'scope')
+        $cloverScopeMap = CloverCategory::select('clover_id', 'scope', 'parent_category_id')
             ->get()
             ->keyBy('clover_id');
+        $matchesScope = function ($category, string $scope) use ($cloverScopeMap): bool {
+            if (empty($category->clover_id)) {
+                return true;
+            }
+
+            $meta = $cloverScopeMap[$category->clover_id] ?? null;
+            if (! $meta || ($meta->scope ?? null) !== $scope) {
+                return false;
+            }
+
+            if (! empty($meta->parent_category_id)) {
+                return false;
+            }
+
+            return true;
+        };
 
         $cantinaCategories = CantinaCategory::with(['items' => $itemQuery])
             ->orderBy('order')
             ->get()
-            ->filter(function ($category) use ($cloverScopeMap) {
-                if (empty($category->clover_id)) {
-                    return true;
-                }
-
-                return ($cloverScopeMap[$category->clover_id]->scope ?? null) === 'cantina';
-            });
+            ->filter(fn ($category) => $matchesScope($category, 'cantina'))
+            ->filter(function ($category) {
+                $items = $category->items ?? collect();
+                return $items->where('visible', true)->isNotEmpty();
+            })
+            ->values();
 
         $popups = Popup::where('active', 1)
             ->where('view', 'cantina')
