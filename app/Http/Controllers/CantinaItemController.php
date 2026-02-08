@@ -87,7 +87,8 @@ class CantinaItemController extends Controller
 
     public function toggleVisibility(CantinaItem $cantinaItem)
     {
-        $cantinaItem->visible = ! $cantinaItem->visible;
+        $cantinaItem->manual_hidden = ! $cantinaItem->manual_hidden;
+        $cantinaItem->visible = ! $cantinaItem->manual_hidden;
         $cantinaItem->save();
 
         return redirect()->route('admin.new-panel', [

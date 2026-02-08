@@ -426,9 +426,13 @@ class CloverSyncService
         if ($existing) {
             $update = $payload;
 
-            // Preserve admin visibility override when Clover says it's visible.
+            // Preserve manual hide: Clover is source of truth unless admin hid the item.
             if (array_key_exists('visible', $update) && Schema::hasColumn($existing->getTable(), 'visible')) {
-                $update['visible'] = $update['visible'] ? (bool) $existing->visible : false;
+                $manualHidden = Schema::hasColumn($existing->getTable(), 'manual_hidden')
+                    ? (bool) $existing->manual_hidden
+                    : false;
+
+                $update['visible'] = $manualHidden ? false : (bool) $update['visible'];
             }
 
             // Preserve manual descriptions (sync should not overwrite them).
@@ -537,10 +541,9 @@ class CloverSyncService
     {
         $hidden = (bool) ($item['hidden'] ?? false);
         $available = (bool) ($item['available'] ?? true);
-        $enabledOnline = (bool) ($item['enabledOnline'] ?? true);
         $deleted = (bool) ($item['deleted'] ?? false);
 
-        return ! $hidden && $available && $enabledOnline && ! $deleted;
+        return ! $hidden && $available && ! $deleted;
     }
 
     private function resolveParentCategory(string $scope, CloverCategory $cloverCategory)

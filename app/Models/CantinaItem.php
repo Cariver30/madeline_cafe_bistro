@@ -17,12 +17,14 @@ class CantinaItem extends Model
         'category_id',
         'image',
         'visible',
+        'manual_hidden',
         'featured_on_cover',
         'position',
     ];
 
     protected $casts = [
         'visible' => 'boolean',
+        'manual_hidden' => 'boolean',
         'featured_on_cover' => 'boolean',
     ];
 

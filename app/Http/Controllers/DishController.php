@@ -169,7 +169,8 @@ class DishController extends Controller
 
     public function toggleVisibility(Dish $dish)
     {
-        $dish->visible = !$dish->visible;
+        $dish->manual_hidden = ! $dish->manual_hidden;
+        $dish->visible = ! $dish->manual_hidden;
         $dish->save();
 
         return redirect()->route('admin.new-panel', [

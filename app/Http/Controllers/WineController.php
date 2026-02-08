@@ -319,7 +319,8 @@ class WineController extends Controller
 
     public function toggleVisibility(Wine $wine)
     {
-        $wine->visible = !$wine->visible;
+        $wine->manual_hidden = ! $wine->manual_hidden;
+        $wine->visible = ! $wine->manual_hidden;
         $wine->save();
 
         return redirect()->route('admin.new-panel', [

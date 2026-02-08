@@ -205,7 +205,8 @@ class CocktailController extends Controller
 
     public function toggleVisibility(Cocktail $cocktail)
     {
-        $cocktail->visible = !$cocktail->visible;
+        $cocktail->manual_hidden = ! $cocktail->manual_hidden;
+        $cocktail->visible = ! $cocktail->manual_hidden;
         $cocktail->save();
 
         return redirect()->route('admin.new-panel', [
