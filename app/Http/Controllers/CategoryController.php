@@ -128,7 +128,10 @@ class CategoryController extends Controller
         ]);
 
         foreach ($data['order'] as $index => $id) {
-            Category::where('id', $id)->update(['order' => $index + 1]);
+            Category::where('id', $id)->update([
+                'order' => $index + 1,
+                'manual_order' => true,
+            ]);
         }
 
         return response()->json(['success' => true]);

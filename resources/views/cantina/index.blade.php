@@ -6,10 +6,17 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     @php
         $cantinaLabel = trim($settings->tab_label_cantina ?? $settings->button_label_cantina ?? 'Cantina');
-        $appName = config('app.name', 'Madeleine Cafe Bistro');
-        $seoTitle = $appName . ' · ' . $cantinaLabel . ' · Barra de la casa';
-        $seoDescription = 'Descubre la selección de la cantina: especiales, cervezas y coctelería.';
-        $seoImage = $settings?->logo
+        $appName = config('app.name', 'Restaurant');
+        $defaultTitle = $appName . ' · ' . $cantinaLabel . ' · Barra de la casa';
+        $defaultDescription = 'Descubre la selección de la cantina: especiales, cervezas y coctelería.';
+        $seoTitle = trim($settings?->seo_title ?? '') !== '' ? $settings->seo_title : $defaultTitle;
+        $seoDescription = trim($settings?->seo_description ?? '') !== '' ? $settings->seo_description : $defaultDescription;
+        $seoImage = $settings?->seo_image
+            ? asset('storage/' . $settings->seo_image)
+            : ($settings?->logo
+                ? asset('storage/' . $settings->logo)
+                : asset('storage/default-logo.png'));
+        $logoImage = $settings?->logo
             ? asset('storage/' . $settings->logo)
             : asset('storage/default-logo.png');
         $textColor = $settings->text_color_cantina ?? $settings->text_color_menu ?? '#ffffff';
@@ -119,19 +126,21 @@
 </head>
 <body class="text-white bg-black/70">
 
-<div class="text-center py-6 relative content-layer">
+<div class="text-center py-6 relative content-layer z-50">
     <img src="{{ asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}" class="mx-auto h-28" alt="Logo">
 
     <button id="toggleMenu"
-        class="fixed left-4 top-4 z-50 w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-lg text-white lg:hidden"
-        style="background-color: {{ $buttonColor }};">
-        🍸
+        class="fixed left-4 top-4 z-50 w-12 h-12 rounded-full flex items-center justify-center text-lg shadow-lg text-white lg:hidden"
+        style="background-color: {{ $buttonColor }};"
+        aria-label="Abrir navegación">
+        <i class="fas fa-bars"></i>
     </button>
 
     <button id="toggleDesktopMenu"
         class="hidden lg:flex fixed left-6 top-6 z-40 w-12 h-12 rounded-full items-center justify-center text-lg shadow-lg text-white transition hover:scale-105"
-        style="background-color: {{ $buttonColor }};">
-        ☰
+        style="background-color: {{ $buttonColor }};"
+        aria-label="Abrir navegación">
+        <i class="fas fa-bars"></i>
     </button>
 
     <div id="desktopSidebar" class="hidden lg:block">
@@ -206,11 +215,11 @@
                         data-name="{{ $item->name }}"
                         data-description="{{ $item->description ?? '' }}"
                         data-price="${{ number_format($item->price, 2) }}"
-                        data-image="{{ $item->image ? asset('storage/' . $item->image) : $seoImage }}">
+                        data-image="{{ $item->image ? asset('storage/' . $item->image) : $logoImage }}">
 
                         <span class="absolute top-2 right-2 text-xs bg-gray-700 text-white px-2 py-1 rounded">Ver más</span>
 
-                        <img src="{{ $item->image ? asset('storage/' . $item->image) : $seoImage }}"
+                        <img src="{{ $item->image ? asset('storage/' . $item->image) : $logoImage }}"
                              alt="{{ $item->name }}"
                              class="h-24 w-24 rounded-full object-cover mr-4 border border-white/10">
 

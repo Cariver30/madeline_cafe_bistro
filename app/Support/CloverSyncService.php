@@ -401,7 +401,11 @@ class CloverSyncService
             $dirty = true;
         }
 
-        if (Schema::hasColumn($category->getTable(), 'order') && $category->order !== $order) {
+        $hasManualOrder = Schema::hasColumn($category->getTable(), 'manual_order')
+            ? (bool) $category->manual_order
+            : false;
+
+        if (! $hasManualOrder && Schema::hasColumn($category->getTable(), 'order') && $category->order !== $order) {
             $category->order = $order;
             $dirty = true;
         }

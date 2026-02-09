@@ -13,12 +13,14 @@ class WineCategory extends Model
         'clover_id',
         'name',
         'order',
+        'manual_order',
         'show_on_cover',
         'cover_title',
         'cover_subtitle',
     ];
 
     protected $casts = [
+        'manual_order' => 'boolean',
         'show_on_cover' => 'boolean',
     ];
 

@@ -67,7 +67,10 @@ class CantinaManagementController extends Controller
         ]);
 
         foreach ($data['order'] as $index => $categoryId) {
-            CantinaCategory::where('id', $categoryId)->update(['order' => $index + 1]);
+            CantinaCategory::where('id', $categoryId)->update([
+                'order' => $index + 1,
+                'manual_order' => true,
+            ]);
         }
 
         return response()->json([

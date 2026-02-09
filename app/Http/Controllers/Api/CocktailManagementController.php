@@ -71,7 +71,10 @@ class CocktailManagementController extends Controller
         ]);
 
         foreach ($data['order'] as $index => $categoryId) {
-            CocktailCategory::where('id', $categoryId)->update(['order' => $index + 1]);
+            CocktailCategory::where('id', $categoryId)->update([
+                'order' => $index + 1,
+                'manual_order' => true,
+            ]);
         }
 
         return response()->json([

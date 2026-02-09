@@ -72,7 +72,10 @@ class MenuManagementController extends Controller
         ]);
 
         foreach ($data['order'] as $index => $categoryId) {
-            Category::where('id', $categoryId)->update(['order' => $index + 1]);
+            Category::where('id', $categoryId)->update([
+                'order' => $index + 1,
+                'manual_order' => true,
+            ]);
         }
 
         return response()->json([

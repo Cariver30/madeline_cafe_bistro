@@ -5,13 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     @php
-        $appName = config('app.name', 'Madeleine Cafe Bistro');
+        $appName = config('app.name', 'Restaurant');
         $menuLabel = trim($settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú');
-        $seoTitle = $appName . ' · ' . $menuLabel . ' · Desayunos, brunch y platos creativos';
-        $seoDescription = $appName . ' prepara café, desayunos, brunch y una variedad de platos creativos.';
-        $seoImage = $settings?->logo
-            ? asset('storage/' . $settings->logo)
-            : asset('storage/default-logo.png');
+        $defaultTitle = $appName . ' · ' . $menuLabel . ' · Desayunos, brunch y platos creativos';
+        $defaultDescription = $appName . ' prepara café, desayunos, brunch y una variedad de platos creativos.';
+        $seoTitle = trim($settings?->seo_title ?? '') !== '' ? $settings->seo_title : $defaultTitle;
+        $seoDescription = trim($settings?->seo_description ?? '') !== '' ? $settings->seo_description : $defaultDescription;
+        $seoImage = $settings?->seo_image
+            ? asset('storage/' . $settings->seo_image)
+            : ($settings?->logo
+                ? asset('storage/' . $settings->logo)
+                : asset('storage/default-logo.png'));
         $orderChannel = $orderChannel ?? (!empty($orderMode) ? 'table' : 'view');
         $scopeLabels = [
             'menu' => $settings->tab_label_menu ?? $settings->button_label_menu ?? 'Menú',
@@ -247,21 +251,23 @@
 <body class="text-white bg-black/70">
 
 <!-- LOGO + BOTÓN MENU -->
-<div class="text-center py-6 relative content-layer">
+<div class="text-center py-6 relative content-layer z-50">
     <img src="{{ asset('storage/' . ($settings->logo ?? 'default-logo.png')) }}" class="mx-auto h-28" alt="Logo del Restaurante">
 
     <!-- Toggle menú -->
     <button id="toggleMenu"
-        class="fixed left-4 top-4 z-50 w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-lg text-white lg:hidden"
-        style="background-color: {{ $settings->button_color_menu ?? '#000' }};">
-        🍽️
+        class="fixed left-4 top-4 z-50 w-12 h-12 rounded-full flex items-center justify-center text-lg shadow-lg text-white lg:hidden"
+        style="background-color: {{ $settings->button_color_menu ?? '#000' }};"
+        aria-label="Abrir navegación">
+        <i class="fas fa-bars"></i>
     </button>
 
     <!-- Toggle menú desktop -->
     <button id="toggleDesktopMenu"
         class="hidden lg:flex fixed left-6 top-6 z-40 w-12 h-12 rounded-full items-center justify-center text-lg shadow-lg text-white transition hover:scale-105"
-        style="background-color: {{ $settings->button_color_menu ?? '#000' }};">
-        ☰
+        style="background-color: {{ $settings->button_color_menu ?? '#000' }};"
+        aria-label="Abrir navegación">
+        <i class="fas fa-bars"></i>
     </button>
 
     <!-- Menú lateral desktop -->

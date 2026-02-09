@@ -4,11 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     @php
-        $seoTitle = 'Madeline Cafe Bistro · Cocina creativa, brunch, vinos y espumosos';
-        $seoDescription = 'Madeline Cafe Bistro es un espacio de cocina creativa con brunch, vinos y espumosos, sabores únicos y experiencias para compartir.';
-        $seoImage = $settings?->logo
-            ? asset('storage/' . $settings->logo)
-            : asset('storage/default-logo.png');
+        $appName = config('app.name', 'Restaurant');
+        $heroTitle = trim($settings?->cover_hero_title ?? '');
+        $heroParagraph = trim($settings?->cover_hero_paragraph ?? '');
+        $defaultTitle = $heroTitle !== ''
+            ? "{$heroTitle} · {$appName}"
+            : "{$appName} · Menú y experiencias";
+        $defaultDescription = $heroParagraph !== ''
+            ? $heroParagraph
+            : "Descubre el menú, bebidas y experiencias de {$appName}.";
+        $seoTitle = trim($settings?->seo_title ?? '') !== '' ? $settings->seo_title : $defaultTitle;
+        $seoDescription = trim($settings?->seo_description ?? '') !== '' ? $settings->seo_description : $defaultDescription;
+        $seoImage = $settings?->seo_image
+            ? asset('storage/' . $settings->seo_image)
+            : ($settings?->logo
+                ? asset('storage/' . $settings->logo)
+                : asset('storage/default-logo.png'));
     @endphp
     <title>{{ $seoTitle }}</title>
     <meta name="description" content="{{ $seoDescription }}" />
@@ -16,7 +27,7 @@
     <meta property="og:description" content="{{ $seoDescription }}" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="{{ $seoImage }}" />
-    <meta property="og:site_name" content="Madeline Cafe Bistro" />
+    <meta property="og:site_name" content="{{ $appName }}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $seoTitle }}" />
     <meta name="twitter:description" content="{{ $seoDescription }}" />
@@ -105,8 +116,8 @@
             height: 3rem;
             border-radius: 9999px;
             font-weight: 600;
-            color: #fff;
-            background: var(--accent-color);
+            color: var(--vip-button-text, #fff);
+            background: var(--vip-button-bg, var(--accent-color));
             transition: transform .2s ease, box-shadow .2s ease;
             animation: vip-glow 1.5s infinite;
             overflow: hidden;
@@ -116,7 +127,8 @@
             position: absolute;
             inset: 4px;
             border-radius: 9999px;
-            border: 2px dashed rgba(255,255,255,0.65);
+            border: 2px dashed currentColor;
+            opacity: 0.65;
             animation: vip-blink 2s linear infinite;
             pointer-events: none;
         }
@@ -354,7 +366,7 @@
                             @if($card['type'] === 'vip')
                                 <button data-open-notify
                                         class="w-full rounded-full py-3 font-semibold transition vip-button"
-                                        style="background-color: var(--accent-color); font-size: {{ $settings->button_font_size_cover ?? 18 }}px;">
+                                        style="--vip-button-bg: {{ $card['bg_color'] }}; --vip-button-text: {{ $card['text_color'] }}; font-size: {{ $settings->button_font_size_cover ?? 18 }}px;">
                                     {{ $card['title'] }}
                                 </button>
                             @else
