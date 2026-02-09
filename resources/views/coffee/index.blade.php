@@ -142,16 +142,18 @@
             font-size: 0.85rem;
             font-weight: 600;
             white-space: nowrap;
-            background: rgba(255, 255, 255, 0.08);
-            color: inherit;
+            background: var(--subcategory-tab-bg, rgba(255, 255, 255, 0.08));
+            color: var(--subcategory-tab-text, inherit);
             transition: all 0.2s ease;
         }
         .subcategory-tab:hover {
             transform: translateY(-1px);
         }
         .subcategory-tab.active {
-            background: var(--drink-accent-color, rgba(255, 255, 255, 0.2));
-            color: #0f172a;
+            background: var(--subcategory-tab-active-bg, var(--subcategory-tab-bg, var(--drink-accent-color)));
+            color: var(--subcategory-tab-active-text, var(--subcategory-tab-text, #0f172a));
+            border-color: transparent;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
         }
         .subcategory-panel.hidden {
             display: none;
@@ -282,7 +284,9 @@
                 @endphp
                 @if($hasSubcategoryGroups)
                     @if($showTabs)
-                        <div class="subcategory-tabs" data-category-tabs="{{ $category->id }}">
+                        <div class="subcategory-tabs"
+                             data-category-tabs="{{ $category->id }}"
+                             style="--subcategory-tab-bg: {{ $subcategoryBgColor }}; --subcategory-tab-text: {{ $subcategoryTextColor }}; --subcategory-tab-active-bg: {{ $subcategoryBgColor }}; --subcategory-tab-active-text: {{ $subcategoryTextColor }};">
                             @foreach ($tabGroups as $group)
                                 <button type="button"
                                     class="subcategory-tab {{ $loop->first ? 'active' : '' }}"

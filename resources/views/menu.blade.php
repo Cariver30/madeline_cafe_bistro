@@ -154,9 +154,9 @@
         .subcategory-tab {
             padding: 0.4rem 0.9rem;
             border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.35);
-            color: var(--menu-text-color);
+            border: 1px solid var(--subcategory-tab-border, rgba(255, 255, 255, 0.2));
+            background: var(--subcategory-tab-bg, rgba(0, 0, 0, 0.35));
+            color: var(--subcategory-tab-text, var(--menu-text-color));
             font-weight: 600;
             font-size: 0.85rem;
             transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
@@ -170,9 +170,10 @@
         }
 
         .subcategory-tab.active {
-            background: var(--menu-accent-color);
-            color: #111827;
+            background: var(--subcategory-tab-active-bg, var(--subcategory-tab-bg, var(--menu-accent-color)));
+            color: var(--subcategory-tab-active-text, var(--subcategory-tab-text, #111827));
             border-color: transparent;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
         }
 
         .subcategory-panel.hidden {
@@ -426,7 +427,9 @@
                 @endphp
                 @if($hasSubcategoryGroups)
                     @if($showTabs)
-                        <div class="subcategory-tabs" data-category-tabs="{{ $category->id }}">
+                        <div class="subcategory-tabs"
+                             data-category-tabs="{{ $category->id }}"
+                             style="--subcategory-tab-bg: {{ $subcategoryBg }}; --subcategory-tab-text: {{ $subcategoryText }}; --subcategory-tab-active-bg: {{ $subcategoryBg }}; --subcategory-tab-active-text: {{ $subcategoryText }};">
                             @foreach ($tabGroups as $group)
                                 <button type="button"
                                     class="subcategory-tab {{ $loop->first ? 'active' : '' }}"
