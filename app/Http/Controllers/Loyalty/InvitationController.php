@@ -44,11 +44,17 @@ class InvitationController extends Controller
             return back()->withErrors(['token' => 'El enlace expiró, solicita una nueva invitación.']);
         }
 
-        $user->forceFill([
+        $updates = [
             'password' => $data['password'],
             'invitation_token' => null,
             'invitation_accepted_at' => now(),
-        ])->save();
+        ];
+
+        if ($user->isManager()) {
+            $updates['active'] = true;
+        }
+
+        $user->forceFill($updates)->save();
 
         auth()->login($user);
 

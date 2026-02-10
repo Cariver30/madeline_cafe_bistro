@@ -536,7 +536,6 @@
                         <tr>
                             <td>{{ $manager->name }}</td>
                             <td>{{ $manager->email }}</td>
-                            <td>{{ $manager->email }}</td>
                             <td>
                                 @if($manager->invitation_accepted_at)
                                     <span class="badge text-bg-success">Activada {{ optional($manager->invitation_accepted_at)->diffForHumans() }}</span>
@@ -549,7 +548,11 @@
                                 @endif
                             </td>
                             <td>
-                                <span class="badge {{ $manager->active ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $manager->active ? 'Activo' : 'Bloqueado' }}</span>
+                                @if(!$manager->invitation_accepted_at && $manager->invitation_token)
+                                    <span class="badge text-bg-warning text-dark">Pendiente</span>
+                                @else
+                                    <span class="badge {{ $manager->active ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $manager->active ? 'Activo' : 'Bloqueado' }}</span>
+                                @endif
                             </td>
                             <td class="text-end">
                                 <div class="d-flex flex-wrap gap-2 justify-content-end">
@@ -579,7 +582,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="text-center text-muted">Aún no has creado gerentes.</td>
+                            <td colspan="5" class="text-center text-muted">Aún no has creado gerentes.</td>
                         </tr>
                     @endforelse
                 </tbody>

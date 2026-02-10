@@ -26,7 +26,7 @@ class UserManagementController extends Controller
             'email' => $data['email'],
             'password' => Hash::make(Str::random(32)),
             'role' => 'manager',
-            'active' => true,
+            'active' => false,
             'invitation_token' => Hash::make($token),
             'invitation_sent_at' => now(),
             'invitation_accepted_at' => null,
