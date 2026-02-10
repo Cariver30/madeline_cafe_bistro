@@ -476,6 +476,28 @@
         </div>
     </div>
 
+    <div class="border rounded-3 p-3 mb-4">
+        <h5 class="mb-2">Seguridad app móvil</h5>
+        <p class="text-muted small mb-3">La restricción por IP aplica solo a meseros y hosts. Los gerentes siempre tienen acceso.</p>
+        <div class="form-check form-switch mb-3">
+            <input type="hidden" name="mobile_ip_restriction_enabled" value="0">
+            <input class="form-check-input" type="checkbox" id="mobile_ip_restriction_enabled" name="mobile_ip_restriction_enabled" value="1" {{ ($settings->mobile_ip_restriction_enabled ?? false) ? 'checked' : '' }}>
+            <label class="form-check-label" for="mobile_ip_restriction_enabled">Activar restricción por IP</label>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" for="mobile_ip_allowlist">IP(s) permitidas</label>
+                <textarea class="form-control" id="mobile_ip_allowlist" name="mobile_ip_allowlist" rows="3" placeholder="Ej: 38.10.20.30, 38.10.20.0/24">{{ $settings->mobile_ip_allowlist ?? '' }}</textarea>
+                <div class="form-text">Separa con comas o saltos de línea. Acepta rangos CIDR.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="mobile_ip_bypass_emails">Emails con bypass</label>
+                <textarea class="form-control" id="mobile_ip_bypass_emails" name="mobile_ip_bypass_emails" rows="3" placeholder="Ej: info@bbtspr.com">{{ $settings->mobile_ip_bypass_emails ?? '' }}</textarea>
+                <div class="form-text">Usuarios con estos correos podrán acceder aunque no estén en la IP permitida.</div>
+            </div>
+        </div>
+    </div>
+
     <button type="submit" class="btn btn-primary">Guardar Cambios</button>
 </form>
 

@@ -174,6 +174,9 @@ class Setting extends Model
         'clover_env',
         'clover_device_host',
         'clover_device_token',
+        'mobile_ip_restriction_enabled',
+        'mobile_ip_allowlist',
+        'mobile_ip_bypass_emails',
     ];
 
     protected $casts = [
@@ -201,5 +204,6 @@ class Setting extends Model
         'tip_presets' => 'array',
         'tip_allow_custom' => 'boolean',
         'tip_allow_skip' => 'boolean',
+        'mobile_ip_restriction_enabled' => 'boolean',
     ];
 }

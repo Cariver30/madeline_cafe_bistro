@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Support\MobileIpAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -39,6 +40,12 @@ class MobileTokenAuth
         if (!empty($roles) && !$user->hasRole($roles)) {
             return response()->json([
                 'message' => 'No tienes permisos para esta acción.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!MobileIpAccess::allows($user, (string) $request->ip())) {
+            return response()->json([
+                'message' => 'Acceso restringido a la red del restaurante.',
             ], Response::HTTP_FORBIDDEN);
         }
 

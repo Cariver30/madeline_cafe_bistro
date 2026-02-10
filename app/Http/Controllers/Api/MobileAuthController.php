@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\MobileIpAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -32,6 +33,12 @@ class MobileAuthController extends Controller
         if (!$user->isActive() || !$user->hasRole($this->allowedRoles)) {
             return response()->json([
                 'message' => 'No tienes acceso a la app móvil.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!MobileIpAccess::allows($user, (string) $request->ip())) {
+            return response()->json([
+                'message' => 'Acceso restringido a la red del restaurante.',
             ], Response::HTTP_FORBIDDEN);
         }
 

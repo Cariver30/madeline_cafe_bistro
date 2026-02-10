@@ -50,6 +50,8 @@ use App\Http\Controllers\HomeController;
 // Rutas públicas
 Route::get('/', [HomeController::class, 'cover'])->name('cover');
 Route::get('/menu', [MenuController::class, 'index'])->name('menu');
+Route::view('/privacidad', 'privacy')->name('privacy');
+Route::view('/privacy', 'privacy');
 Route::get('/ordenar', [OnlineOrderController::class, 'show'])->name('online.order.show');
 Route::post('/ordenar/checkout', [OnlineOrderController::class, 'checkout'])->name('online.order.checkout');
 Route::get('/ordenar/checkout/{token}', [OnlineOrderController::class, 'checkoutPage'])->name('online.order.checkout.page');

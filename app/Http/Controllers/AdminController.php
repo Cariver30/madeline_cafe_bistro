@@ -509,6 +509,9 @@ $foodPairings = FoodPairing::all();
             'tip_presets' => 'nullable|string',
             'tip_allow_custom' => 'nullable|boolean',
             'tip_allow_skip' => 'nullable|boolean',
+            'mobile_ip_restriction_enabled' => 'nullable|boolean',
+            'mobile_ip_allowlist' => 'nullable|string',
+            'mobile_ip_bypass_emails' => 'nullable|string',
             'clover_merchant_id' => 'nullable|string|max:255',
             'clover_access_token' => 'nullable|string|max:2048',
             'clover_env' => 'nullable|string|in:production,sandbox',
@@ -740,6 +743,15 @@ $foodPairings = FoodPairing::all();
                 'tip_allow_skip',
                 $settings->tip_allow_skip ?? false,
             );
+        }
+
+        if (Schema::hasColumn('settings', 'mobile_ip_restriction_enabled')) {
+            $settings->mobile_ip_restriction_enabled = $request->boolean(
+                'mobile_ip_restriction_enabled',
+                (bool) ($settings->mobile_ip_restriction_enabled ?? false),
+            );
+            $settings->mobile_ip_allowlist = $request->input('mobile_ip_allowlist', $settings->mobile_ip_allowlist);
+            $settings->mobile_ip_bypass_emails = $request->input('mobile_ip_bypass_emails', $settings->mobile_ip_bypass_emails);
         }
 
         $settings->button_label_menu = $buttonLabelMenu;
