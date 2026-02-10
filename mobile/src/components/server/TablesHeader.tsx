@@ -5,12 +5,14 @@ type TablesHeaderProps = {
   title?: string;
   onNewTable: () => void;
   error?: string | null;
+  attentionCount?: number;
 };
 
 export const TablesHeader = ({
   title = 'Mesas en curso',
   onNewTable,
   error,
+  attentionCount = 0,
 }: TablesHeaderProps) => {
   return (
     <View style={styles.header}>
@@ -20,6 +22,13 @@ export const TablesHeader = ({
           <Text style={styles.newButtonText}>Nueva mesa</Text>
         </TouchableOpacity>
       </View>
+      {attentionCount > 0 ? (
+        <View style={styles.noticeBanner}>
+          <Text style={styles.noticeText}>
+            Órdenes sin atender: {attentionCount}
+          </Text>
+        </View>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -49,6 +58,17 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontWeight: '700',
     fontSize: 12,
+  },
+  noticeBanner: {
+    backgroundColor: '#fbbf24',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  noticeText: {
+    color: '#0f172a',
+    fontWeight: '700',
+    fontSize: 13,
   },
   error: {
     color: '#fb7185',

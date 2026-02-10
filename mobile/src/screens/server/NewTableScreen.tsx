@@ -27,14 +27,15 @@ const NewTableScreen = ({navigation}: Props) => {
   const [tablesLoading, setTablesLoading] = useState(false);
   const [tables, setTables] = useState<DiningTable[]>([]);
   const [showTablePicker, setShowTablePicker] = useState(false);
-  const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
+  const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
+  const [combineTables, setCombineTables] = useState(false);
   const [form, setForm] = useState({
-    table_label: '',
     party_size: '',
     guest_name: '',
     guest_email: '',
     guest_phone: '',
     order_mode: 'table' as 'table' | 'traditional',
+    group_name: '',
   });
 
 
@@ -44,9 +45,7 @@ const NewTableScreen = ({navigation}: Props) => {
     }
     setTablesLoading(true);
     try {
-      const result = await getServerDiningTables(token, {
-        status: 'available,reserved,occupied',
-      });
+      const result = await getServerDiningTables(token);
       setTables(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar mesas.');
@@ -66,7 +65,7 @@ const NewTableScreen = ({navigation}: Props) => {
       return;
     }
     if (
-      (!form.table_label.trim() && !selectedTableId) ||
+      selectedTableIds.length === 0 ||
       !form.party_size ||
       !form.guest_name.trim() ||
       !form.guest_email.trim() ||
@@ -75,17 +74,21 @@ const NewTableScreen = ({navigation}: Props) => {
       setError('Completa todos los campos.');
       return;
     }
+    if (selectedTableIds.length > 1 && !form.group_name.trim()) {
+      setError('Ingresa el nombre del grupo.');
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
       const created = await createTableSession(token, {
-        table_label: selectedTableId ? undefined : form.table_label.trim(),
-        dining_table_id: selectedTableId ?? undefined,
+        table_ids: selectedTableIds,
         party_size: Number(form.party_size),
         guest_name: form.guest_name.trim(),
         guest_email: form.guest_email.trim(),
         guest_phone: form.guest_phone.trim(),
         order_mode: form.order_mode,
+        group_name: selectedTableIds.length > 1 ? form.group_name.trim() : undefined,
       });
       await loadSessions(false);
       navigation.replace('TableDetail', {sessionId: created.id});
@@ -144,21 +147,49 @@ const NewTableScreen = ({navigation}: Props) => {
           disabled={tablesLoading}
           >
           <Text style={styles.selectorText}>
-            {selectedTableId
-              ? `Mesa seleccionada: ${tables.find(t => t.id === selectedTableId)?.label ?? ''}`
-              : 'Seleccionar mesa (opcional)'}
+            {selectedTableIds.length
+              ? `Mesas: ${tables
+                  .filter(t => selectedTableIds.includes(t.id))
+                  .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+                  .map(t => t.label)
+                  .join(' + ')}`
+              : 'Seleccionar mesas'}
           </Text>
         </TouchableOpacity>
-        <TextInput
-          style={[styles.input, selectedTableId && styles.inputDisabled]}
-          placeholder="Mesa"
-          placeholderTextColor="#94a3b8"
-          value={form.table_label}
-          editable={!selectedTableId}
-          onChangeText={text =>
-            setForm(prev => ({...prev, table_label: text}))
-          }
-        />
+        <TouchableOpacity
+          style={[
+            styles.combineToggle,
+            combineTables && styles.combineToggleActive,
+          ]}
+          onPress={() => {
+            setCombineTables(prev => {
+              const next = !prev;
+              if (!next) {
+                setSelectedTableIds(current =>
+                  current.length ? [current[0]] : [],
+                );
+                setForm(currentForm => ({...currentForm, group_name: ''}));
+              }
+              return next;
+            });
+          }}>
+          <Text
+            style={[
+              styles.combineToggleText,
+              combineTables && styles.combineToggleTextActive,
+            ]}>
+            Unir mesas
+          </Text>
+        </TouchableOpacity>
+        {selectedTableIds.length > 1 ? (
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre del grupo"
+            placeholderTextColor="#94a3b8"
+            value={form.group_name}
+            onChangeText={text => setForm(prev => ({...prev, group_name: text}))}
+          />
+        ) : null}
         <TextInput
           style={styles.input}
           placeholder="Personas"
@@ -210,45 +241,67 @@ const NewTableScreen = ({navigation}: Props) => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Selecciona mesa</Text>
             <ScrollView style={styles.modalList}>
-              <TouchableOpacity
-                style={[styles.modalItem, !selectedTableId && styles.modalItemSelected]}
-                onPress={() => {
-                  setSelectedTableId(null);
-                  setForm(prev => ({...prev, table_label: ''}));
-                  setShowTablePicker(false);
-                }}>
-                <Text style={styles.modalItemText}>Sin mesa (manual)</Text>
-              </TouchableOpacity>
               {tables
-                .filter(table =>
-                  ['available', 'reserved'].includes(table.status) ||
-                  (table.status === 'occupied' && !table.active_session),
-                )
-                .map(table => (
-                <TouchableOpacity
-                  key={table.id}
-                  style={[
-                    styles.modalItem,
-                    selectedTableId === table.id && styles.modalItemSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedTableId(table.id);
-                    setForm(prev => ({...prev, table_label: table.label}));
-                    setShowTablePicker(false);
-                  }}>
-                  <Text style={styles.modalItemText}>
-                    {table.label} • {table.capacity} personas •{' '}
-                    {table.status === 'occupied' ? 'ocupada (sin mesero)' : table.status}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                .map(table => {
+                  const isSelectable =
+                    table.status === 'available' ||
+                    table.status === 'reserved' ||
+                    (!combineTables &&
+                      table.status === 'occupied' &&
+                      !table.active_session);
+                  return (
+                    <TouchableOpacity
+                      key={table.id}
+                      style={[
+                        styles.modalItem,
+                        selectedTableIds.includes(table.id) &&
+                          styles.modalItemSelected,
+                        !isSelectable && styles.modalItemDisabled,
+                      ]}
+                      onPress={() => {
+                        if (!isSelectable) {
+                          return;
+                        }
+                        if (combineTables) {
+                          setSelectedTableIds(current => {
+                            if (current.includes(table.id)) {
+                              return current.filter(id => id !== table.id);
+                            }
+                            return [...current, table.id];
+                          });
+                          return;
+                        }
+                        setSelectedTableIds([table.id]);
+                        setShowTablePicker(false);
+                      }}>
+                      <Text style={styles.modalItemText}>
+                        {table.label} • {table.capacity} personas •{' '}
+                        {table.status === 'occupied'
+                          ? table.active_session
+                            ? `ocupada (${table.active_session.server_name ?? 'mesero'})`
+                            : 'ocupada (sin mesero)'
+                          : table.status}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
             </ScrollView>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => setShowTablePicker(false)}
-              >
-              <Text style={styles.secondaryButtonText}>Cerrar</Text>
-            </TouchableOpacity>
+            <View style={styles.modalActions}>
+              {combineTables ? (
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => setShowTablePicker(false)}
+                  >
+                  <Text style={styles.secondaryButtonText}>Listo</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => setShowTablePicker(false)}
+                >
+                <Text style={styles.secondaryButtonText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -319,6 +372,26 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontWeight: '600',
   },
+  combineToggle: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#0b1220',
+  },
+  combineToggleActive: {
+    backgroundColor: '#fbbf24',
+    borderColor: '#fbbf24',
+  },
+  combineToggleText: {
+    color: '#cbd5f5',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  combineToggleTextActive: {
+    color: '#0f172a',
+  },
   input: {
     backgroundColor: '#1e293b',
     borderRadius: 18,
@@ -360,6 +433,9 @@ const styles = StyleSheet.create({
   modalList: {
     maxHeight: 300,
   },
+  modalActions: {
+    gap: 8,
+  },
   modalItem: {
     padding: 10,
     borderRadius: 12,
@@ -370,6 +446,9 @@ const styles = StyleSheet.create({
   modalItemSelected: {
     borderColor: '#fbbf24',
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
+  },
+  modalItemDisabled: {
+    opacity: 0.45,
   },
   modalItemText: {
     color: '#f8fafc',

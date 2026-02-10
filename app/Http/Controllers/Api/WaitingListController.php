@@ -15,6 +15,7 @@ use App\Models\WaitingListSetting;
 use App\Support\TwilioSmsClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -37,7 +38,7 @@ class WaitingListController extends Controller
                 $query->whereIn('status', $statuses->all());
             }
         } else {
-            $query->whereIn('status', ['waiting', 'notified', 'seated']);
+            $query->whereIn('status', ['waiting', 'notified', 'seated', 'confirmed']);
         }
 
         $entries = $query
@@ -58,11 +59,25 @@ class WaitingListController extends Controller
             'party_size' => ['required', 'integer', 'min:1', 'max:99'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'quoted_minutes' => ['nullable', 'integer', 'min:1', 'max:300'],
+            'reservation_at' => ['nullable', 'string'],
         ]);
 
         $data['guest_phone'] = $this->normalizePhone($data['guest_phone']);
         $data['quoted_at'] = ! empty($data['quoted_minutes']) ? now() : null;
         $data['cancel_token'] = Str::uuid()->toString();
+
+        if (array_key_exists('reservation_at', $data)) {
+            $reservationAt = $this->normalizeReservationAt($data['reservation_at']);
+            if ($reservationAt === false) {
+                return response()->json([
+                    'message' => 'La reserva debe ser para hoy y en el futuro.',
+                    'errors' => [
+                        'reservation_at' => ['La hora de reserva debe ser para hoy y en el futuro.'],
+                    ],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            $data['reservation_at'] = $reservationAt;
+        }
 
         $entry = WaitingListEntry::create($data);
 
@@ -83,7 +98,8 @@ class WaitingListController extends Controller
             'party_size' => ['sometimes', 'integer', 'min:1', 'max:99'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'quoted_minutes' => ['nullable', 'integer', 'min:1', 'max:300'],
-            'status' => ['nullable', Rule::in(['waiting', 'notified', 'seated', 'cancelled', 'no_show'])],
+            'reservation_at' => ['nullable', 'string'],
+            'status' => ['nullable', Rule::in(['waiting', 'notified', 'seated', 'cancelled', 'no_show', 'confirmed'])],
         ]);
 
         $statusChanged = false;
@@ -102,6 +118,26 @@ class WaitingListController extends Controller
         if (Arr::has($data, 'quoted_minutes')) {
             $data['quoted_minutes'] = $data['quoted_minutes'] ?: null;
             $data['quoted_at'] = $data['quoted_minutes'] ? now() : null;
+        }
+
+        if (Arr::has($data, 'reservation_at')) {
+            $reservationAt = $this->normalizeReservationAt($data['reservation_at']);
+            if ($reservationAt === false) {
+                return response()->json([
+                    'message' => 'La reserva debe ser para hoy y en el futuro.',
+                    'errors' => [
+                        'reservation_at' => ['La hora de reserva debe ser para hoy y en el futuro.'],
+                    ],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            $data['reservation_at'] = $reservationAt;
+            $data['confirmation_received_at'] = null;
+            $data['reminder_30_sent_at'] = null;
+            $data['reminder_10_sent_at'] = null;
+            $data['auto_cancelled_at'] = null;
+            if ($reservationAt && ! Arr::has($data, 'status')) {
+                $data['status'] = 'waiting';
+            }
         }
 
         if ($data) {
@@ -225,8 +261,12 @@ class WaitingListController extends Controller
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $hasActiveSession = TableSession::where('dining_table_id', $table->id)
-                ->where('status', 'active')
+            $hasActiveSession = TableSession::where('status', 'active')
+                ->where(function ($query) use ($table) {
+                    $query
+                        ->where('dining_table_id', $table->id)
+                        ->orWhereHas('tables', fn ($sub) => $sub->where('dining_tables.id', $table->id));
+                })
                 ->exists();
 
             if ($hasActiveSession) {
@@ -284,6 +324,7 @@ class WaitingListController extends Controller
                 'expires_at' => now()->addHour(),
                 'seated_at' => now(),
             ]);
+            $session->tables()->sync($tables->pluck('id')->all());
 
             $this->applyStatus($waitingListEntry, 'seated');
             event(new ServerSessionsUpdated($server->id, $session->id));
@@ -350,6 +391,11 @@ class WaitingListController extends Controller
             'status' => $entry->status,
             'quoted_minutes' => $entry->quoted_minutes,
             'quoted_at' => optional($entry->quoted_at)->toIso8601String(),
+            'reservation_at' => optional($entry->reservation_at)->toIso8601String(),
+            'confirmation_received_at' => optional($entry->confirmation_received_at)->toIso8601String(),
+            'reminder_30_sent_at' => optional($entry->reminder_30_sent_at)->toIso8601String(),
+            'reminder_10_sent_at' => optional($entry->reminder_10_sent_at)->toIso8601String(),
+            'auto_cancelled_at' => optional($entry->auto_cancelled_at)->toIso8601String(),
             'notified_at' => optional($entry->notified_at)->toIso8601String(),
             'seated_at' => optional($entry->seated_at)->toIso8601String(),
             'cancelled_at' => optional($entry->cancelled_at)->toIso8601String(),
@@ -411,6 +457,33 @@ class WaitingListController extends Controller
             '{restaurant}' => config('app.name'),
             '{wait_minutes}' => (string) ($entry->quoted_minutes ?? $settings->default_wait_minutes),
         ]);
+    }
+
+    private function normalizeReservationAt(?string $value): Carbon|bool|null
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        try {
+            $reservation = Carbon::parse($raw, config('app.timezone'));
+        } catch (\Throwable) {
+            return false;
+        }
+
+        $reservation = $reservation->setTimezone(config('app.timezone'));
+        $now = now(config('app.timezone'));
+
+        if ($reservation->toDateString() !== $now->toDateString()) {
+            return false;
+        }
+
+        if ($reservation->lessThan($now)) {
+            return false;
+        }
+
+        return $reservation;
     }
 
     private function applyStatus(WaitingListEntry $entry, string $status): void

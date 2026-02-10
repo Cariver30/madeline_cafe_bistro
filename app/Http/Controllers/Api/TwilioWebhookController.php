@@ -14,29 +14,58 @@ class TwilioWebhookController extends Controller
         $from = $this->normalizePhone($request->input('From', ''));
         $body = strtolower(trim((string) $request->input('Body', '')));
 
-        if (! $from || ! $this->isCancelMessage($body)) {
+        if (! $from) {
             return response('', 200);
         }
 
-        $entry = WaitingListEntry::where('guest_phone', $from)
-            ->whereIn('status', ['waiting', 'notified'])
-            ->orderByDesc('created_at')
-            ->first();
+        if ($this->isCancelMessage($body)) {
+            $entry = WaitingListEntry::where('guest_phone', $from)
+                ->whereIn('status', ['waiting', 'notified', 'confirmed'])
+                ->orderByDesc('created_at')
+                ->first();
 
-        if (! $entry) {
-            return $this->twimlResponse('No encontramos una reserva activa para cancelar.');
+            if (! $entry) {
+                return $this->twimlResponse('No encontramos una reserva activa para cancelar.');
+            }
+
+            $entry->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+            ]);
+
+            $this->releaseAssignments($entry);
+            event(new HostDashboardUpdated('waiting_list', $entry->id));
+            event(new HostDashboardUpdated('tables'));
+
+            return $this->twimlResponse('Tu reserva fue cancelada. ¡Gracias!');
         }
 
-        $entry->update([
-            'status' => 'cancelled',
-            'cancelled_at' => now(),
-        ]);
+        if ($this->isConfirmMessage($body)) {
+            $entry = WaitingListEntry::where('guest_phone', $from)
+                ->whereNotNull('reservation_at')
+                ->whereIn('status', ['waiting', 'notified', 'confirmed'])
+                ->orderByDesc('reservation_at')
+                ->first();
 
-        $this->releaseAssignments($entry);
-        event(new HostDashboardUpdated('waiting_list', $entry->id));
-        event(new HostDashboardUpdated('tables'));
+            if (! $entry) {
+                return $this->twimlResponse('No encontramos una reserva pendiente para confirmar.');
+            }
 
-        return $this->twimlResponse('Tu reserva fue cancelada. ¡Gracias!');
+            if ($entry->confirmation_received_at) {
+                return $this->twimlResponse('Tu reserva ya está confirmada. ¡Gracias!');
+            }
+
+            $entry->update([
+                'status' => 'confirmed',
+                'confirmation_received_at' => now(),
+            ]);
+
+            event(new HostDashboardUpdated('waiting_list', $entry->id));
+
+            return $this->twimlResponse('Reserva confirmada. ¡Te esperamos!');
+        }
+
+        return response('', 200);
     }
 
     private function releaseAssignments(WaitingListEntry $entry): void
@@ -76,6 +105,11 @@ class TwilioWebhookController extends Controller
     private function isCancelMessage(string $body): bool
     {
         return str_contains($body, 'cancel') || str_contains($body, 'cancelar') || str_contains($body, 'stop') || str_contains($body, 'no voy') || str_contains($body, 'no ire');
+    }
+
+    private function isConfirmMessage(string $body): bool
+    {
+        return (bool) preg_match('/\bsi\b/u', $body) || (bool) preg_match('/\bsí\b/u', $body);
     }
 
     private function twimlResponse(string $message)

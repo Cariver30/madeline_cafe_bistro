@@ -337,9 +337,14 @@ export type WaitingListEntry = {
   guest_email: string | null;
   party_size: number;
   notes: string | null;
-  status: 'waiting' | 'notified' | 'seated' | 'cancelled' | 'no_show' | string;
+  status: 'waiting' | 'notified' | 'seated' | 'confirmed' | 'cancelled' | 'no_show' | string;
   quoted_minutes: number | null;
   quoted_at: string | null;
+  reservation_at?: string | null;
+  confirmation_received_at?: string | null;
+  reminder_30_sent_at?: string | null;
+  reminder_10_sent_at?: string | null;
+  auto_cancelled_at?: string | null;
   notified_at: string | null;
   seated_at: string | null;
   cancelled_at: string | null;
@@ -376,6 +381,7 @@ export type TableSession = {
   server_id?: number;
   server_name?: string | null;
   table_label: string;
+  group_name?: string | null;
   dining_table_id?: number | null;
   waiting_list_entry_id?: number | null;
   dining_table?: {
@@ -385,6 +391,13 @@ export type TableSession = {
     section: string | null;
     status: string;
   } | null;
+  dining_tables?: {
+    id: number;
+    label: string;
+    capacity: number;
+    section: string | null;
+    status: string;
+  }[];
   party_size: number;
   guest_name: string;
   guest_email: string;
@@ -508,11 +521,13 @@ export type PosTicketPayload = {
 export type TableSessionPayload = {
   table_label?: string;
   dining_table_id?: number | null;
+  table_ids?: number[];
   party_size: number;
   guest_name: string;
   guest_email: string;
   guest_phone: string;
   order_mode?: 'traditional' | 'table';
+  group_name?: string;
 };
 
 export type ServerOrderItemPayload = {

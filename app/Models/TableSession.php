@@ -17,6 +17,7 @@ class TableSession extends Model
         'open_order_id',
         'service_channel',
         'table_label',
+        'group_name',
         'party_size',
         'guest_name',
         'guest_email',
@@ -62,6 +63,12 @@ class TableSession extends Model
     public function diningTable()
     {
         return $this->belongsTo(DiningTable::class);
+    }
+
+    public function tables()
+    {
+        return $this->belongsToMany(DiningTable::class, 'table_session_tables')
+            ->withTimestamps();
     }
 
     public function waitingListEntry()

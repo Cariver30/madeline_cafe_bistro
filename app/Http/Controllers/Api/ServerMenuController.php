@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Cocktail;
 use App\Models\CocktailCategory;
+use App\Models\CantinaCategory;
+use App\Models\CantinaItem;
 use App\Models\Dish;
 use App\Models\Wine;
 use App\Models\WineCategory;
@@ -80,6 +82,26 @@ class ServerMenuController extends Controller
         ]);
     }
 
+    public function cantinaCategories()
+    {
+        $categories = CantinaCategory::with(['items' => function ($query) {
+            $query->where('visible', true)
+                ->orderBy('position')
+                ->orderBy('id')
+                ->with([
+                    'extras:id,name,group_name,group_required,max_select,min_select,kind,price,description,active',
+                ]);
+        }])->orderBy('order')->get();
+
+        $categories = $categories
+            ->filter(fn (CantinaCategory $category) => $category->items->isNotEmpty())
+            ->values();
+
+        return response()->json([
+            'categories' => $categories->map(fn (CantinaCategory $category) => $this->serializeCantinaCategory($category)),
+        ]);
+    }
+
     private function serializeMenuCategory(Category $category): array
     {
         return [
@@ -107,6 +129,16 @@ class ServerMenuController extends Controller
             'name' => $category->name,
             'order' => $category->order,
             'dishes' => $category->items->map(fn (Wine $item) => $this->serializeItem($item, $category->id, $category->name)),
+        ];
+    }
+
+    private function serializeCantinaCategory(CantinaCategory $category): array
+    {
+        return [
+            'id' => $category->id,
+            'name' => $category->name,
+            'order' => $category->order,
+            'dishes' => $category->items->map(fn (CantinaItem $item) => $this->serializeItem($item, $category->id, $category->name)),
         ];
     }
 

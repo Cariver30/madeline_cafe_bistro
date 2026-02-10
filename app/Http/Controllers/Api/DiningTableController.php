@@ -35,8 +35,24 @@ class DiningTableController extends Controller
             ->orderBy('label')
             ->get();
 
+        $tableIds = $tables->pluck('id')->all();
+        $groupSessions = TableSession::with(['server', 'tables'])
+            ->where('status', 'active')
+            ->whereHas('tables', fn ($q) => $q->whereIn('dining_tables.id', $tableIds))
+            ->get();
+
+        $groupSessionByTable = [];
+        foreach ($groupSessions as $session) {
+            foreach ($session->tables as $sessionTable) {
+                $groupSessionByTable[$sessionTable->id] = $session;
+            }
+        }
+
         return response()->json([
-            'tables' => $tables->map(fn (DiningTable $table) => $this->formatTable($table)),
+            'tables' => $tables->map(fn (DiningTable $table) => $this->formatTable(
+                $table,
+                $groupSessionByTable[$table->id] ?? null,
+            )),
         ]);
     }
 
@@ -100,8 +116,12 @@ class DiningTableController extends Controller
 
     public function destroy(DiningTable $diningTable)
     {
-        $hasActiveSession = TableSession::where('dining_table_id', $diningTable->id)
-            ->where('status', 'active')
+        $hasActiveSession = TableSession::where('status', 'active')
+            ->where(function ($query) use ($diningTable) {
+                $query
+                    ->where('dining_table_id', $diningTable->id)
+                    ->orWhereHas('tables', fn ($sub) => $sub->where('dining_tables.id', $diningTable->id));
+            })
             ->exists();
 
         if ($hasActiveSession || $diningTable->assignments()->whereNull('released_at')->exists()) {
@@ -119,10 +139,10 @@ class DiningTableController extends Controller
         ]);
     }
 
-    private function formatTable(DiningTable $table): array
+    private function formatTable(DiningTable $table, ?TableSession $overrideSession = null): array
     {
         $assignment = $table->activeAssignment;
-        $session = $table->activeSession;
+        $session = $overrideSession ?? $table->activeSession;
         $seatedAt = $session?->seated_at ?? $session?->created_at;
         $elapsedMinutes = $this->safeMinutesDiff($seatedAt, now());
         $estimatedTurn = $session ? TableTurnTimeEstimator::estimateTurnMinutes($session->party_size) : null;

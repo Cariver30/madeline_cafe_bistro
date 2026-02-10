@@ -11,6 +11,7 @@ import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {TableCard} from '../../components/server/TableCard';
 import {TablesHeader} from '../../components/server/TablesHeader';
+import {useServerSessions} from '../../context/ServerSessionsContext';
 import {useTablesViewModel} from '../../hooks/server/useTablesViewModel';
 import {ServerStackParamList} from '../../navigation/serverTypes';
 
@@ -18,6 +19,7 @@ const TablesScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<ServerStackParamList>>();
   const {tables, loading, refreshing, error, refresh} = useTablesViewModel();
+  const {unattendedOrdersTotal} = useServerSessions();
 
   return (
     <View style={styles.container}>
@@ -40,6 +42,7 @@ const TablesScreen = () => {
             <TablesHeader
               onNewTable={() => navigation.navigate('NewTable')}
               error={error}
+              attentionCount={unattendedOrdersTotal}
             />
           }
           ListEmptyComponent={

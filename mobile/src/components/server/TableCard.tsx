@@ -36,6 +36,10 @@ export const TableCard = ({
         ) : null}
       </View>
 
+      {table.group_name ? (
+        <Text style={styles.meta}>Grupo: {table.group_name}</Text>
+      ) : null}
+
       <Text style={styles.meta}>
         {table.guest_name} · {table.party_size} personas
       </Text>

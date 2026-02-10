@@ -1067,6 +1067,7 @@ export async function createWaitingListEntry(
     party_size: number;
     notes?: string | null;
     quoted_minutes?: number | null;
+    reservation_at?: string | null;
   },
   scope: 'manager' | 'host' = 'manager',
 ): Promise<WaitingListEntry> {

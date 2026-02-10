@@ -44,4 +44,10 @@ class DiningTable extends Model
     {
         return $this->hasMany(TableSession::class);
     }
+
+    public function groupedSessions()
+    {
+        return $this->belongsToMany(TableSession::class, 'table_session_tables')
+            ->withTimestamps();
+    }
 }

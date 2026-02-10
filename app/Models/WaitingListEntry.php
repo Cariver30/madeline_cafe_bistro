@@ -18,6 +18,11 @@ class WaitingListEntry extends Model
         'status',
         'quoted_minutes',
         'quoted_at',
+        'reservation_at',
+        'confirmation_received_at',
+        'reminder_30_sent_at',
+        'reminder_10_sent_at',
+        'auto_cancelled_at',
         'notified_at',
         'seated_at',
         'cancelled_at',
@@ -27,6 +32,11 @@ class WaitingListEntry extends Model
 
     protected $casts = [
         'quoted_at' => 'datetime',
+        'reservation_at' => 'datetime',
+        'confirmation_received_at' => 'datetime',
+        'reminder_30_sent_at' => 'datetime',
+        'reminder_10_sent_at' => 'datetime',
+        'auto_cancelled_at' => 'datetime',
         'notified_at' => 'datetime',
         'seated_at' => 'datetime',
         'cancelled_at' => 'datetime',

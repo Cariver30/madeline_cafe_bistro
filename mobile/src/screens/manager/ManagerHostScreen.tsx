@@ -38,6 +38,7 @@ const STATUS_COLORS: Record<string, string> = {
   waiting: '#fbbf24',
   notified: '#38bdf8',
   seated: '#22c55e',
+  confirmed: '#10b981',
   cancelled: '#94a3b8',
   no_show: '#f97316',
 };
@@ -86,6 +87,7 @@ const ManagerHostScreen = () => {
     guest_email: '',
     party_size: '2',
     quoted_minutes: '',
+    reservation_time: '',
     notes: '',
   });
 
@@ -239,9 +241,42 @@ const ManagerHostScreen = () => {
     [settings, clockTick],
   );
 
+  const formatReservationTime = (value?: string | null) => {
+    if (!value) return null;
+    const parts = value.includes('T') ? value.split('T') : value.split(' ');
+    const timePartRaw = parts[1] ?? '';
+    if (!timePartRaw) return value;
+    const timePart = timePartRaw.split(/[+-]/)[0].replace('Z', '');
+    const [hourText, minuteText] = timePart.split(':');
+    if (!hourText || !minuteText) return value;
+    const hour = Number(hourText);
+    if (Number.isNaN(hour)) return value;
+    const displayHour = ((hour + 11) % 12) + 1;
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    return `${displayHour}:${minuteText} ${suffix}`;
+  };
+
   const handleCreateEntry = async () => {
     if (!token) return;
     try {
+      const reservationText = newEntry.reservation_time.trim();
+      let reservationAt: string | null = null;
+      if (reservationText) {
+        const match = reservationText.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+        if (!match) {
+          setError('Hora de reserva inválida. Usa formato HH:MM.');
+          return;
+        }
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        const pad = (value: number) => value.toString().padStart(2, '0');
+        const now = new Date();
+        const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+          now.getDate(),
+        )}`;
+        reservationAt = `${date} ${pad(hours)}:${pad(minutes)}:00`;
+      }
+
       const payload = {
         guest_name: newEntry.guest_name.trim(),
         guest_phone: newEntry.guest_phone.trim(),
@@ -251,6 +286,7 @@ const ManagerHostScreen = () => {
           ? Number(newEntry.quoted_minutes)
           : null,
         notes: newEntry.notes.trim() || null,
+        reservation_at: reservationAt,
       };
       await createWaitingListEntry(token, payload, scope);
       setShowEntryModal(false);
@@ -260,6 +296,7 @@ const ManagerHostScreen = () => {
         guest_email: '',
         party_size: '2',
         quoted_minutes: '',
+        reservation_time: '',
         notes: '',
       });
       loadData(false);
@@ -413,6 +450,12 @@ const ManagerHostScreen = () => {
           <Text style={styles.cardMeta}>
             Espera estimada: {formatMinutes(waitClock.estimated)} min
           </Text>
+          {entry.reservation_at ? (
+            <Text style={styles.cardMeta}>
+              Reserva: {formatReservationTime(entry.reservation_at)} ·{' '}
+              {entry.confirmation_received_at ? 'Confirmada' : 'Sin confirmar'}
+            </Text>
+          ) : null}
           {waitClock.elapsed !== null ? (
             <Text style={styles.cardMeta}>
               En espera: {formatMinutes(waitClock.elapsed)} min
@@ -698,6 +741,15 @@ const ManagerHostScreen = () => {
                 }
               />
             </View>
+            <TextInput
+              placeholder="Hora reserva (HH:MM)"
+              placeholderTextColor="#94a3b8"
+              style={styles.input}
+              value={newEntry.reservation_time}
+              onChangeText={value =>
+                setNewEntry(current => ({...current, reservation_time: value}))
+              }
+            />
             <TextInput
               placeholder="Notas"
               placeholderTextColor="#94a3b8"

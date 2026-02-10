@@ -49,6 +49,7 @@ class CloverOrderService
         if ($tableSession) {
             $titleParts = array_filter([
                 $tableSession->table_label ? 'Mesa ' . $tableSession->table_label : null,
+                $tableSession->group_name ? 'Grupo ' . $tableSession->group_name : null,
                 $tableSession->guest_name ?: null,
             ]);
             if ($titleParts !== []) {

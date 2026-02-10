@@ -61,8 +61,12 @@ class DiningTableAdminController extends Controller
 
     public function destroy(DiningTable $diningTable)
     {
-        $hasActiveSession = TableSession::where('dining_table_id', $diningTable->id)
-            ->where('status', 'active')
+        $hasActiveSession = TableSession::where('status', 'active')
+            ->where(function ($query) use ($diningTable) {
+                $query
+                    ->where('dining_table_id', $diningTable->id)
+                    ->orWhereHas('tables', fn ($sub) => $sub->where('dining_tables.id', $diningTable->id));
+            })
             ->exists();
 
         $hasAssignments = $diningTable->assignments()->whereNull('released_at')->exists();

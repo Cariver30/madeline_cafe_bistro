@@ -8,6 +8,7 @@ use App\Models\OrderBatch;
 use App\Models\Setting;
 use App\Support\CloverClient;
 use App\Support\Loyalty\LoyaltyExpirationNotifier;
+use App\Support\WaitingListReservationReminder;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -16,6 +17,10 @@ Artisan::command('inspire', function () {
 Schedule::call(function () {
     app(LoyaltyExpirationNotifier::class)->sendReminders();
 })->dailyAt('09:00');
+
+Schedule::call(function () {
+    app(WaitingListReservationReminder::class)->sendReminders();
+})->everyMinute();
 
 Artisan::command('clover:reconcile-orders {--days=30} {--limit=200} {--dry-run}', function () {
     $days = (int) $this->option('days');

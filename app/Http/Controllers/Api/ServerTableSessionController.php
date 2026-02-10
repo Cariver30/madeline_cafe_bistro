@@ -57,8 +57,11 @@ class ServerTableSessionController extends Controller
         $server = $request->user();
 
         $validator = Validator::make($request->all(), [
+            'table_ids' => ['nullable', 'array', 'min:1'],
+            'table_ids.*' => ['integer', Rule::exists('dining_tables', 'id')],
             'dining_table_id' => ['nullable', 'integer', Rule::exists('dining_tables', 'id')],
-            'table_label' => ['required_without:dining_table_id', 'string', 'max:255'],
+            'table_label' => ['required_without_all:dining_table_id,table_ids', 'string', 'max:255'],
+            'group_name' => ['nullable', 'string', 'max:255'],
             'party_size' => ['required', 'integer', 'min:1', 'max:99'],
             'guest_name' => ['required', 'string', 'max:255'],
             'guest_email' => ['required', 'email', 'max:255'],
@@ -82,38 +85,67 @@ class ServerTableSessionController extends Controller
 
         $validated = $validator->validated();
 
-        $table = null;
-        if (! empty($validated['dining_table_id'])) {
-            $table = DiningTable::query()
-                ->with('activeAssignment.waitingListEntry')
-                ->find($validated['dining_table_id']);
+        $tableIds = array_values(array_unique($validated['table_ids'] ?? []));
+        if ($tableIds === [] && ! empty($validated['dining_table_id'])) {
+            $tableIds = [(int) $validated['dining_table_id']];
+        }
+        if (count($tableIds) > 1 && empty($validated['group_name'])) {
+            return response()->json([
+                'message' => 'El nombre del grupo es obligatorio para unir mesas.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
-            if ($table) {
-                $hasActiveSession = TableSession::where('dining_table_id', $table->id)
-                    ->where('status', 'active')
+        $tables = collect();
+        if ($tableIds !== []) {
+            $tables = DiningTable::query()
+                ->with('activeAssignment.waitingListEntry')
+                ->whereIn('id', $tableIds)
+                ->get();
+
+            if ($tables->count() !== count($tableIds)) {
+                return response()->json([
+                    'message' => 'No se encontraron todas las mesas seleccionadas.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            foreach ($tables as $table) {
+                $hasActiveSession = TableSession::where('status', 'active')
+                    ->where(function ($query) use ($table) {
+                        $query
+                            ->where('dining_table_id', $table->id)
+                            ->orWhereHas('tables', fn ($sub) => $sub->where('dining_tables.id', $table->id));
+                    })
                     ->exists();
 
                 if ($hasActiveSession) {
                     return response()->json([
-                        'message' => 'La mesa ya tiene una sesión activa.',
+                        'message' => "La mesa {$table->label} ya tiene una sesión activa.",
                     ], Response::HTTP_UNPROCESSABLE_ENTITY);
                 }
 
-                if (! in_array($table->status, ['available', 'reserved', 'occupied'], true)) {
+                if (! in_array($table->status, ['available', 'reserved'], true)) {
                     return response()->json([
-                        'message' => 'La mesa no está disponible.',
+                        'message' => "La mesa {$table->label} no está disponible.",
                     ], Response::HTTP_UNPROCESSABLE_ENTITY);
                 }
             }
         }
 
-        $waitingEntry = $table?->activeAssignment?->waitingListEntry;
+        $primaryTable = $tables->sortBy('position')->first();
+        $tableLabel = $tables
+            ->sortBy('position')
+            ->pluck('label')
+            ->filter()
+            ->implode(' + ');
+
+        $waitingEntry = $primaryTable?->activeAssignment?->waitingListEntry;
 
         $session = TableSession::create([
             'server_id' => $server->id,
-            'dining_table_id' => $table?->id,
+            'dining_table_id' => $primaryTable?->id,
             'waiting_list_entry_id' => $waitingEntry?->id,
-            'table_label' => $table?->label ?? $validated['table_label'],
+            'table_label' => $tableLabel ?: ($primaryTable?->label ?? $validated['table_label']),
+            'group_name' => $validated['group_name'] ?? null,
             'party_size' => $validated['party_size'],
             'guest_name' => $validated['guest_name'],
             'guest_email' => strtolower(trim($validated['guest_email'])),
@@ -124,9 +156,12 @@ class ServerTableSessionController extends Controller
             'seated_at' => now(),
         ]);
 
-        if ($table) {
-            $table->update(['status' => 'occupied']);
-            event(new HostDashboardUpdated('tables', $table->id));
+        if ($tables->isNotEmpty()) {
+            $session->tables()->sync($tables->pluck('id')->all());
+            foreach ($tables as $table) {
+                $table->update(['status' => 'occupied']);
+                event(new HostDashboardUpdated('tables', $table->id));
+            }
         }
 
         if ($waitingEntry && $waitingEntry->status !== 'seated') {
@@ -150,7 +185,14 @@ class ServerTableSessionController extends Controller
 
         $this->expireSessions($isManager ? null : $server->id);
 
-        $sessions = TableSession::with(['server', 'orders.batches.items.extras', 'orders.batches.items.prepLabels.area', 'openOrder.payments'])
+        $sessions = TableSession::with([
+                'server',
+                'diningTable',
+                'tables',
+                'orders.batches.items.extras',
+                'orders.batches.items.prepLabels.area',
+                'openOrder.payments',
+            ])
             ->when(!$isManager, fn ($query) => $query->where('server_id', $server->id))
             ->whereIn('status', ['active', 'expired'])
             ->orderByDesc('created_at')
@@ -182,10 +224,7 @@ class ServerTableSessionController extends Controller
                     'status' => 'closed',
                     'closed_at' => $session->closed_at ?? $now,
                 ]);
-                if ($session->diningTable) {
-                    $session->diningTable->update(['status' => 'dirty']);
-                    event(new HostDashboardUpdated('tables', $session->diningTable->id));
-                }
+                $this->updateSessionTablesStatus($session, 'available');
             }
         }
 
@@ -206,7 +245,14 @@ class ServerTableSessionController extends Controller
 
         $this->expireSessions($isManager ? null : $server->id);
 
-        $tableSession->load(['server', 'orders.batches.items.extras', 'orders.batches.items.prepLabels.area', 'openOrder.payments']);
+        $tableSession->load([
+            'server',
+            'diningTable',
+            'tables',
+            'orders.batches.items.extras',
+            'orders.batches.items.prepLabels.area',
+            'openOrder.payments',
+        ]);
 
         $this->queueCloverSync($request, $tableSession->orders->pluck('batches')->flatten());
 
@@ -396,6 +442,12 @@ class ServerTableSessionController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        if ($this->sessionHasOrders($tableSession)) {
+            return response()->json([
+                'message' => 'No puedes cerrar una mesa con órdenes tomadas.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $tipTotal = $validator->validated()['tip'] ?? null;
         $tipTotal = $tipTotal !== null ? round((float) $tipTotal, 2) : null;
 
@@ -407,13 +459,14 @@ class ServerTableSessionController extends Controller
             ]);
         }
 
+        $this->cancelPendingBatches($tableSession);
+
         if ($tableSession->open_order_id) {
             $openOrder = $tableSession->openOrder;
             if ($openOrder && $openOrder->status === 'pending') {
                 $openOrder->update([
-                    'status' => 'confirmed',
-                    'confirmed_at' => now(),
-                    'tip_total' => $tipTotal,
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
                 ]);
             } elseif ($openOrder && $tipTotal !== null) {
                 $openOrder->update(['tip_total' => $tipTotal]);
@@ -428,11 +481,8 @@ class ServerTableSessionController extends Controller
             }
         }
 
-        if ($tableSession->diningTable) {
-            $tableSession->diningTable->update(['status' => 'dirty']);
-            event(new HostDashboardUpdated('tables', $tableSession->diningTable->id));
-            $this->clearWaitingListEntryForTable($tableSession->diningTable);
-        }
+        $this->updateSessionTablesStatus($tableSession, 'available');
+        $this->clearWaitingListEntryForTable($tableSession->diningTable);
 
         return response()->json([
             'message' => 'Mesa cerrada.',
@@ -525,6 +575,9 @@ class ServerTableSessionController extends Controller
             ]);
 
             $receiptUrl = $this->sendReceiptMail($tableSession, $order, 'paid');
+
+            $this->updateSessionTablesStatus($tableSession, 'available');
+            $this->clearWaitingListEntryForTable($tableSession->diningTable);
         }
 
         if (!$tableSession->loyalty_visit_id) {
@@ -532,10 +585,6 @@ class ServerTableSessionController extends Controller
             if ($visit) {
                 $tableSession->update(['loyalty_visit_id' => $visit->id]);
             }
-        }
-
-        if ($tableSession->diningTable) {
-            $tableSession->diningTable->update(['status' => 'dirty']);
         }
 
         return response()->json([
@@ -630,6 +679,9 @@ class ServerTableSessionController extends Controller
             ]);
 
             $receiptUrl = $this->sendReceiptMail($tableSession, $order, 'paid');
+
+            $this->updateSessionTablesStatus($tableSession, 'available');
+            $this->clearWaitingListEntryForTable($tableSession->diningTable);
         }
 
         if (!$tableSession->loyalty_visit_id) {
@@ -637,10 +689,6 @@ class ServerTableSessionController extends Controller
             if ($visit) {
                 $tableSession->update(['loyalty_visit_id' => $visit->id]);
             }
-        }
-
-        if ($tableSession->diningTable) {
-            $tableSession->diningTable->update(['status' => 'dirty']);
         }
 
         return response()->json([
@@ -951,6 +999,7 @@ class ServerTableSessionController extends Controller
             }
         }
 
+        $previousTables = $this->resolveSessionTables($tableSession);
         $previousTable = $tableSession->diningTable;
 
         $tableSession->update([
@@ -959,17 +1008,76 @@ class ServerTableSessionController extends Controller
             'server_id' => $data['server_id'],
         ]);
 
-        if ($previousTable && $previousTable->id !== $targetTable?->id) {
-            $previousTable->update(['status' => 'dirty']);
-        }
         if ($targetTable) {
+            $tableSession->tables()->sync([$targetTable->id]);
+            foreach ($previousTables as $table) {
+                if ($table->id === $targetTable->id) {
+                    continue;
+                }
+                $table->update(['status' => 'available']);
+                event(new HostDashboardUpdated('tables', $table->id));
+            }
             $targetTable->update(['status' => 'occupied']);
+            event(new HostDashboardUpdated('tables', $targetTable->id));
         }
 
         return response()->json([
             'message' => 'Mesa transferida.',
             'session' => $this->formatSession($tableSession->fresh(['server', 'openOrder.payments'])),
         ]);
+    }
+
+    private function sessionHasOrders(TableSession $session): bool
+    {
+        return $session->orders()
+            ->whereHas('batches', function ($query) {
+                $query
+                    ->whereHas('items')
+                    ->where(function ($sub) {
+                        $sub
+                            ->where('status', 'confirmed')
+                            ->orWhereNotNull('clover_order_id');
+                    });
+            })
+            ->exists();
+    }
+
+    private function resolveSessionTables(TableSession $session)
+    {
+        $session->loadMissing(['diningTable', 'tables']);
+
+        $tables = $session->tables ?? collect();
+        if ($session->diningTable) {
+            $tables = $tables->concat([$session->diningTable]);
+        }
+
+        return $tables
+            ->unique('id')
+            ->values();
+    }
+
+    private function updateSessionTablesStatus(TableSession $session, string $status): void
+    {
+        $tables = $this->resolveSessionTables($session);
+        foreach ($tables as $table) {
+            $table->update(['status' => $status]);
+            event(new HostDashboardUpdated('tables', $table->id));
+        }
+    }
+
+    private function cancelPendingBatches(TableSession $session): void
+    {
+        $session->loadMissing(['orders.batches']);
+        $pendingBatches = $session->orders
+            ->flatMap(fn (Order $order) => $order->batches)
+            ->filter(fn (OrderBatch $batch) => $batch->status === 'pending');
+
+        foreach ($pendingBatches as $batch) {
+            $batch->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+            ]);
+        }
     }
 
     private function expireSessions(?int $serverId = null): void
@@ -1125,11 +1233,8 @@ class ServerTableSessionController extends Controller
                 'closed_at' => $session->closed_at ?? now(),
                 'paid_at' => $session->paid_at ?? now(),
             ]);
-            if ($session->diningTable) {
-                $session->diningTable->update(['status' => 'dirty']);
-                event(new HostDashboardUpdated('tables', $session->diningTable->id));
-                $this->clearWaitingListEntryForTable($session->diningTable);
-            }
+            $this->updateSessionTablesStatus($session, 'available');
+            $this->clearWaitingListEntryForTable($session->diningTable);
         }
     }
 
@@ -1168,6 +1273,7 @@ class ServerTableSessionController extends Controller
 
     private function formatSession(TableSession $session, bool $withOrders = false): array
     {
+        $session->loadMissing(['diningTable', 'tables', 'server']);
         $seatedAt = $session->seated_at ?? $session->created_at;
         $clockEnd = $session->closed_at ?? now();
         $elapsedMinutes = $this->safeMinutesDiff($seatedAt, $clockEnd);
@@ -1183,6 +1289,7 @@ class ServerTableSessionController extends Controller
             'server_id' => $session->server_id,
             'server_name' => $session->server?->name,
             'table_label' => $session->table_label,
+            'group_name' => $session->group_name,
             'dining_table_id' => $session->dining_table_id,
             'waiting_list_entry_id' => $session->waiting_list_entry_id,
             'dining_table' => $session->diningTable ? [
@@ -1192,6 +1299,18 @@ class ServerTableSessionController extends Controller
                 'section' => $session->diningTable->section,
                 'status' => $session->diningTable->status,
             ] : null,
+            'dining_tables' => $session->tables
+                ? $session->tables
+                    ->sortBy('position')
+                    ->values()
+                    ->map(fn (DiningTable $table) => [
+                        'id' => $table->id,
+                        'label' => $table->label,
+                        'capacity' => $table->capacity,
+                        'section' => $table->section,
+                        'status' => $table->status,
+                    ])
+                : [],
             'party_size' => $session->party_size,
             'guest_name' => $session->guest_name,
             'guest_email' => $session->guest_email,
@@ -1424,11 +1543,46 @@ class ServerTableSessionController extends Controller
 
     private function summarizePayments(Order $order): array
     {
-        $order->loadMissing('payments');
-        $totals = PosReceiptBuilder::calculateTotals($order);
-        $subtotal = $totals['subtotal'];
-        $taxTotal = $totals['tax_total'];
-        $total = $totals['total'];
+        $order->loadMissing([
+            'payments',
+            'batches',
+            'items.extras',
+            'items.itemable' => function ($morphTo) {
+                $morphTo->morphWith([
+                    \App\Models\Dish::class => ['taxes', 'category.taxes'],
+                    \App\Models\Cocktail::class => ['taxes', 'category.taxes'],
+                    \App\Models\Wine::class => ['taxes', 'category.taxes'],
+                ]);
+            },
+        ]);
+
+        $eligibleBatchIds = $order->batches
+            ->filter(fn (OrderBatch $batch) => $batch->status === 'confirmed' && ! $batch->cancelled_at)
+            ->pluck('id')
+            ->all();
+
+        $subtotal = 0.0;
+        $taxes = [];
+
+        foreach ($order->items->filter(fn ($item) => ! $item->voided_at) as $item) {
+            if (! in_array($item->order_batch_id, $eligibleBatchIds, true)) {
+                continue;
+            }
+            $lineTotals = PosReceiptBuilder::calculateLineTotals($item);
+            $subtotal += $lineTotals['subtotal'];
+            foreach ($lineTotals['taxes'] as $taxLine) {
+                $taxId = $taxLine['id'];
+                if (!isset($taxes[$taxId])) {
+                    $taxes[$taxId] = $taxLine;
+                    continue;
+                }
+                $taxes[$taxId]['amount'] = round($taxes[$taxId]['amount'] + $taxLine['amount'], 2);
+            }
+        }
+
+        $subtotal = round($subtotal, 2);
+        $taxTotal = round(collect($taxes)->sum('amount'), 2);
+        $total = round($subtotal + $taxTotal, 2);
         $paidSubtotal = 0.0;
         $paidTaxTotal = 0.0;
         $tipTotal = 0.0;

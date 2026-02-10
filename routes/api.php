@@ -61,6 +61,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/menu/categories', [ServerMenuController::class, 'menuCategories']);
         Route::get('/cocktails/categories', [ServerMenuController::class, 'cocktailCategories']);
         Route::get('/wines/categories', [ServerMenuController::class, 'wineCategories']);
+        Route::get('/cantina/categories', [ServerMenuController::class, 'cantinaCategories']);
         Route::get('/tables', [DiningTableController::class, 'index']);
         Route::patch('/tables/{diningTable}/status', [DiningTableController::class, 'updateStatus']);
         Route::get('/servers/available', [ServerTableSessionController::class, 'availableServers']);
@@ -106,6 +107,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/menu/categories', [ServerMenuController::class, 'menuCategories']);
         Route::get('/cocktails/categories', [ServerMenuController::class, 'cocktailCategories']);
         Route::get('/wines/categories', [ServerMenuController::class, 'wineCategories']);
+        Route::get('/cantina/categories', [ServerMenuController::class, 'cantinaCategories']);
         Route::get('/tables', [DiningTableController::class, 'index']);
         Route::patch('/tables/{diningTable}/status', [DiningTableController::class, 'updateStatus']);
         Route::patch('/batches/{order}/confirm', [ServerOrderController::class, 'confirm']);

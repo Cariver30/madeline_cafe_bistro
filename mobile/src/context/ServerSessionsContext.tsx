@@ -45,6 +45,7 @@ type ServerSessionsContextValue = {
   kitchenNotice: {orderId: number; status: string} | null;
   pendingOrders: PendingOrderEntry[];
   pendingOrdersTotal: number;
+  unattendedOrdersTotal: number;
   runningSessions: TableSession[];
   pendingSessions: TableSession[];
   idleSessions: TableSession[];
@@ -90,6 +91,30 @@ export const ServerSessionsProvider = ({
   const seenPendingOrders = useRef<Set<number>>(new Set());
   const sessionSnapshot = useRef<Set<number>>(new Set());
   const hasSessionSnapshot = useRef(false);
+  const attentionAlertRef =
+    useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const playAttentionAlert = useCallback(() => {
+    playServerChime();
+    Vibration.vibrate([0, 400, 200, 400]);
+  }, []);
+
+  const stopAttentionAlert = useCallback(() => {
+    if (attentionAlertRef.current) {
+      clearInterval(attentionAlertRef.current);
+      attentionAlertRef.current = null;
+    }
+  }, []);
+
+  const startAttentionAlert = useCallback(() => {
+    if (attentionAlertRef.current) {
+      return;
+    }
+    playAttentionAlert();
+    attentionAlertRef.current = setInterval(() => {
+      playAttentionAlert();
+    }, 15000);
+  }, [playAttentionAlert]);
 
   const trackNewOrders = useCallback((data: TableSession[]) => {
     const pendingIds = new Set<number>();
@@ -353,6 +378,18 @@ export const ServerSessionsProvider = ({
     });
   }, [sessions]);
 
+  const unattendedOrdersTotal = useMemo(() => {
+    let total = 0;
+    sessions.forEach(session => {
+      session.orders?.forEach(order => {
+        if (order.status === 'pending') {
+          total += 1;
+        }
+      });
+    });
+    return total;
+  }, [sessions]);
+
   const runningSessions = useMemo(
     () => sessions.filter(session => session.status !== 'closed'),
     [sessions],
@@ -413,6 +450,7 @@ export const ServerSessionsProvider = ({
       kitchenNotice,
       pendingOrders,
       pendingOrdersTotal: pendingOrders.length,
+      unattendedOrdersTotal,
       runningSessions,
       pendingSessions,
       idleSessions,
@@ -434,6 +472,7 @@ export const ServerSessionsProvider = ({
       newOrderNotice,
       kitchenNotice,
       pendingOrders,
+      unattendedOrdersTotal,
       runningSessions,
       pendingSessions,
       idleSessions,
@@ -448,6 +487,27 @@ export const ServerSessionsProvider = ({
       getOrderById,
     ],
   );
+
+  useEffect(() => {
+    if (!token || !user || (user.role !== 'server' && user.role !== 'manager')) {
+      stopAttentionAlert();
+      return;
+    }
+    if (unattendedOrdersTotal > 0) {
+      startAttentionAlert();
+    } else {
+      stopAttentionAlert();
+    }
+    return () => {
+      stopAttentionAlert();
+    };
+  }, [
+    token,
+    user,
+    unattendedOrdersTotal,
+    startAttentionAlert,
+    stopAttentionAlert,
+  ]);
 
   return (
     <ServerSessionsContext.Provider value={value}>

@@ -114,12 +114,20 @@ const TableDetailScreen = ({navigation, route}: Props) => {
   const isRenewing = actionState.renewingSessionId === session.id;
   const isClosing = actionState.closingSessionId === session.id;
   const isSessionBusy = isRenewing || isClosing;
-  const canCharge = session.open_order_id != null && session.status !== 'closed';
+  const canCharge =
+    (session.payment_summary?.total ?? 0) > 0 && session.status !== 'closed';
   const hasSentOrders = orders.some(order => order.status !== 'cancelled');
   const isManager = user?.role === 'manager';
   const selectableServers = availableServers.filter(
     server => server.id !== session.server_id,
   );
+  const groupedTables =
+    session.dining_tables && session.dining_tables.length > 1
+      ? session.dining_tables
+          .map(table => table.label)
+          .filter(Boolean)
+          .join(' + ')
+      : null;
 
   const toggleOrderMode = async () => {
     if (!token) {
@@ -243,6 +251,12 @@ const TableDetailScreen = ({navigation, route}: Props) => {
       }>
       <View style={styles.card}>
         <Text style={styles.heading}>Mesa {session.table_label}</Text>
+        {session.group_name ? (
+          <Text style={styles.meta}>Grupo: {session.group_name}</Text>
+        ) : null}
+        {groupedTables ? (
+          <Text style={styles.meta}>Mesas: {groupedTables}</Text>
+        ) : null}
         <Text style={styles.meta}>
           {session.guest_name} · {session.party_size} personas
         </Text>

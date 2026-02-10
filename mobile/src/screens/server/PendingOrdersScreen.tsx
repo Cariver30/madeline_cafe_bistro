@@ -29,6 +29,7 @@ const PendingOrdersScreen = () => {
   const {
     pendingOrders,
     pendingOrdersTotal,
+    unattendedOrdersTotal,
     loading,
     refreshing,
     error,
@@ -128,6 +129,13 @@ const PendingOrdersScreen = () => {
               <Text style={styles.subheading}>
                 Órdenes pendientes ({pendingOrdersTotal})
               </Text>
+              {unattendedOrdersTotal > 0 ? (
+                <View style={styles.attentionBanner}>
+                  <Text style={styles.attentionText}>
+                    Órdenes sin atender: {unattendedOrdersTotal}
+                  </Text>
+                </View>
+              ) : null}
               {newOrderNotice ? (
                 <View style={styles.noticeBanner}>
                   <Text style={styles.noticeText}>
@@ -272,6 +280,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   readyText: {
+    color: '#0f172a',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  attentionBanner: {
+    backgroundColor: '#fbbf24',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  attentionText: {
     color: '#0f172a',
     fontWeight: '700',
     fontSize: 13,
