@@ -474,13 +474,6 @@ class ServerTableSessionController extends Controller
             $tableSession->update(['open_order_id' => null]);
         }
 
-        if (!$tableSession->loyalty_visit_id) {
-            $visit = app(LoyaltyRewardService::class)->awardFromTableSession($tableSession);
-            if ($visit) {
-                $tableSession->update(['loyalty_visit_id' => $visit->id]);
-            }
-        }
-
         $this->updateSessionTablesStatus($tableSession, 'available');
         $this->clearWaitingListEntryForTable($tableSession->diningTable);
 
@@ -580,13 +573,6 @@ class ServerTableSessionController extends Controller
             $this->clearWaitingListEntryForTable($tableSession->diningTable);
         }
 
-        if (!$tableSession->loyalty_visit_id) {
-            $visit = app(LoyaltyRewardService::class)->awardFromTableSession($tableSession);
-            if ($visit) {
-                $tableSession->update(['loyalty_visit_id' => $visit->id]);
-            }
-        }
-
         return response()->json([
             'message' => $summary['is_paid'] ? 'Mesa cobrada.' : 'Pago registrado.',
             'session' => $this->formatSession($tableSession->fresh(['openOrder.payments'])),
@@ -682,13 +668,6 @@ class ServerTableSessionController extends Controller
 
             $this->updateSessionTablesStatus($tableSession, 'available');
             $this->clearWaitingListEntryForTable($tableSession->diningTable);
-        }
-
-        if (!$tableSession->loyalty_visit_id) {
-            $visit = app(LoyaltyRewardService::class)->awardFromTableSession($tableSession);
-            if ($visit) {
-                $tableSession->update(['loyalty_visit_id' => $visit->id]);
-            }
         }
 
         return response()->json([
@@ -1235,6 +1214,19 @@ class ServerTableSessionController extends Controller
             ]);
             $this->updateSessionTablesStatus($session, 'available');
             $this->clearWaitingListEntryForTable($session->diningTable);
+
+            if (! $session->loyalty_visit_id) {
+                $hasClosedCloverOrder = $session->orders
+                    ->flatMap(fn (Order $order) => $order->batches)
+                    ->contains(fn (OrderBatch $batch) => (bool) $batch->metered_closed_at);
+
+                if ($hasClosedCloverOrder) {
+                    $visit = app(LoyaltyRewardService::class)->awardFromTableSession($session);
+                    if ($visit) {
+                        $session->update(['loyalty_visit_id' => $visit->id]);
+                    }
+                }
+            }
         }
     }
 

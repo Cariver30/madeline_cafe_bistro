@@ -113,6 +113,22 @@ export async function logout(token: string) {
   }
 }
 
+export async function registerDeviceToken(
+  token: string,
+  deviceToken: string,
+  platform: string,
+) {
+  try {
+    await client.post(
+      '/device-token',
+      {token: deviceToken, platform},
+      authHeaders(token),
+    );
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+
 export async function getServerSummary(
   token: string,
 ): Promise<SummaryResponse> {

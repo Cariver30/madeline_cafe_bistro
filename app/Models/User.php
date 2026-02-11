@@ -95,4 +95,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class, 'server_id');
     }
+
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
 }

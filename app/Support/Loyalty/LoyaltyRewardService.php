@@ -63,7 +63,15 @@ class LoyaltyRewardService
         }
 
         $settings = Setting::first();
-        $points = optional($settings)->loyalty_points_per_visit ?? 0;
+        $points = (int) (optional($settings)->loyalty_points_per_visit ?? 0);
+        if ($points <= 0) {
+            return null;
+        }
+
+        $hasActiveRewards = LoyaltyReward::where('active', true)->exists();
+        if (!$hasActiveRewards) {
+            return null;
+        }
         $visit = null;
 
         $customer = DB::transaction(function () use ($session, $points, &$visit) {

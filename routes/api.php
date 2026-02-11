@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CantinaManagementController;
 use App\Http\Controllers\Api\ManagerDashboardController;
 use App\Http\Controllers\Api\MenuManagementController;
 use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\MobileDeviceTokenController;
 use App\Http\Controllers\Api\MobileViewSettingsController;
 use App\Http\Controllers\Api\KitchenAreaController;
 use App\Http\Controllers\Api\KitchenOrderController;
@@ -43,6 +44,8 @@ Route::prefix('mobile')->group(function () {
 
     Route::middleware('mobile.api')->group(function () {
         Route::post('/logout', [MobileAuthController::class, 'logout']);
+        Route::post('/device-token', [MobileDeviceTokenController::class, 'store']);
+        Route::delete('/device-token', [MobileDeviceTokenController::class, 'destroy']);
     });
     Route::middleware('mobile.api')->group(function () {
         Route::get('/settings/tips', [TipSettingsController::class, 'show']);

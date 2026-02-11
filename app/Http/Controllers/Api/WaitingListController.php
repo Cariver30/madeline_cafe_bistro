@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Setting;
 use App\Models\WaitingListEntry;
 use App\Models\WaitingListSetting;
+use App\Support\FcmNotificationService;
 use App\Support\TwilioSmsClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -328,6 +329,23 @@ class WaitingListController extends Controller
 
             $this->applyStatus($waitingListEntry, 'seated');
             event(new ServerSessionsUpdated($server->id, $session->id));
+
+            $server->loadMissing('deviceTokens');
+            $tokens = $server->deviceTokens->pluck('token')->all();
+            $labelForPush = $tableLabel ?: ($primaryTable?->label ?? 'Mesa');
+            app(FcmNotificationService::class)->send(
+                $tokens,
+                [
+                    'title' => 'Mesa asignada',
+                    'body' => "{$labelForPush} fue asignada por host.",
+                    'sound' => 'default',
+                    'android_channel_id' => 'orders',
+                ],
+                [
+                    'type' => 'table_assigned',
+                    'table_session_id' => (string) $session->id,
+                ],
+            );
         }
 
         event(new HostDashboardUpdated('waiting_list', $waitingListEntry->id));

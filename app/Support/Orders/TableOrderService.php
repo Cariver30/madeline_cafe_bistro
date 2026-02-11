@@ -12,6 +12,7 @@ use App\Models\OrderItemExtra;
 use App\Models\PrepLabel;
 use App\Models\TableSession;
 use App\Models\Wine;
+use App\Support\FcmNotificationService;
 use Illuminate\Support\Facades\DB;
 
 class TableOrderService
@@ -70,6 +71,29 @@ class TableOrderService
 
             if (!empty($labelIds) || !empty($areaIds)) {
                 event(new OrderItemsCreated($order->id, $labelIds, $areaIds));
+            }
+
+            if ($source === 'table' && $session->server_id) {
+                $session->loadMissing(['server.deviceTokens', 'diningTable']);
+                $tokens = $session->server?->deviceTokens?->pluck('token')->all() ?? [];
+                $tableLabel = $session->group_name
+                    ? 'Grupo ' . $session->group_name
+                    : ($session->table_label ?: $session->diningTable?->label ?: 'Mesa');
+
+                app(FcmNotificationService::class)->send(
+                    $tokens,
+                    [
+                        'title' => 'Nueva orden pendiente',
+                        'body' => "{$tableLabel} envió una orden.",
+                        'sound' => 'default',
+                        'android_channel_id' => 'orders',
+                    ],
+                    [
+                        'type' => 'pending_order',
+                        'table_session_id' => (string) $session->id,
+                        'order_id' => (string) $order->id,
+                    ],
+                );
             }
 
             return $batch;

@@ -2,6 +2,10 @@ import React, {createContext, useContext, useEffect, useMemo, useState} from 're
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {login as apiLogin, logout as apiLogout} from '../services/api';
 import {User} from '../types';
+import {
+  initPushNotifications,
+  stopPushNotifications,
+} from '../services/pushNotifications';
 
 type AuthContextType = {
   user: User | null;
@@ -48,6 +52,16 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({
     hydrate();
   }, []);
 
+  useEffect(() => {
+    if (initializing) {
+      return;
+    }
+
+    initPushNotifications(token, user).catch(() => {
+      // silencioso: no bloquea el flujo si falla el registro de push
+    });
+  }, [token, user, initializing]);
+
   const persistSession = async (session: StoredSession | null) => {
     if (session) {
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -79,6 +93,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({
     if (token) {
       await apiLogout(token);
     }
+    stopPushNotifications();
     setToken(null);
     setUser(null);
     await persistSession(null);
