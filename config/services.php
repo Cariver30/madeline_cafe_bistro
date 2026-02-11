@@ -71,7 +71,7 @@ return [
 
     'fcm' => [
         'server_key' => env('FCM_SERVER_KEY'),
-        'service_account' => env('FCM_SERVICE_ACCOUNT'),
+        'service_account' => env('FCM_SERVICE_ACCOUNT', storage_path('app/fcm-service-account.json')),
     ],
 
 ];
