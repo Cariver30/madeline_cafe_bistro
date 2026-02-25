@@ -242,7 +242,11 @@ class TableOrderController extends Controller
             'items' => $this->normalizeOrderItems($request->input('items', [])),
         ]);
 
-        $validator = Validator::make($request->all(), [
+        $requiresGuestProfile = trim((string) $session->guest_name) === ''
+            || trim((string) $session->guest_email) === ''
+            || trim((string) $session->guest_phone) === '';
+
+        $rules = [
             'items' => ['required', 'array', 'min:1'],
             'items.*.type' => ['required', 'string', 'in:dish,cocktail,wine,cantina'],
             'items.*.id' => ['required', 'integer'],
@@ -251,8 +255,17 @@ class TableOrderController extends Controller
             'items.*.extras' => ['nullable', 'array'],
             'items.*.extras.*.id' => ['required', 'integer'],
             'items.*.extras.*.quantity' => ['nullable', 'integer', 'min:1', 'max:99'],
-        ], [
+            'customer_name' => [$requiresGuestProfile ? 'required' : 'nullable', 'string', 'max:255'],
+            'customer_email' => [$requiresGuestProfile ? 'required' : 'nullable', 'email', 'max:255'],
+            'customer_phone' => [$requiresGuestProfile ? 'required' : 'nullable', 'string', 'max:255'],
+        ];
+
+        $validator = Validator::make($request->all(), $rules, [
             'items.required' => 'Debes agregar al menos un plato.',
+            'customer_name.required' => 'Indica tu nombre para continuar.',
+            'customer_email.required' => 'Indica tu correo para continuar.',
+            'customer_email.email' => 'El correo no tiene un formato válido.',
+            'customer_phone.required' => 'Indica tu teléfono para continuar.',
         ]);
 
         if ($validator->fails()) {
@@ -262,10 +275,23 @@ class TableOrderController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $validated = $validator->validated();
+        $customerName = trim((string) ($validated['customer_name'] ?? ''));
+        $customerEmail = strtolower(trim((string) ($validated['customer_email'] ?? '')));
+        $customerPhone = trim((string) ($validated['customer_phone'] ?? ''));
+
+        if ($customerName !== '' || $customerEmail !== '' || $customerPhone !== '') {
+            $session->update([
+                'guest_name' => $customerName !== '' ? $customerName : $session->guest_name,
+                'guest_email' => $customerEmail !== '' ? $customerEmail : $session->guest_email,
+                'guest_phone' => $customerPhone !== '' ? $customerPhone : $session->guest_phone,
+            ]);
+        }
+
         try {
             $batch = app(TableOrderService::class)->createBatch(
                 $session,
-                $validator->validated()['items'],
+                $validated['items'],
                 'table',
             );
         } catch (\RuntimeException $e) {

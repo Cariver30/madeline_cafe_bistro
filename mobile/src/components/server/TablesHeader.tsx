@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   newButton: {
     backgroundColor: '#fbbf24',

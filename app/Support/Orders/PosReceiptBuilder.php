@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\Tax;
 use App\Models\Wine;
 use App\Models\WineCategory;
+use App\Support\CloverOrderService;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Storage;
 
@@ -20,7 +21,7 @@ class PosReceiptBuilder
 {
     public static function build(Order $order, string $stage = 'paid'): array
     {
-        $order->loadMissing(['items.extras', 'tableSession', 'server', 'payments']);
+        $order->loadMissing(['items.extras', 'tableSession', 'server', 'payments', 'batches']);
         $settings = Setting::first();
         $logoUrl = null;
         if ($settings?->logo) {
@@ -56,8 +57,20 @@ class PosReceiptBuilder
             ];
         })->values()->all();
 
+        $appFee = self::resolveAppAndServiceFee($order);
+        if ($appFee['quantity'] > 0 && $appFee['line_total'] > 0) {
+            $items[] = [
+                'name' => CloverOrderService::APP_AND_SERVICE_FEE_NAME,
+                'quantity' => $appFee['quantity'],
+                'unit_price' => $appFee['unit_price'],
+                'notes' => null,
+                'extras' => [],
+                'line_total' => $appFee['line_total'],
+            ];
+        }
+
         $totals = self::calculateTotals($order);
-        $subtotal = $totals['subtotal'];
+        $subtotal = round($totals['subtotal'] + $appFee['line_total'], 2);
         $taxTotal = $totals['tax_total'];
         $taxes = $totals['taxes'];
         $tipTotal = (float) ($order->tip_total ?? 0);
@@ -94,6 +107,7 @@ class PosReceiptBuilder
             'tax_total' => $taxTotal,
             'tip_total' => $tipTotal,
             'total' => $total,
+            'app_service_fee_total' => $appFee['line_total'],
         ];
     }
 
@@ -239,5 +253,29 @@ class PosReceiptBuilder
         }
 
         return [];
+    }
+
+    private static function resolveAppAndServiceFee(Order $order): array
+    {
+        $order->loadMissing('batches');
+
+        $feePerBatch = round(CloverOrderService::APP_AND_SERVICE_FEE_CENTS / 100, 2);
+        $batchesWithClover = $order->batches
+            ->filter(fn ($batch) => ! $batch->cancelled_at && (bool) $batch->clover_order_id)
+            ->count();
+
+        if ($batchesWithClover <= 0) {
+            return [
+                'quantity' => 0,
+                'unit_price' => $feePerBatch,
+                'line_total' => 0.0,
+            ];
+        }
+
+        return [
+            'quantity' => $batchesWithClover,
+            'unit_price' => $feePerBatch,
+            'line_total' => round($batchesWithClover * $feePerBatch, 2),
+        ];
     }
 }

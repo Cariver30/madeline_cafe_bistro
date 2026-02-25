@@ -86,7 +86,7 @@ const TablesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#f8fafc',
   },
   listContent: {
     padding: 20,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     marginTop: 16,
   },

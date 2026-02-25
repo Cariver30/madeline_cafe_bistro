@@ -64,14 +64,8 @@ const NewTableScreen = ({navigation}: Props) => {
     if (!token) {
       return;
     }
-    if (
-      selectedTableIds.length === 0 ||
-      !form.party_size ||
-      !form.guest_name.trim() ||
-      !form.guest_email.trim() ||
-      !form.guest_phone.trim()
-    ) {
-      setError('Completa todos los campos.');
+    if (selectedTableIds.length === 0 || !form.party_size) {
+      setError('Selecciona mesa y cantidad de personas.');
       return;
     }
     if (selectedTableIds.length > 1 && !form.group_name.trim()) {
@@ -84,9 +78,9 @@ const NewTableScreen = ({navigation}: Props) => {
       const created = await createTableSession(token, {
         table_ids: selectedTableIds,
         party_size: Number(form.party_size),
-        guest_name: form.guest_name.trim(),
-        guest_email: form.guest_email.trim(),
-        guest_phone: form.guest_phone.trim(),
+        guest_name: form.guest_name.trim() || undefined,
+        guest_email: form.guest_email.trim() || undefined,
+        guest_phone: form.guest_phone.trim() || undefined,
         order_mode: form.order_mode,
         group_name: selectedTableIds.length > 1 ? form.group_name.trim() : undefined,
       });
@@ -104,7 +98,7 @@ const NewTableScreen = ({navigation}: Props) => {
       <View style={styles.card}>
         <Text style={styles.heading}>Nueva mesa</Text>
         <Text style={styles.subheading}>
-          Define si el cliente ordena o si el mesero toma la orden.
+          Define el modo y genera el QR. Los datos del cliente se completan al ordenar.
         </Text>
 
         <View style={styles.modeRow}>
@@ -200,14 +194,14 @@ const NewTableScreen = ({navigation}: Props) => {
         />
         <TextInput
           style={styles.input}
-          placeholder="Nombre"
+          placeholder="Nombre (opcional)"
           placeholderTextColor="#94a3b8"
           value={form.guest_name}
           onChangeText={text => setForm(prev => ({...prev, guest_name: text}))}
         />
         <TextInput
           style={styles.input}
-          placeholder="Correo"
+          placeholder="Correo (opcional)"
           placeholderTextColor="#94a3b8"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -216,7 +210,7 @@ const NewTableScreen = ({navigation}: Props) => {
         />
         <TextInput
           style={styles.input}
-          placeholder="Teléfono"
+          placeholder="Teléfono (opcional)"
           placeholderTextColor="#94a3b8"
           value={form.guest_phone}
           onChangeText={text => setForm(prev => ({...prev, guest_phone: text}))}
@@ -312,7 +306,7 @@ const NewTableScreen = ({navigation}: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#f8fafc',
   },
   content: {
     padding: 20,
@@ -320,21 +314,21 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#e2e8f0',
     gap: 12,
   },
   heading: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   subheading: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#475569',
   },
   modeRow: {
     flexDirection: 'row',
@@ -346,15 +340,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
-    backgroundColor: '#0b1220',
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
   },
   modeOptionActive: {
     backgroundColor: '#fbbf24',
     borderColor: '#fbbf24',
   },
   modeOptionText: {
-    color: '#cbd5f5',
+    color: '#334155',
     fontWeight: '600',
     fontSize: 13,
   },
@@ -363,29 +357,29 @@ const styles = StyleSheet.create({
   },
   selector: {
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#cbd5e1',
     padding: 12,
     borderRadius: 14,
-    backgroundColor: '#0b1220',
+    backgroundColor: '#ffffff',
   },
   selectorText: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontWeight: '600',
   },
   combineToggle: {
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#cbd5e1',
     borderRadius: 14,
     paddingVertical: 10,
     alignItems: 'center',
-    backgroundColor: '#0b1220',
+    backgroundColor: '#f8fafc',
   },
   combineToggleActive: {
     backgroundColor: '#fbbf24',
     borderColor: '#fbbf24',
   },
   combineToggleText: {
-    color: '#cbd5f5',
+    color: '#334155',
     fontWeight: '700',
     fontSize: 13,
   },
@@ -393,11 +387,13 @@ const styles = StyleSheet.create({
     color: '#0f172a',
   },
   input: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 16,
   },
   button: {
@@ -414,19 +410,19 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'center',
     padding: 20,
   },
   modalCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
     gap: 12,
     maxHeight: '80%',
   },
   modalTitle: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -440,7 +436,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
     marginBottom: 8,
   },
   modalItemSelected: {
@@ -451,19 +447,19 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   modalItemText: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontWeight: '600',
   },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#cbd5e1',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontWeight: '600',
   },
   buttonText: {

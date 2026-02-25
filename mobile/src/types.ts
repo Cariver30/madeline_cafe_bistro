@@ -523,9 +523,9 @@ export type TableSessionPayload = {
   dining_table_id?: number | null;
   table_ids?: number[];
   party_size: number;
-  guest_name: string;
-  guest_email: string;
-  guest_phone: string;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
   order_mode?: 'traditional' | 'table';
   group_name?: string;
 };

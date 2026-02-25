@@ -19,7 +19,10 @@ class ServerSessionsUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel("server.{$this->serverId}")];
+        return [
+            new PrivateChannel("server.{$this->serverId}"),
+            new PrivateChannel('manager.orders'),
+        ];
     }
 
     public function broadcastAs(): string

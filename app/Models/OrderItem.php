@@ -22,6 +22,7 @@ class OrderItem extends Model
         'voided_at',
         'voided_by',
         'void_reason',
+        'clover_line_item_id',
         'category_scope',
         'category_id',
         'category_name',
@@ -34,6 +35,7 @@ class OrderItem extends Model
         'category_id' => 'integer',
         'category_order' => 'integer',
         'voided_at' => 'datetime',
+        'clover_line_item_id' => 'string',
     ];
 
     public function order()

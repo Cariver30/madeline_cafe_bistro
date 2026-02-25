@@ -92,7 +92,7 @@ const OrderDetailScreen = ({route}: Props) => {
               setVoidingItemId(itemId);
               await voidServerOrderItem(token, order.id, itemId);
               await refresh();
-            } catch (err) {
+            } catch {
               // El mensaje ya viene del backend.
             } finally {
               setVoidingItemId(null);
@@ -147,7 +147,7 @@ const OrderDetailScreen = ({route}: Props) => {
             : `Orden #${order.id}`}
         </Text>
         <Text style={styles.meta}>
-          Mesa {session.table_label} · {session.guest_name}
+          Mesa {session.table_label} · {(session.guest_name || 'Cliente')}
         </Text>
         <Text style={styles.meta}>
           {formatTime(order.created_at)
@@ -355,7 +355,7 @@ const OrderDetailScreen = ({route}: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#f8fafc',
   },
   content: {
     padding: 20,
@@ -363,20 +363,20 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#e2e8f0',
     gap: 8,
   },
   heading: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   meta: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 13,
   },
   statusChip: {
@@ -403,15 +403,15 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   itemName: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 14,
   },
   itemExtras: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 12,
   },
   itemNotes: {
-    color: '#cbd5f5',
+    color: '#475569',
     fontSize: 12,
   },
   labelList: {
@@ -425,21 +425,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 12,
-    backgroundColor: '#0b1220',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
   },
   labelInfo: {
     flex: 1,
     gap: 2,
   },
   labelName: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 12,
     fontWeight: '700',
   },
   labelStatus: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 11,
   },
   labelTime: {
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#cbd5e1',
     marginTop: 6,
   },
   itemActionText: {
@@ -485,39 +485,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyText: {
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     marginTop: 20,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'center',
     padding: 20,
   },
   modalCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#e2e8f0',
     gap: 10,
   },
   modalTitle: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '700',
   },
   modalSubtitle: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 12,
   },
   modalInput: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   modalError: {
     color: '#fb7185',
@@ -530,10 +532,10 @@ const styles = StyleSheet.create({
   modalCancel: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#cbd5e1',
   },
   modalCancelText: {
-    color: '#e2e8f0',
+    color: '#334155',
     fontWeight: '600',
   },
   modalConfirm: {

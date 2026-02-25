@@ -34,6 +34,7 @@ import {
 
 const PROD_API_BASE_URL = 'https://madeleinecafebistro.com/api/mobile';
 // For dev builds use local API; production builds will still use PROD_API_BASE_URL.
+// Set to true to force prod API even in development.
 const FORCE_PROD_API = false;
 
 const resolveDevHost = () => {
@@ -796,7 +797,12 @@ export async function getActiveTableSessions(
   try {
     const {data} = await client.get<{sessions: TableSession[]}>(
       `${SERVER_API}/table-sessions/active`,
-      authHeaders(token),
+      {
+        ...authHeaders(token),
+        params: {
+          clover_live: 1,
+        },
+      },
     );
     return data.sessions ?? [];
   } catch (error) {

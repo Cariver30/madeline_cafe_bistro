@@ -20,21 +20,21 @@ const ServerHomeScreen = () => {
     <Tab.Navigator
       initialRouteName="Dashboard"
       screenOptions={{
-        headerStyle: {backgroundColor: '#020617'},
-        headerTintColor: '#f8fafc',
+        headerStyle: {backgroundColor: '#ffffff'},
+        headerTintColor: '#0f172a',
         headerRightContainerStyle: {paddingRight: 12},
         headerRight: () => (
           <TouchableOpacity onPress={logout}>
-            <Text style={{color: '#f8fafc', fontWeight: '600', fontSize: 12}}>
+            <Text style={{color: '#334155', fontWeight: '600', fontSize: 12}}>
               Cerrar sesión
             </Text>
           </TouchableOpacity>
         ),
         tabBarActiveTintColor: '#0f172a',
-        tabBarInactiveTintColor: '#e2e8f0',
-        tabBarStyle: {backgroundColor: '#0f172a'},
+        tabBarInactiveTintColor: '#64748b',
+        tabBarStyle: {backgroundColor: '#ffffff', borderTopColor: '#e2e8f0'},
         tabBarActiveBackgroundColor: '#fbbf24',
-        tabBarInactiveBackgroundColor: '#0f172a',
+        tabBarInactiveBackgroundColor: '#ffffff',
         tabBarShowLabel: false,
       }}>
       <Tab.Screen

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Events\HostDashboardUpdated;
+use App\Events\ServerSessionsUpdated;
 use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderBatch;
@@ -63,17 +64,14 @@ class ServerTableSessionController extends Controller
             'table_label' => ['required_without_all:dining_table_id,table_ids', 'string', 'max:255'],
             'group_name' => ['nullable', 'string', 'max:255'],
             'party_size' => ['required', 'integer', 'min:1', 'max:99'],
-            'guest_name' => ['required', 'string', 'max:255'],
-            'guest_email' => ['required', 'email', 'max:255'],
-            'guest_phone' => ['required', 'string', 'max:255'],
+            'guest_name' => ['nullable', 'string', 'max:255'],
+            'guest_email' => ['nullable', 'email', 'max:255'],
+            'guest_phone' => ['nullable', 'string', 'max:255'],
             'order_mode' => ['nullable', 'string', 'in:traditional,table'],
         ], [
             'table_label.required' => 'La mesa es obligatoria.',
             'party_size.required' => 'La cantidad de personas es obligatoria.',
-            'guest_name.required' => 'El nombre es obligatorio.',
-            'guest_email.required' => 'El correo es obligatorio.',
             'guest_email.email' => 'El formato del correo no es válido.',
-            'guest_phone.required' => 'El teléfono es obligatorio.',
         ]);
 
         if ($validator->fails()) {
@@ -139,6 +137,19 @@ class ServerTableSessionController extends Controller
             ->implode(' + ');
 
         $waitingEntry = $primaryTable?->activeAssignment?->waitingListEntry;
+        $guestName = trim((string) ($validated['guest_name'] ?? ''));
+        $guestEmail = strtolower(trim((string) ($validated['guest_email'] ?? '')));
+        $guestPhone = trim((string) ($validated['guest_phone'] ?? ''));
+
+        if ($guestName === '' && $waitingEntry?->guest_name) {
+            $guestName = trim((string) $waitingEntry->guest_name);
+        }
+        if ($guestEmail === '' && $waitingEntry?->guest_email) {
+            $guestEmail = strtolower(trim((string) $waitingEntry->guest_email));
+        }
+        if ($guestPhone === '' && $waitingEntry?->guest_phone) {
+            $guestPhone = trim((string) $waitingEntry->guest_phone);
+        }
 
         $session = TableSession::create([
             'server_id' => $server->id,
@@ -147,9 +158,9 @@ class ServerTableSessionController extends Controller
             'table_label' => $tableLabel ?: ($primaryTable?->label ?? $validated['table_label']),
             'group_name' => $validated['group_name'] ?? null,
             'party_size' => $validated['party_size'],
-            'guest_name' => $validated['guest_name'],
-            'guest_email' => strtolower(trim($validated['guest_email'])),
-            'guest_phone' => $validated['guest_phone'],
+            'guest_name' => $guestName,
+            'guest_email' => $guestEmail,
+            'guest_phone' => $guestPhone,
             'order_mode' => $validated['order_mode'] ?? 'table',
             'status' => 'active',
             'expires_at' => now()->addHour(),
@@ -189,7 +200,8 @@ class ServerTableSessionController extends Controller
                 'server',
                 'diningTable',
                 'tables',
-                'orders.batches.items.extras',
+                'orders.batches.items.itemable',
+                'orders.batches.items.extras.extra',
                 'orders.batches.items.prepLabels.area',
                 'openOrder.payments',
             ])
@@ -249,7 +261,8 @@ class ServerTableSessionController extends Controller
             'server',
             'diningTable',
             'tables',
-            'orders.batches.items.extras',
+            'orders.batches.items.itemable',
+            'orders.batches.items.extras.extra',
             'orders.batches.items.prepLabels.area',
             'openOrder.payments',
         ]);
@@ -269,12 +282,14 @@ class ServerTableSessionController extends Controller
         abort_unless($isManager || $tableSession->server_id === $server->id, Response::HTTP_FORBIDDEN);
 
         $orders = $tableSession->orders()
-            ->with(['batches.items.extras', 'batches.items.prepLabels.area'])
+            ->with(['batches.items.itemable', 'batches.items.extras.extra', 'batches.items.prepLabels.area'])
             ->orderByDesc('created_at')
             ->get();
 
+        $cloverStates = $this->resolveCloverStates($orders);
+
         return response()->json([
-            'orders' => $this->formatBatches($orders),
+            'orders' => $this->formatBatches($orders, $cloverStates),
         ]);
     }
 
@@ -1075,11 +1090,7 @@ class ServerTableSessionController extends Controller
 
     private function queueCloverSync(Request $request, $batches): void
     {
-        if (! $request->boolean('clover_live')) {
-            return;
-        }
-
-        if (! config('services.clover.live_metrics', false)) {
+        if (! $this->shouldSyncClover($request)) {
             return;
         }
 
@@ -1113,11 +1124,7 @@ class ServerTableSessionController extends Controller
 
     private function syncCloverClosedBatches($batches): void
     {
-        if (! request()->boolean('clover_live')) {
-            return;
-        }
-
-        if (! config('services.clover.live_metrics', false)) {
+        if (! $this->shouldSyncClover(request())) {
             return;
         }
 
@@ -1158,8 +1165,11 @@ class ServerTableSessionController extends Controller
             }
 
             $state = data_get($cloverOrder, 'state');
+            $paymentState = strtolower((string) data_get($cloverOrder, 'paymentState', ''));
             $totalPaid = (int) data_get($cloverOrder, 'totalPaid', 0);
-            $isClosed = ($state && $state !== 'open') || $totalPaid > 0;
+            $isClosed = $totalPaid > 0
+                || ($paymentState !== '' && ! in_array($paymentState, ['open', 'unpaid'], true))
+                || in_array(strtolower((string) $state), ['paid', 'closed'], true);
 
             if (! $isClosed) {
                 continue;
@@ -1214,6 +1224,9 @@ class ServerTableSessionController extends Controller
             ]);
             $this->updateSessionTablesStatus($session, 'available');
             $this->clearWaitingListEntryForTable($session->diningTable);
+            if ($session->server_id) {
+                event(new ServerSessionsUpdated($session->server_id, $session->id));
+            }
 
             if (! $session->loyalty_visit_id) {
                 $hasClosedCloverOrder = $session->orders
@@ -1437,8 +1450,7 @@ class ServerTableSessionController extends Controller
 
     private function resolveCloverStates($orders): array
     {
-        $liveMetrics = config('services.clover.live_metrics', false) && request()->boolean('clover_live');
-        if (! $liveMetrics) {
+        if (! $this->shouldSyncClover(request())) {
             return [];
         }
 
@@ -1466,20 +1478,25 @@ class ServerTableSessionController extends Controller
             }
 
             try {
-                $cloverOrder = $client->getOrder($cloverOrderId, '');
+                $cloverOrder = $client->getOrder($cloverOrderId, 'payments,lineItems,lineItems.modifications');
             } catch (Throwable $exception) {
                 if ($this->isCloverNotFound($exception)) {
                     foreach ($batchGroup as $batch) {
                         $batch->update([
+                            'status' => 'cancelled',
+                            'cancelled_at' => $batch->cancelled_at ?? now(),
                             'clover_order_id' => null,
                             'clover_print_event_id' => null,
                         ]);
+                        $this->closeSessionIfCompleted($batch);
                     }
                     continue;
                 }
                 report($exception);
                 continue;
             }
+
+            $this->syncBatchItemsWithClover($batchGroup, $cloverOrder);
 
             $payload = [
                 'state' => data_get($cloverOrder, 'state'),
@@ -1491,6 +1508,326 @@ class ServerTableSessionController extends Controller
         }
 
         return $states;
+    }
+
+    private function shouldSyncClover(Request $request): bool
+    {
+        return $request->boolean('clover_live', true);
+    }
+
+    private function syncBatchItemsWithClover($batchGroup, array $cloverOrder): void
+    {
+        $lines = $this->buildCloverLinePayload($cloverOrder);
+
+        foreach ($batchGroup as $batch) {
+            $batchChanged = false;
+            $batch->loadMissing(['items.itemable', 'items.extras.extra']);
+
+            $items = $batch->items
+                ->filter(fn (OrderItem $item) => ! $item->voided_at)
+                ->sortBy('id')
+                ->values();
+
+            $usedLineIndexes = [];
+
+            foreach ($items as $item) {
+                $matchedIndex = null;
+                $matchedByLineId = false;
+                $lineId = trim((string) ($item->clover_line_item_id ?? ''));
+
+                if ($lineId !== '') {
+                    foreach ($lines as $index => $line) {
+                        if (isset($usedLineIndexes[$index])) {
+                            continue;
+                        }
+                        if (($line['id'] ?? null) === $lineId) {
+                            $matchedIndex = $index;
+                            $matchedByLineId = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($matchedIndex === null) {
+                    $itemKey = $this->resolveOrderItemSyncKey($item);
+                    if ($itemKey !== null) {
+                        foreach ($lines as $index => $line) {
+                            if ((int) ($line['remaining_quantity'] ?? 0) <= 0) {
+                                continue;
+                            }
+                            if (($line['key'] ?? null) === $itemKey) {
+                                $matchedIndex = $index;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if ($matchedIndex === null) {
+                    if ($this->markItemVoidedFromClover($item)) {
+                        $batchChanged = true;
+                    }
+                    continue;
+                }
+
+                $line = $lines[$matchedIndex];
+                $updates = [];
+
+                $itemQuantity = max((int) $item->quantity, 1);
+                if ($matchedByLineId) {
+                    $matchedKey = $line['key'] ?? null;
+                    $matchedIndexes = [$matchedIndex];
+                    if ($matchedKey !== null) {
+                        foreach ($lines as $index => $candidate) {
+                            if ($index === $matchedIndex || isset($usedLineIndexes[$index])) {
+                                continue;
+                            }
+                            if (($candidate['key'] ?? null) === $matchedKey) {
+                                $matchedIndexes[] = $index;
+                            }
+                        }
+                    }
+
+                    $lineQuantity = 0;
+                    foreach ($matchedIndexes as $index) {
+                        $usedLineIndexes[$index] = true;
+                        $lineQuantity += max((int) ($lines[$index]['quantity'] ?? 1), 1);
+                        $lines[$index]['remaining_quantity'] = 0;
+                    }
+                    $lineQuantity = max($lineQuantity, 1);
+
+                    if ((int) $item->quantity !== $lineQuantity) {
+                        $updates['quantity'] = $lineQuantity;
+                    }
+                } else {
+                    $remainingQuantity = max((int) ($lines[$matchedIndex]['remaining_quantity'] ?? 0), 0);
+                    if ($remainingQuantity > 0) {
+                        if ($itemQuantity > $remainingQuantity) {
+                            $updates['quantity'] = $remainingQuantity;
+                            $lines[$matchedIndex]['remaining_quantity'] = 0;
+                        } else {
+                            $lines[$matchedIndex]['remaining_quantity'] = $remainingQuantity - $itemQuantity;
+                        }
+                    }
+                }
+
+                if ($updates !== []) {
+                    $item->update($updates);
+                    $batchChanged = true;
+                }
+
+                if ($this->syncOrderItemExtrasFromCloverLine($item, $line)) {
+                    $batchChanged = true;
+                }
+            }
+
+            if ($batchChanged) {
+                $batch->unsetRelation('items');
+                $batch->loadMissing(['items.extras', 'items.prepLabels.area']);
+            }
+        }
+    }
+
+    private function buildCloverLinePayload(array $cloverOrder): array
+    {
+        $lines = [];
+        $rawLines = data_get($cloverOrder, 'lineItems.elements', []);
+
+        foreach ($rawLines as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            if ((bool) data_get($line, 'isDeleted') || data_get($line, 'deletedTime')) {
+                continue;
+            }
+
+            $itemId = trim((string) data_get($line, 'item.id', ''));
+            $name = trim((string) data_get($line, 'name', ''));
+            $quantity = $this->resolveCloverLineQuantity($line);
+            $note = $this->normalizeSyncValue((string) data_get($line, 'note', ''));
+
+            $key = $itemId !== ''
+                ? 'item:' . $itemId
+                : (($normalized = $this->normalizeSyncValue($name)) ? 'name:' . $normalized : null);
+            if ($key !== null && $note !== null) {
+                $key .= '|note:' . $note;
+            }
+
+            if ($key === null) {
+                continue;
+            }
+
+            $lines[] = [
+                'id' => trim((string) data_get($line, 'id', '')) ?: null,
+                'key' => $key,
+                'quantity' => $quantity,
+                'remaining_quantity' => $quantity,
+                'modifier_counts' => $this->buildCloverModifierCounts($line),
+            ];
+        }
+
+        return $lines;
+    }
+
+    private function buildCloverModifierCounts(array $line): array
+    {
+        $counts = [];
+        $modifications = data_get($line, 'modifications.elements', []);
+
+        foreach ($modifications as $modification) {
+            if (! is_array($modification)) {
+                continue;
+            }
+
+            $modifierId = trim((string) data_get($modification, 'modifier.id', ''));
+            $modifierName = $this->normalizeSyncValue((string) data_get($modification, 'name', data_get($modification, 'modifier.name', '')));
+
+            if ($modifierId === '' && $modifierName === null) {
+                continue;
+            }
+
+            $key = $modifierId !== ''
+                ? 'mod:' . $modifierId
+                : 'name:' . $modifierName;
+            $quantity = (int) data_get($modification, 'quantity', 1);
+            $quantity = max($quantity, 1);
+
+            $counts[$key] = ($counts[$key] ?? 0) + $quantity;
+        }
+
+        return $counts;
+    }
+
+    private function resolveOrderItemSyncKey(OrderItem $item): ?string
+    {
+        $cloverItemId = trim((string) ($item->itemable?->clover_id ?? ''));
+        $note = $this->normalizeSyncValue((string) ($item->notes ?? ''));
+        if ($cloverItemId !== '') {
+            $key = 'item:' . $cloverItemId;
+            if ($note !== null) {
+                $key .= '|note:' . $note;
+            }
+            return $key;
+        }
+
+        $name = $this->normalizeSyncValue($item->name);
+        if ($name === null) {
+            return null;
+        }
+
+        $key = 'name:' . $name;
+        if ($note !== null) {
+            $key .= '|note:' . $note;
+        }
+
+        return $key;
+    }
+
+    private function resolveOrderExtraSyncKey($extraLine): ?string
+    {
+        $cloverModifierId = trim((string) ($extraLine->extra?->clover_id ?? ''));
+        if ($cloverModifierId !== '') {
+            return 'mod:' . $cloverModifierId;
+        }
+
+        $name = $this->normalizeSyncValue((string) ($extraLine->name ?? ''));
+        if ($name === null) {
+            return null;
+        }
+
+        return 'name:' . $name;
+    }
+
+    private function syncOrderItemExtrasFromCloverLine(OrderItem $item, array $line): bool
+    {
+        $item->loadMissing('extras.extra');
+        if ($item->extras->isEmpty()) {
+            return false;
+        }
+
+        $desiredCounts = $line['modifier_counts'] ?? [];
+        $changed = false;
+
+        foreach ($item->extras as $extraLine) {
+            $syncKey = $this->resolveOrderExtraSyncKey($extraLine);
+            if ($syncKey === null) {
+                continue;
+            }
+
+            $allowed = (int) ($desiredCounts[$syncKey] ?? 0);
+            $current = max((int) ($extraLine->quantity ?? 1), 1);
+
+            if ($allowed <= 0) {
+                $extraLine->delete();
+                $changed = true;
+                continue;
+            }
+
+            if ($allowed < $current) {
+                $extraLine->update(['quantity' => $allowed]);
+                $desiredCounts[$syncKey] = 0;
+                $changed = true;
+                continue;
+            }
+
+            $desiredCounts[$syncKey] = $allowed - $current;
+        }
+
+        if ($changed) {
+            $item->unsetRelation('extras');
+            $item->load('extras');
+        }
+
+        return $changed;
+    }
+
+    private function markItemVoidedFromClover(OrderItem $item): bool
+    {
+        if ($item->voided_at) {
+            return false;
+        }
+
+        $item->update([
+            'voided_at' => now(),
+            'void_reason' => 'Ajustado en Clover',
+        ]);
+
+        return true;
+    }
+
+    private function normalizeSyncValue(?string $value): ?string
+    {
+        $normalized = trim((string) $value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $normalized = function_exists('mb_strtolower')
+            ? mb_strtolower($normalized)
+            : strtolower($normalized);
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function resolveCloverLineQuantity(array $line): int
+    {
+        if (isset($line['quantity'])) {
+            return max((int) round((float) $line['quantity']), 1);
+        }
+
+        if (isset($line['unitQty'])) {
+            $unitQty = (float) $line['unitQty'];
+            // Clover may provide unitQty in thousandths for inventory items.
+            if ($unitQty >= 1000) {
+                return max((int) round($unitQty / 1000), 1);
+            }
+
+            return max((int) round($unitQty), 1);
+        }
+
+        return 1;
     }
 
     private function isCloverNotFound(Throwable $exception): bool

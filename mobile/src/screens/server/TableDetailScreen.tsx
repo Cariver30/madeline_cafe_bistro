@@ -57,6 +57,27 @@ const TableDetailScreen = ({navigation, route}: Props) => {
   const [orderModeError, setOrderModeError] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
 
+  useEffect(() => {
+    const loadServers = async () => {
+      if (!session || !transferModalVisible || !token) {
+        return;
+      }
+      setLoadingServers(true);
+      try {
+        const servers = await getAvailableServers(token);
+        setAvailableServers(servers);
+      } catch (err) {
+        setTransferError(
+          err instanceof Error ? err.message : 'No se pudieron cargar.',
+        );
+      } finally {
+        setLoadingServers(false);
+      }
+    };
+
+    loadServers();
+  }, [session, transferModalVisible, token]);
+
   if (!session) {
     return (
       <View style={styles.container}>
@@ -151,27 +172,6 @@ const TableDetailScreen = ({navigation, route}: Props) => {
     }
   };
 
-  useEffect(() => {
-    const loadServers = async () => {
-      if (!transferModalVisible || !token) {
-        return;
-      }
-      setLoadingServers(true);
-      try {
-        const servers = await getAvailableServers(token);
-        setAvailableServers(servers);
-      } catch (err) {
-        setTransferError(
-          err instanceof Error ? err.message : 'No se pudieron cargar.',
-        );
-      } finally {
-        setLoadingServers(false);
-      }
-    };
-
-    loadServers();
-  }, [transferModalVisible, token]);
-
   const closeWithTip = async () => {
     const normalized = tipInput.trim().replace(',', '.');
     if (normalized.length === 0) {
@@ -258,7 +258,7 @@ const TableDetailScreen = ({navigation, route}: Props) => {
           <Text style={styles.meta}>Mesas: {groupedTables}</Text>
         ) : null}
         <Text style={styles.meta}>
-          {session.guest_name} · {session.party_size} personas
+          {(session.guest_name || 'Cliente')} · {session.party_size} personas
         </Text>
         <Text style={styles.meta}>Modo: {orderModeLabel}</Text>
         <Text style={styles.meta}>{statusText}</Text>
@@ -584,7 +584,7 @@ const TableDetailScreen = ({navigation, route}: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#f8fafc',
   },
   payButton: {
     backgroundColor: '#22c55e',
@@ -600,28 +600,28 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#e2e8f0',
     gap: 10,
   },
   heading: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   meta: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 13,
   },
   timeclockCard: {
-    backgroundColor: '#111827',
+    backgroundColor: '#f8fafc',
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
     gap: 4,
   },
   timeclockTitle: {
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   timeclockText: {
-    color: '#e2e8f0',
+    color: '#334155',
     fontSize: 12,
   },
   timeclockRow: {
@@ -640,11 +640,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   timeclockLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 12,
   },
   timeclockValue: {
-    color: '#e2e8f0',
+    color: '#0f172a',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -652,19 +652,19 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: 16,
-    backgroundColor: '#020617',
+    backgroundColor: '#ffffff',
   },
   qrEmpty: {
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
   },
   qrHidden: {
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     fontSize: 13,
   },
   qrDisabled: {
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     fontSize: 13,
   },
@@ -729,17 +729,17 @@ const styles = StyleSheet.create({
   orderRow: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#e2e8f0',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   orderTitle: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontWeight: '700',
   },
   orderMeta: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 12,
   },
   orderLink: {
@@ -747,39 +747,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyText: {
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     marginTop: 10,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'center',
     padding: 20,
   },
   modalCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#e2e8f0',
     gap: 10,
   },
   modalTitle: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '700',
   },
   modalSubtitle: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 12,
   },
   tipInput: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   errorText: {
     color: '#fb7185',
@@ -796,7 +798,7 @@ const styles = StyleSheet.create({
   },
   serverChip: {
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#cbd5e1',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -806,7 +808,7 @@ const styles = StyleSheet.create({
     borderColor: '#38bdf8',
   },
   serverChipText: {
-    color: '#e2e8f0',
+    color: '#334155',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -816,10 +818,10 @@ const styles = StyleSheet.create({
   modalCancel: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#cbd5e1',
   },
   modalCancelText: {
-    color: '#e2e8f0',
+    color: '#334155',
     fontWeight: '600',
   },
   modalConfirm: {

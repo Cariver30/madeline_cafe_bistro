@@ -189,7 +189,7 @@ const ServerDashboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#f8fafc',
   },
   content: {
     padding: 20,
@@ -200,12 +200,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 18,
     fontWeight: '700',
   },
   subtitle: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 13,
   },
   loader: {
@@ -217,15 +217,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
     gap: 6,
   },
   cardLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1.6,
@@ -236,9 +236,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   cardValueSmall: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '700',
+  },
+  cardMeta: {
+    color: '#475569',
+    fontSize: 13,
   },
   grid: {
     flexDirection: 'row',
@@ -246,22 +250,22 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   smallCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
     flexBasis: '48%',
     gap: 6,
   },
   smallLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 1.4,
   },
   smallValue: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontSize: 18,
     fontWeight: '700',
   },

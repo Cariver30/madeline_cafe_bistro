@@ -187,7 +187,7 @@ const PendingOrdersScreen = () => {
                   </View>
                 </View>
                 <Text style={styles.cardMeta}>
-                  {item.session.guest_name} · {item.session.party_size} personas
+                  {(item.session.guest_name || 'Cliente')} · {item.session.party_size} personas
                 </Text>
                 <Text style={styles.cardMeta}>
                   {item.order.order_id
@@ -234,7 +234,7 @@ const PendingOrdersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#f8fafc',
   },
   listContent: {
     padding: 20,
@@ -247,11 +247,11 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   subheading: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#475569',
   },
   loader: {
     flex: 1,
@@ -296,11 +296,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
     gap: 6,
   },
   cardRow: {
@@ -309,12 +309,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontWeight: '700',
     fontSize: 16,
   },
   cardMeta: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 13,
   },
   deliverButton: {
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyText: {
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     marginTop: 16,
   },

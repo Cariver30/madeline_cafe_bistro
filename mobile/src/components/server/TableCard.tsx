@@ -41,7 +41,7 @@ export const TableCard = ({
       ) : null}
 
       <Text style={styles.meta}>
-        {table.guest_name} · {table.party_size} personas
+        {(table.guest_name || 'Cliente')} · {table.party_size} personas
       </Text>
 
       <Text style={styles.meta}>
@@ -76,19 +76,20 @@ export const TableCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
     gap: 8,
   },
   urgent: {
     borderColor: '#fbbf24',
-    backgroundColor: '#0b1220',
+    backgroundColor: '#fff7db',
   },
   warning: {
     borderColor: '#fb7185',
+    backgroundColor: '#fff1f2',
   },
   normal: {},
   row: {
@@ -97,12 +98,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#f8fafc',
+    color: '#0f172a',
     fontWeight: '700',
     fontSize: 16,
   },
   meta: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 13,
   },
   badge: {

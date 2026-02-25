@@ -947,16 +947,16 @@
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold text-slate-700">Cantidad</span>
                         <div class="flex items-center gap-3">
-                            <button id="qtyMinus" class="h-8 w-8 rounded-full border border-slate-300 text-slate-600">-</button>
+                            <button type="button" id="qtyMinus" class="h-8 w-8 rounded-full border border-slate-300 text-slate-600">-</button>
                             <span id="qtyValue" class="text-base font-semibold text-slate-900">1</span>
-                            <button id="qtyPlus" class="h-8 w-8 rounded-full border border-slate-300 text-slate-600">+</button>
+                            <button type="button" id="qtyPlus" class="h-8 w-8 rounded-full border border-slate-300 text-slate-600">+</button>
                         </div>
                     </div>
                     <div>
                         <label for="itemNotes" class="text-sm font-semibold text-slate-700">Notas para el mesero</label>
                         <textarea id="itemNotes" rows="2" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Ej. sin cebolla, bien cocido"></textarea>
                     </div>
-                    <button id="addToCartButton" class="w-full rounded-full bg-amber-400 py-3 font-semibold text-slate-900">
+                    <button type="button" id="addToCartButton" class="w-full rounded-full bg-amber-400 py-3 font-semibold text-slate-900">
                         Agregar al pedido
                     </button>
                 </div>
@@ -970,7 +970,7 @@
         class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative w-full max-w-xl max-h-[90vh]">
             <div class="bg-white rounded-lg shadow-lg text-gray-900 p-6 relative overflow-y-auto max-h-[90vh]">
-                <button id="closeCartButton" class="absolute top-3 right-3 text-gray-500 hover:text-red-600 text-xl font-bold">
+                <button type="button" id="closeCartButton" class="absolute top-3 right-3 text-gray-500 hover:text-red-600 text-xl font-bold">
                     ✕
                 </button>
 
@@ -1022,6 +1022,28 @@
                     </div>
                 @endif
 
+                @if ($orderChannel !== 'online')
+                    <div class="mt-4 space-y-3">
+                        <p class="text-sm font-semibold text-slate-700">
+                            Antes de ordenar, comparte tus datos.
+                        </p>
+                        <div>
+                            <label for="tableCustomerName" class="text-sm font-semibold text-slate-700">Nombre</label>
+                            <input id="tableCustomerName" type="text" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Nombre del cliente" value="{{ trim((string) ($tableSession->guest_name ?? '')) }}">
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label for="tableCustomerEmail" class="text-sm font-semibold text-slate-700">Email</label>
+                                <input id="tableCustomerEmail" type="email" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="correo@ejemplo.com" value="{{ trim((string) ($tableSession->guest_email ?? '')) }}">
+                            </div>
+                            <div>
+                                <label for="tableCustomerPhone" class="text-sm font-semibold text-slate-700">Teléfono</label>
+                                <input id="tableCustomerPhone" type="tel" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="(787) 000-0000" value="{{ trim((string) ($tableSession->guest_phone ?? '')) }}">
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 @if ($orderChannel === 'online' && isset($onlineOrdering) && !($onlineOrdering['enabled'] ?? true))
                     <div id="onlineOrderingClosedNote" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                         {{ $onlineOrdering['message'] ?? 'Por el momento no estamos tomando órdenes en línea.' }}
@@ -1029,10 +1051,10 @@
                 @endif
 
                 <div class="mt-5 flex flex-col gap-3">
-                    <button id="sendOrderButton" class="rounded-full bg-amber-400 py-3 text-slate-900 font-semibold">
+                    <button type="button" id="sendOrderButton" class="rounded-full bg-amber-400 py-3 text-slate-900 font-semibold">
                         {{ $orderChannel === 'online' ? 'Pagar y enviar' : 'Enviar orden al mesero' }}
                     </button>
-                    <button id="clearCartButton" class="rounded-full border border-slate-300 py-2 text-slate-600">
+                    <button type="button" id="clearCartButton" class="rounded-full border border-slate-300 py-2 text-slate-600">
                         Vaciar pedido
                     </button>
                 </div>
@@ -1608,6 +1630,36 @@
                         }
                     });
 
+                    const canClearSingle = isModifier && !group.required && group.options.length > 0;
+                    if (canClearSingle) {
+                        const clearButton = document.createElement('button');
+                        clearButton.type = 'button';
+                        clearButton.className = 'text-xs font-semibold text-amber-600';
+
+                        const updateClearLabel = () => {
+                            const hasSelection = [...optionsWrapper.querySelectorAll('input')]
+                                .some(input => input.checked);
+                            clearButton.textContent = hasSelection ? 'Quitar' : 'Sin selección';
+                            clearButton.disabled = !hasSelection;
+                            clearButton.classList.toggle('opacity-40', !hasSelection);
+                            clearButton.classList.toggle('cursor-not-allowed', !hasSelection);
+                        };
+
+                        clearButton.addEventListener('click', () => {
+                            optionsWrapper.querySelectorAll('input').forEach(input => {
+                                input.checked = false;
+                            });
+                            updateClearLabel();
+                        });
+
+                        optionsWrapper.querySelectorAll('input').forEach(input => {
+                            input.addEventListener('change', updateClearLabel);
+                        });
+
+                        updateClearLabel();
+                        headerRow.appendChild(clearButton);
+                    }
+
                     const canSelectAll = !maxSelect || maxSelect >= group.options.length;
                     if (!isModifier && canSelectAll && group.options.length > 1) {
                         const toggleButton = document.createElement('button');
@@ -1850,7 +1902,12 @@
             qtyMinus.textContent = '-';
             qtyMinus.className = 'h-6 w-6 rounded-full border border-slate-300 text-slate-600';
             qtyMinus.addEventListener('click', () => {
-                item.quantity = Math.max(1, (item.quantity || 1) - 1);
+                const current = Math.max(1, Number(item.quantity || 1));
+                if (current <= 1) {
+                    cartItems.splice(index, 1);
+                } else {
+                    item.quantity = current - 1;
+                }
                 renderCart();
                 updateCartCount();
             });
@@ -1874,6 +1931,7 @@
             qtyWrapper.appendChild(qtyPlus);
 
             const removeButton = document.createElement('button');
+            removeButton.type = 'button';
             removeButton.className = 'text-xs text-rose-500';
             removeButton.textContent = 'Quitar';
             removeButton.addEventListener('click', () => {
@@ -1891,19 +1949,36 @@
 
             if (item.extras && item.extras.length) {
                 const extrasList = document.createElement('div');
-                extrasList.className = 'mt-2 text-xs text-slate-600';
-                const grouped = item.extras.reduce((groups, extra) => {
-                    const groupName = extra.group_name || 'Opciones';
-                    if (!groups[groupName]) {
-                        groups[groupName] = [];
-                    }
-                    groups[groupName].push(extra.name);
-                    return groups;
-                }, {});
-                const details = Object.entries(grouped)
-                    .map(([groupName, names]) => `${groupName}: ${names.join(', ')}`)
-                    .join(' · ');
-                extrasList.textContent = `Opciones: ${details}`;
+                extrasList.className = 'mt-2 space-y-1 text-xs text-slate-600';
+                const extrasTitle = document.createElement('div');
+                extrasTitle.className = 'font-semibold text-slate-700';
+                extrasTitle.textContent = 'Opciones';
+                extrasList.appendChild(extrasTitle);
+
+                item.extras.forEach((extra, extraIndex) => {
+                    const extraRow = document.createElement('div');
+                    extraRow.className = 'flex items-center justify-between gap-2';
+
+                    const extraText = document.createElement('span');
+                    const groupLabel = extra.group_name ? `${extra.group_name}: ` : '';
+                    const priceValue = Number(extra.price || 0);
+                    const priceLabel = priceValue > 0 ? ` (+$${priceValue.toFixed(2)})` : '';
+                    extraText.textContent = `${groupLabel}${extra.name || 'Opción'}${priceLabel}`;
+                    extraRow.appendChild(extraText);
+
+                    const removeExtraButton = document.createElement('button');
+                    removeExtraButton.type = 'button';
+                    removeExtraButton.className = 'text-xs text-rose-500';
+                    removeExtraButton.textContent = 'Quitar';
+                    removeExtraButton.addEventListener('click', () => {
+                        item.extras.splice(extraIndex, 1);
+                        renderCart();
+                    });
+                    extraRow.appendChild(removeExtraButton);
+
+                    extrasList.appendChild(extraRow);
+                });
+
                 card.appendChild(extrasList);
             }
 
@@ -2043,6 +2118,17 @@
                 alert('No se encontró la mesa.');
                 return;
             }
+
+            const customerName = document.getElementById('tableCustomerName')?.value?.trim() || '';
+            const customerEmail = document.getElementById('tableCustomerEmail')?.value?.trim() || '';
+            const customerPhone = document.getElementById('tableCustomerPhone')?.value?.trim() || '';
+            if (!customerName || !customerEmail || !customerPhone) {
+                alert('Comparte nombre, correo y teléfono antes de enviar la orden.');
+                return;
+            }
+            payload.customer_name = customerName;
+            payload.customer_email = customerEmail;
+            payload.customer_phone = customerPhone;
 
             const response = await fetch(`/mesa/${orderToken}/orders`, {
                 method: 'POST',

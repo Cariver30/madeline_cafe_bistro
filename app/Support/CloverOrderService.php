@@ -11,6 +11,9 @@ use RuntimeException;
 
 class CloverOrderService
 {
+    public const APP_AND_SERVICE_FEE_NAME = 'App and service fee';
+    public const APP_AND_SERVICE_FEE_CENTS = 200;
+
     public function __construct(private CloverClient $client)
     {
     }
@@ -78,7 +81,11 @@ class CloverOrderService
         $lineItemsCreated = 0;
         $modifiersCreated = 0;
 
-        $this->client->addCustomLineItem($orderId, 'App and service fee', 200);
+        $this->client->addCustomLineItem(
+            $orderId,
+            self::APP_AND_SERVICE_FEE_NAME,
+            self::APP_AND_SERVICE_FEE_CENTS
+        );
         $lineItemsCreated++;
 
         foreach ($batch->items as $item) {
@@ -88,31 +95,42 @@ class CloverOrderService
                 throw new RuntimeException("El item {$item->name} no tiene clover_id.");
             }
 
-            $lineItem = $this->client->addLineItem($orderId, [
-                'item' => ['id' => $cloverItemId],
-                // Use standard quantity for fixed-price inventory items.
-                'quantity' => max((int) $item->quantity, 1),
-                'note' => $item->notes ?: null,
+            $requestedQty = max((int) $item->quantity, 1);
+            $lineItemIds = [];
+
+            // Clover line-items are the most reliable when sent one unit at a time.
+            for ($unit = 0; $unit < $requestedQty; $unit++) {
+                $lineItem = $this->client->addLineItem($orderId, [
+                    'item' => ['id' => $cloverItemId],
+                    'note' => $item->notes ?: null,
+                ]);
+
+                $lineItemId = $lineItem['id'] ?? null;
+                if (! $lineItemId) {
+                    throw new RuntimeException("No se pudo crear el line item en Clover para {$item->name}.");
+                }
+
+                $lineItemIds[] = $lineItemId;
+                $lineItemsCreated++;
+
+                foreach ($item->extras as $extraLine) {
+                    $extra = $extraLine->extra;
+                    $modifierId = $extra?->clover_id;
+                    if (! $modifierId) {
+                        throw new RuntimeException("El modificador {$extraLine->name} no tiene clover_id.");
+                    }
+                    $times = max((int) ($extraLine->quantity ?? 1), 1);
+                    for ($i = 0; $i < $times; $i++) {
+                        $this->client->addLineItemModifier($orderId, $lineItemId, $modifierId);
+                        $modifiersCreated++;
+                    }
+                }
+            }
+
+            // Keep a stable mapping to at least one Clover line-item.
+            $item->update([
+                'clover_line_item_id' => $lineItemIds[0] ?? null,
             ]);
-
-            $lineItemId = $lineItem['id'] ?? null;
-            if (! $lineItemId) {
-                throw new RuntimeException("No se pudo crear el line item en Clover para {$item->name}.");
-            }
-            $lineItemsCreated++;
-
-            foreach ($item->extras as $extraLine) {
-                $extra = $extraLine->extra;
-                $modifierId = $extra?->clover_id;
-                if (! $modifierId) {
-                    throw new RuntimeException("El modificador {$extraLine->name} no tiene clover_id.");
-                }
-                $times = max((int) ($extraLine->quantity ?? 1), 1);
-                for ($i = 0; $i < $times; $i++) {
-                    $this->client->addLineItemModifier($orderId, $lineItemId, $modifierId);
-                    $modifiersCreated++;
-                }
-            }
         }
 
         $printEvent = $this->client->printOrder($orderId);

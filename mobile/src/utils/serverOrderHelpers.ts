@@ -200,6 +200,29 @@ export const getKitchenSummary = (order: TableOrder) => {
   return {status, startAt, endAt};
 };
 
+export const isOrderActiveForServer = (order: TableOrder) => {
+  const status = String(order.status ?? '').toLowerCase();
+  if (status === 'cancelled') {
+    return false;
+  }
+
+  const items = order.items ?? [];
+  if (items.length === 0) {
+    const cloverStatus = String(order.clover_status ?? '').toLowerCase();
+    if (cloverStatus !== '' && cloverStatus !== 'open') {
+      return false;
+    }
+    return status === 'pending' || status === 'confirmed';
+  }
+
+  const kitchenSummary = getKitchenSummary(order);
+  if (!kitchenSummary) {
+    return true;
+  }
+
+  return kitchenSummary.status !== 'delivered';
+};
+
 export const timeLeft = (value?: string | null) => {
   if (!value) {
     return null;

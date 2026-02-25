@@ -18,7 +18,7 @@ import {
 } from '../services/api';
 import {disconnectEcho, getEcho} from '../services/realtime';
 import {TableOrder, TableSession} from '../types';
-import {getKitchenSummary} from '../utils/serverOrderHelpers';
+import {isOrderActiveForServer} from '../utils/serverOrderHelpers';
 import {
   playServerChime,
   preloadNotificationSounds,
@@ -120,8 +120,7 @@ export const ServerSessionsProvider = ({
     const pendingIds = new Set<number>();
     data.forEach(session => {
       session.orders?.forEach(order => {
-        const kitchenSummary = getKitchenSummary(order);
-        if (kitchenSummary && kitchenSummary.status !== 'delivered') {
+        if (isOrderActiveForServer(order)) {
           pendingIds.add(order.id);
         }
       });
@@ -361,8 +360,7 @@ export const ServerSessionsProvider = ({
     const list: PendingOrderEntry[] = [];
     sessions.forEach(session => {
       session.orders?.forEach(order => {
-        const kitchenSummary = getKitchenSummary(order);
-        if (kitchenSummary && kitchenSummary.status !== 'delivered') {
+        if (isOrderActiveForServer(order)) {
           list.push({order, session});
         }
       });
@@ -382,7 +380,7 @@ export const ServerSessionsProvider = ({
     let total = 0;
     sessions.forEach(session => {
       session.orders?.forEach(order => {
-        if (order.status === 'pending') {
+        if (order.status === 'pending' && isOrderActiveForServer(order)) {
           total += 1;
         }
       });
@@ -399,10 +397,7 @@ export const ServerSessionsProvider = ({
     () =>
       runningSessions.filter(
         session =>
-          session.orders?.some(order => {
-            const kitchenSummary = getKitchenSummary(order);
-            return kitchenSummary && kitchenSummary.status !== 'delivered';
-          }) ?? false,
+          session.orders?.some(order => isOrderActiveForServer(order)) ?? false,
       ),
     [runningSessions],
   );
@@ -411,12 +406,7 @@ export const ServerSessionsProvider = ({
     () =>
       runningSessions.filter(
         session =>
-          !(
-            session.orders?.some(order => {
-              const kitchenSummary = getKitchenSummary(order);
-              return kitchenSummary && kitchenSummary.status !== 'delivered';
-            }) ?? false
-          ),
+          !(session.orders?.some(order => isOrderActiveForServer(order)) ?? false),
       ),
     [runningSessions],
   );
