@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\OrderBatch;
 use App\Models\OrderItem;
+use App\Models\Setting;
 use App\Models\User;
+use App\Support\CloverOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class OrderItemController extends Controller
 {
@@ -51,6 +54,16 @@ class OrderItemController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        try {
+            $cloverResult = $this->syncCloverVoid($order, $item);
+        } catch (Throwable $exception) {
+            report($exception);
+            return response()->json([
+                'message' => 'No se pudo reflejar el ajuste en Clover.',
+                'error' => $exception->getMessage(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $item->update([
             'voided_at' => now(),
             'voided_by' => $user->id,
@@ -59,6 +72,7 @@ class OrderItemController extends Controller
 
         return response()->json([
             'message' => 'Item anulado.',
+            'clover' => $cloverResult,
         ]);
     }
 
@@ -104,6 +118,16 @@ class OrderItemController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
+        try {
+            $cloverResult = $this->syncCloverVoid($order, $item);
+        } catch (Throwable $exception) {
+            report($exception);
+            return response()->json([
+                'message' => 'No se pudo reflejar el ajuste en Clover.',
+                'error' => $exception->getMessage(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $item->update([
             'voided_at' => now(),
             'voided_by' => $manager->id,
@@ -112,6 +136,22 @@ class OrderItemController extends Controller
 
         return response()->json([
             'message' => 'Item anulado con autorización.',
+            'clover' => $cloverResult,
         ]);
+    }
+
+    private function syncCloverVoid(OrderBatch $order, OrderItem $item): ?array
+    {
+        if (! $order->clover_order_id) {
+            return null;
+        }
+
+        $settings = Setting::first();
+        $cloverService = CloverOrderService::fromSettings($settings);
+        if (! $cloverService) {
+            throw new \RuntimeException('No hay conexión con Clover para reflejar este ajuste.');
+        }
+
+        return $cloverService->voidItem($order, $item);
     }
 }

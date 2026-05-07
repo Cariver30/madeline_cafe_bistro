@@ -197,6 +197,18 @@ const ManagerHostScreen = () => {
   }, [token, loadData]);
 
   useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      loadData(false);
+    }, 12000);
+
+    return () => clearInterval(interval);
+  }, [token, loadData]);
+
+  useEffect(() => {
     const id = setInterval(() => {
       setClockTick(Date.now());
     }, 60000);

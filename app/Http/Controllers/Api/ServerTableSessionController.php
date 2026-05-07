@@ -527,6 +527,7 @@ class ServerTableSessionController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $this->ensureOrderServerOwnership($order, $tableSession);
         $order->loadMissing(['items.extras', 'batches', 'payments']);
         $totals = PosReceiptBuilder::calculateTotals($order);
         $subtotal = $totals['subtotal'];
@@ -625,6 +626,7 @@ class ServerTableSessionController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $this->ensureOrderServerOwnership($order, $tableSession);
         $data = $validator->validated();
         $normalized = ProcessorPayload::normalize($data['provider'], $data['payload']);
         if ($normalized['status'] !== 'approved') {
@@ -729,6 +731,7 @@ class ServerTableSessionController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $this->ensureOrderServerOwnership($order, $tableSession);
         $order->loadMissing(['items.extras', 'batches', 'payments']);
         $totals = PosReceiptBuilder::calculateTotals($order);
         $subtotalTotal = $totals['subtotal'];
@@ -1868,6 +1871,21 @@ class ServerTableSessionController extends Controller
                 'tip' => round((float) ($tip ?? 0), 2),
             ], $meta),
         ]);
+    }
+
+    private function ensureOrderServerOwnership(Order $order, TableSession $tableSession): void
+    {
+        $orderServerId = $order->server_id ? (int) $order->server_id : null;
+        $sessionServerId = $tableSession->server_id ? (int) $tableSession->server_id : null;
+
+        if ($orderServerId === null && $sessionServerId !== null) {
+            $order->update(['server_id' => $sessionServerId]);
+            $orderServerId = $sessionServerId;
+        }
+
+        if ($sessionServerId === null && $orderServerId !== null) {
+            $tableSession->update(['server_id' => $orderServerId]);
+        }
     }
 
     private function summarizePayments(Order $order): array

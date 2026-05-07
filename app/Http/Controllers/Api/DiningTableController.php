@@ -4,17 +4,28 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Events\HostDashboardUpdated;
+use App\Events\ServerSessionsUpdated;
 use App\Models\DiningTable;
+use App\Models\Order;
+use App\Models\OrderBatch;
+use App\Models\Setting;
 use App\Models\TableSession;
+use App\Support\CloverClient;
 use App\Support\TableTurnTimeEstimator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class DiningTableController extends Controller
 {
     public function index(Request $request)
     {
+        if ($request->boolean('clover_live', true)) {
+            $this->syncCloverClosedSessions();
+        }
+
         $query = DiningTable::query()->with(['activeAssignment.waitingListEntry', 'activeSession.server']);
 
         if ($request->filled('status')) {
@@ -197,5 +208,146 @@ class DiningTableController extends Controller
         $diffSeconds = max($diffSeconds, 0);
 
         return (int) floor($diffSeconds / 60);
+    }
+
+    private function syncCloverClosedSessions(): void
+    {
+        $lockKey = 'clover_table_index_sync_lock';
+        $lockTtl = (int) env('CLOVER_SYNC_LOCK_SECONDS', 8);
+        if (! Cache::add($lockKey, true, now()->addSeconds($lockTtl))) {
+            return;
+        }
+
+        try {
+            $batches = OrderBatch::query()
+                ->whereIn('status', ['pending', 'confirmed'])
+                ->whereNotNull('clover_order_id')
+                ->whereNull('metered_closed_at')
+                ->whereHas('order.tableSession', fn ($query) => $query->where('status', 'active'))
+                ->limit(80)
+                ->get();
+
+            if ($batches->isEmpty()) {
+                return;
+            }
+
+            $settings = Setting::first();
+            $client = CloverClient::fromSettings($settings);
+            if (! $client) {
+                return;
+            }
+
+            foreach ($batches as $batch) {
+                $cloverOrderId = trim((string) ($batch->clover_order_id ?? ''));
+                if ($cloverOrderId === '') {
+                    continue;
+                }
+
+                try {
+                    $cloverOrder = $client->getOrder($cloverOrderId, '');
+                } catch (Throwable $exception) {
+                    if ($this->isCloverNotFound($exception)) {
+                        $batch->update([
+                            'status' => 'cancelled',
+                            'cancelled_at' => $batch->cancelled_at ?? now(),
+                            'clover_order_id' => null,
+                            'clover_print_event_id' => null,
+                        ]);
+                        $this->closeSessionIfCompleted($batch);
+                    }
+                    continue;
+                }
+
+                $state = strtolower((string) data_get($cloverOrder, 'state', ''));
+                $paymentState = strtolower((string) data_get($cloverOrder, 'paymentState', ''));
+                $totalPaid = (int) data_get($cloverOrder, 'totalPaid', 0);
+                $isClosed = $totalPaid > 0
+                    || ($paymentState !== '' && ! in_array($paymentState, ['open', 'unpaid'], true))
+                    || in_array($state, ['paid', 'closed'], true);
+
+                if (! $isClosed) {
+                    continue;
+                }
+
+                $batch->update([
+                    'metered_closed_at' => now(),
+                ]);
+
+                $this->closeSessionIfCompleted($batch);
+            }
+        } finally {
+            Cache::forget($lockKey);
+        }
+    }
+
+    private function closeSessionIfCompleted(OrderBatch $batch): void
+    {
+        $batch->loadMissing(['order.tableSession.orders.batches']);
+        $session = $batch->order?->tableSession;
+
+        if (! $session || $session->status === 'closed') {
+            return;
+        }
+
+        $hasActiveBatch = $session->orders
+            ->flatMap(fn (Order $order) => $order->batches)
+            ->contains(function (OrderBatch $currentBatch) {
+                if (! in_array($currentBatch->status, ['pending', 'confirmed'], true)) {
+                    return false;
+                }
+                if ($currentBatch->cancelled_at || $currentBatch->metered_closed_at) {
+                    return false;
+                }
+                if ($currentBatch->source === 'server' && ! $currentBatch->clover_order_id) {
+                    return false;
+                }
+                return true;
+            });
+
+        if ($hasActiveBatch) {
+            return;
+        }
+
+        $session->update([
+            'status' => 'closed',
+            'closed_at' => $session->closed_at ?? now(),
+            'paid_at' => $session->paid_at ?? now(),
+            'open_order_id' => null,
+        ]);
+
+        foreach ($this->resolveSessionTables($session) as $table) {
+            if ($table->status !== 'available') {
+                $table->update(['status' => 'available']);
+            }
+            $table->assignments()->whereNull('released_at')->update(['released_at' => now()]);
+            event(new HostDashboardUpdated('tables', $table->id));
+        }
+
+        if ($session->server_id) {
+            event(new ServerSessionsUpdated($session->server_id, $session->id));
+        }
+    }
+
+    private function resolveSessionTables(TableSession $session)
+    {
+        $session->loadMissing(['diningTable', 'tables']);
+
+        $tables = $session->tables ?? collect();
+        if ($session->diningTable) {
+            $tables = $tables->concat([$session->diningTable]);
+        }
+
+        return $tables
+            ->unique('id')
+            ->values();
+    }
+
+    private function isCloverNotFound(Throwable $exception): bool
+    {
+        $message = $exception->getMessage();
+
+        return str_contains($message, '(404)')
+            || str_contains($message, 'Order not found')
+            || str_contains($message, 'Not Found');
     }
 }

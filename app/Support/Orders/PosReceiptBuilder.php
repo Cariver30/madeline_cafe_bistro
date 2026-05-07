@@ -260,6 +260,14 @@ class PosReceiptBuilder
         $order->loadMissing('batches');
 
         $feePerBatch = round(CloverOrderService::APP_AND_SERVICE_FEE_CENTS / 100, 2);
+        if ($order->channel !== 'online') {
+            return [
+                'quantity' => 0,
+                'unit_price' => $feePerBatch,
+                'line_total' => 0.0,
+            ];
+        }
+
         $batchesWithClover = $order->batches
             ->filter(fn ($batch) => ! $batch->cancelled_at && (bool) $batch->clover_order_id)
             ->count();

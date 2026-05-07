@@ -201,6 +201,9 @@
             <label for="online_pause_message" class="form-label">Mensaje cuando está cerrado</label>
             <input type="text" class="form-control" id="online_pause_message" name="online_pause_message" value="{{ $onlinePauseMessage }}" placeholder="Por el momento no estamos tomando órdenes en línea.">
         </div>
+        <p class="text-muted small mb-3">
+            Si configuras al menos un horario o marcas un día como cerrado, los días sin horas definidas quedarán cerrados.
+        </p>
         <div class="row g-3">
             @foreach ($onlineDays as $dayKey => $dayLabel)
                 @php

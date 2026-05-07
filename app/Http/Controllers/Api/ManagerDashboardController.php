@@ -125,28 +125,31 @@ class ManagerDashboardController extends Controller
         $voidedTotal = (float) OrderItem::whereNotNull('voided_at')
             ->whereBetween('voided_at', [$today, $todayEnd])
             ->sum(DB::raw('quantity * unit_price'));
+        $resolvedServerExpr = 'COALESCE(orders.server_id, table_sessions.server_id)';
 
         $activeTableCounts = TableSession::selectRaw('server_id, COUNT(*) as total')
             ->whereIn('status', ['active', 'expired'])
             ->groupBy('server_id')
             ->pluck('total', 'server_id');
 
-        $openOrderCounts = Order::selectRaw('server_id, COUNT(*) as total')
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->whereNull('paid_at')
-            ->groupBy('server_id')
-            ->pluck('total', 'server_id');
+        $openOrderCounts = Order::selectRaw($resolvedServerExpr . ' as resolved_server_id, COUNT(*) as total')
+            ->leftJoin('table_sessions', 'table_sessions.id', '=', 'orders.table_session_id')
+            ->whereIn('orders.status', ['pending', 'confirmed'])
+            ->whereNull('orders.paid_at')
+            ->groupBy(DB::raw($resolvedServerExpr))
+            ->pluck('total', 'resolved_server_id');
 
-        $serverTotals = Order::selectRaw('server_id, SUM(COALESCE(paid_total, 0)) as sales_total, SUM(COALESCE(tip_total, 0)) as tips_total, COUNT(*) as orders_count')
-            ->where('status', 'confirmed')
+        $serverTotals = Order::selectRaw($resolvedServerExpr . ' as resolved_server_id, SUM(COALESCE(orders.paid_total, 0)) as sales_total, SUM(COALESCE(orders.tip_total, 0)) as tips_total, COUNT(*) as orders_count')
+            ->leftJoin('table_sessions', 'table_sessions.id', '=', 'orders.table_session_id')
+            ->where('orders.status', 'confirmed')
             ->where(function ($query) use ($today, $todayEnd) {
                 $query
-                    ->whereBetween('paid_at', [$today, $todayEnd])
-                    ->orWhereBetween('confirmed_at', [$today, $todayEnd]);
+                    ->whereBetween('orders.paid_at', [$today, $todayEnd])
+                    ->orWhereBetween('orders.confirmed_at', [$today, $todayEnd]);
             })
-            ->groupBy('server_id')
+            ->groupBy(DB::raw($resolvedServerExpr))
             ->get()
-            ->keyBy('server_id');
+            ->keyBy('resolved_server_id');
 
         $salesByChannel = Order::selectRaw('table_sessions.service_channel as channel, SUM(COALESCE(orders.paid_total, 0)) as sales_total, COUNT(*) as orders_count')
             ->join('table_sessions', 'table_sessions.id', '=', 'orders.table_session_id')

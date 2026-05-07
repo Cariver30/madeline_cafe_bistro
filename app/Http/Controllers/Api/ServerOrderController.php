@@ -100,14 +100,45 @@ class ServerOrderController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $order->update([
+        $cloverResult = null;
+        if ($order->clover_order_id) {
+            $settings = Setting::first();
+            $cloverService = CloverOrderService::fromSettings($settings);
+            if (! $cloverService) {
+                return response()->json([
+                    'message' => 'No hay conexión con Clover para reflejar esta cancelación.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            try {
+                $cloverResult = $cloverService->cancelBatch($order);
+            } catch (Throwable $exception) {
+                report($exception);
+                return response()->json([
+                    'message' => 'No se pudo reflejar la cancelación en Clover.',
+                    'error' => $exception->getMessage(),
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        $updates = [
             'status' => 'cancelled',
             'cancelled_at' => now(),
-        ]);
+        ];
+        if ($order->metered_opened_at && ! $order->metered_closed_at) {
+            $updates['metered_closed_at'] = now();
+        }
+        if (($cloverResult['order_deleted'] ?? false) === true) {
+            $updates['clover_order_id'] = null;
+            $updates['clover_print_event_id'] = null;
+        }
+
+        $order->update($updates);
 
         return response()->json([
             'message' => 'Orden cancelada.',
             'order' => $order->fresh(),
+            'clover' => $cloverResult,
         ]);
     }
 }

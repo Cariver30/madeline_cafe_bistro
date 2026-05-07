@@ -477,13 +477,27 @@ class OnlineOrderController extends Controller
             return ['enabled' => true, 'message' => $message, 'reason' => 'always'];
         }
 
-        $now = $now ?: Carbon::now();
+        $hasConfiguredWindows = collect($schedule)->contains(function ($dayConfig) {
+            if (! is_array($dayConfig)) {
+                return false;
+            }
+
+            return ! empty($dayConfig['closed'])
+                || filled($dayConfig['start'] ?? null)
+                || filled($dayConfig['end'] ?? null);
+        });
+
+        if (! $hasConfiguredWindows) {
+            return ['enabled' => true, 'message' => $message, 'reason' => 'always'];
+        }
+
+        $now = $now ?: now(config('app.timezone'));
         $dayKey = strtolower($now->format('D'));
         $dayKey = substr($dayKey, 0, 3);
         $dayConfig = $schedule[$dayKey] ?? null;
 
         if (! is_array($dayConfig)) {
-            return ['enabled' => true, 'message' => $message, 'reason' => 'no_schedule'];
+            return ['enabled' => false, 'message' => $message, 'reason' => 'no_schedule'];
         }
 
         if (! empty($dayConfig['closed'])) {
@@ -494,7 +508,7 @@ class OnlineOrderController extends Controller
         $end = $dayConfig['end'] ?? null;
 
         if (! $start || ! $end) {
-            return ['enabled' => true, 'message' => $message, 'reason' => 'open'];
+            return ['enabled' => false, 'message' => $message, 'reason' => 'closed_hours'];
         }
 
         try {

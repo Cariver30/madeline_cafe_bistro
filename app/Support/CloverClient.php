@@ -181,6 +181,16 @@ class CloverClient
         return $response->json();
     }
 
+    public function deleteLineItem(string $orderId, string $lineItemId): void
+    {
+        $this->request('delete', "/v3/merchants/{$this->merchantId}/orders/{$orderId}/line_items/{$lineItemId}");
+    }
+
+    public function deleteOrder(string $orderId): void
+    {
+        $this->request('delete', "/v3/merchants/{$this->merchantId}/orders/{$orderId}");
+    }
+
     public function printOrder(string $orderId): array
     {
         $response = $this->request('post', "/v3/merchants/{$this->merchantId}/print_event", [
