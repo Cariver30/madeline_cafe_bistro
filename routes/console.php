@@ -7,6 +7,7 @@ use Illuminate\Support\Arr;
 use App\Models\OrderBatch;
 use App\Models\Setting;
 use App\Support\CloverClient;
+use App\Support\CloverSyncService;
 use App\Support\Loyalty\LoyaltyExpirationNotifier;
 use App\Support\WaitingListReservationReminder;
 
@@ -21,6 +22,28 @@ Schedule::call(function () {
 Schedule::call(function () {
     app(WaitingListReservationReminder::class)->sendReminders();
 })->everyMinute();
+
+Artisan::command('clover:sync-catalog {--full : Incluye impuestos y modificadores}', function () {
+    $client = CloverClient::fromSettings(Setting::first());
+    if (! $client) {
+        $this->error('No hay credenciales de Clover configuradas.');
+
+        return 1;
+    }
+
+    $full = (bool) $this->option('full');
+    $sync = new CloverSyncService($client);
+    $categories = $sync->syncCategories();
+    $items = $sync->syncItems($full, $full);
+
+    $this->info("Catálogo Clover sincronizado. Categorías: {$categories}. Items: {$items}.");
+
+    return 0;
+})->purpose('Sincronizar el catálogo online de Clover');
+
+Schedule::command('clover:sync-catalog')
+    ->everyTenMinutes()
+    ->withoutOverlapping(30);
 
 Artisan::command('clover:reconcile-orders {--days=30} {--limit=200} {--dry-run}', function () {
     $days = (int) $this->option('days');

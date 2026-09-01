@@ -62,7 +62,7 @@ class CloverSyncService
         return $total;
     }
 
-    public function syncItems(bool $syncTaxes = true): int
+    public function syncItems(bool $syncTaxes = true, bool $syncModifiers = true): int
     {
         $cloverCategories = CloverCategory::whereNotNull('scope')
             ->get()
@@ -127,7 +127,9 @@ class CloverSyncService
 
                 $itemModel = $this->upsertItem($scope, $payload);
 
-                $this->syncItemModifiers($scope, $itemId, $itemModel);
+                if ($syncModifiers) {
+                    $this->syncItemModifiers($scope, $itemId, $itemModel);
+                }
                 if ($syncTaxes) {
                     $this->syncItemTaxes($itemId, $item, $itemModel);
                 }
@@ -143,11 +145,10 @@ class CloverSyncService
             $offset += $limit;
         } while (count($elements) === $limit);
 
-        foreach ($validIdsByScope as $scope => $idsMap) {
-            if ($idsMap === []) {
-                continue;
-            }
-            $this->deactivateMissingItems($scope, array_keys($idsMap));
+        // A successfully completed catalogue listing is authoritative, including
+        // categories which now have zero items after removals in Clover.
+        foreach ($cloverCategories->pluck('scope')->filter()->unique() as $scope) {
+            $this->deactivateMissingItems($scope, array_keys($validIdsByScope[$scope] ?? []));
         }
 
         return $total;
@@ -546,8 +547,12 @@ class CloverSyncService
         $hidden = (bool) ($item['hidden'] ?? false);
         $available = (bool) ($item['available'] ?? true);
         $deleted = (bool) ($item['deleted'] ?? false);
+        // Clover can keep an item available for POS while disabling it for online sales.
+        // When this field is absent, retain the legacy behavior for older API payloads.
+        $enabledOnline = ! array_key_exists('enabledOnline', $item)
+            || filter_var($item['enabledOnline'], FILTER_VALIDATE_BOOLEAN);
 
-        return ! $hidden && $available && ! $deleted;
+        return ! $hidden && $available && ! $deleted && $enabledOnline;
     }
 
     private function resolveParentCategory(string $scope, CloverCategory $cloverCategory)
