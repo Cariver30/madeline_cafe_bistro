@@ -907,6 +907,28 @@ $foodPairings = FoodPairing::all();
             ->with('success', 'Contacto y horarios actualizados.');
     }
 
+    public function updateIvrSettings(Request $request)
+    {
+        $data = $request->validate([
+            'ivr_enabled' => ['required', 'boolean'],
+            'ivr_option_hours' => ['required', 'boolean'],
+            'ivr_option_menu' => ['required', 'boolean'],
+            'ivr_option_location' => ['required', 'boolean'],
+            'ivr_option_order' => ['required', 'boolean'],
+            'ivr_option_transfer' => ['required', 'boolean'],
+            'ivr_transfer_number' => ['nullable', 'regex:/^\+[1-9]\d{9,14}$/'],
+            'ivr_hours_es' => ['nullable', 'string', 'max:1500'],
+            'ivr_hours_en' => ['nullable', 'string', 'max:1500'],
+        ], [
+            'ivr_transfer_number.regex' => 'Escribe el número con formato +17875551234.',
+        ]);
+
+        Setting::firstOrCreate([])->fill($data)->save();
+
+        return redirect()->route('admin.new-panel', ['section' => 'general'])
+            ->with('success', 'IVR actualizado.');
+    }
+
     
     // app/Http/Controllers/AdminController.php
 

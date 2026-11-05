@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CocktailManagementController;
 use App\Http\Controllers\Api\DiningTableController;
 use App\Http\Controllers\Api\WaitingListController;
 use Illuminate\Broadcasting\BroadcastController;
+use App\Http\Controllers\Api\TwilioVoiceController;
 use App\Http\Controllers\Api\TwilioWebhookController;
 use App\Http\Controllers\Api\ExtraManagementController;
 use App\Http\Controllers\Api\CantinaManagementController;
@@ -37,6 +38,14 @@ use Illuminate\Support\Facades\Route;
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 
 Route::post('/twilio/waiting-list', [TwilioWebhookController::class, 'waitingList']);
+
+Route::prefix('twilio/voice')->middleware('twilio.signature')->group(function () {
+    Route::post('/incoming', [TwilioVoiceController::class, 'incoming']);
+    Route::post('/language', [TwilioVoiceController::class, 'language']);
+    Route::post('/menu', [TwilioVoiceController::class, 'menu']);
+    Route::post('/option', [TwilioVoiceController::class, 'option']);
+    Route::post('/transfer-result', [TwilioVoiceController::class, 'transferResult']);
+});
 
 Route::prefix('mobile')->group(function () {
     Route::post('/broadcasting/auth', [BroadcastController::class, 'authenticate'])->middleware('mobile.api');

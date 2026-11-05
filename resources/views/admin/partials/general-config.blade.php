@@ -3,6 +3,8 @@
     $isManager = $currentUser && $currentUser->isManager();
 @endphp
 
+@include('admin.partials.ivr-settings')
+
 @if($isManager)
     <form action="{{ route('admin.contact-info.update') }}" method="POST" class="space-y-4">
         @csrf

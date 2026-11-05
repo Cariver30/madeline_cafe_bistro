@@ -219,6 +219,7 @@ Route::middleware(['auth', 'role:admin,manager'])->group(function () {
     Route::patch('/admin/popups/{popup}/toggle-visibility', [AdminController::class, 'toggleVisibility'])->name('admin.popups.toggleVisibility');
 
     Route::post('/admin/contact-info', [AdminController::class, 'updateContactInfo'])->name('admin.contact-info.update');
+    Route::post('/admin/ivr-settings', [AdminController::class, 'updateIvrSettings'])->name('admin.ivr-settings.update');
 
     Route::post('/admin/loyalty/settings', [LoyaltyAdminController::class, 'updateSettings'])->name('admin.loyalty.settings');
     Route::post('/admin/loyalty/rewards', [LoyaltyAdminController::class, 'storeReward'])->name('admin.loyalty.rewards.store');

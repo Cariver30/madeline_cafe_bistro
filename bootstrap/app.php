@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
             'mobile.api' => \App\Http\Middleware\MobileTokenAuth::class,
+            'twilio.signature' => \App\Http\Middleware\ValidateTwilioSignature::class,
         ]);
 
         $middleware->web(append: [
